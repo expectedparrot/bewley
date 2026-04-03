@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.conftest import BewleyProject
+from conftest import BewleyProject
 
 
 class TestEventAppendOnly:

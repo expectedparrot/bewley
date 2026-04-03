@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.conftest import BewleyProject
+from conftest import BewleyProject
 
 
 class TestDocumentAdd:

@@ -1,7 +1,7 @@
 """Tests for annotation apply, remove, show, and resolve."""
 from __future__ import annotations
 
-from tests.conftest import BewleyProject
+from conftest import BewleyProject
 
 
 class TestDocumentAnnotation:

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-from tests.conftest import BewleyProject
+from conftest import BewleyProject
 
 
 class TestExportSnippets:

@@ -1,7 +1,7 @@
 """Tests for history, undo, fsck, and rebuild-index."""
 from __future__ import annotations
 
-from tests.conftest import BewleyProject
+from conftest import BewleyProject
 
 
 class TestHistory:

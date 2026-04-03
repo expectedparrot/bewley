@@ -1,7 +1,7 @@
 """Tests for query and show snippets commands."""
 from __future__ import annotations
 
-from tests.conftest import BewleyProject
+from conftest import BewleyProject
 
 
 def _setup_coded_project(project: BewleyProject) -> None:

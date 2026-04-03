@@ -1,7 +1,7 @@
 """Tests for code create, list, rename, alias, merge, and split."""
 from __future__ import annotations
 
-from tests.conftest import BewleyProject
+from conftest import BewleyProject
 
 
 class TestCodeCreate:
