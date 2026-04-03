@@ -832,7 +832,7 @@ class Project:
         text = data.decode("utf-8")
         digest = self.store_revision_object(data)
         document_id = uuid.uuid4().hex
-        revision_id = digest
+        revision_id = uuid.uuid4().hex
         return self.append_event(
             "document_added",
             {
@@ -861,12 +861,13 @@ class Project:
             return None
         text = data.decode("utf-8")
         self.store_revision_object(data)
+        new_revision_id = uuid.uuid4().hex
         event = self.append_event(
             "document_updated",
             {
                 "document_id": doc["document_id"],
                 "current_path": doc["current_path"],
-                "revision_id": digest,
+                "revision_id": new_revision_id,
                 "content_sha256": digest,
                 "byte_length": len(data),
                 "line_count": count_lines(text),
@@ -874,12 +875,22 @@ class Project:
                 "parent_revision_id": revision["revision_id"],
             },
         )
-        self.relocate_annotations(doc["document_id"], revision["revision_id"], digest)
+        self.relocate_annotations(doc["document_id"], revision["revision_id"], new_revision_id)
         return event
 
+    def revision_content(self, conn: sqlite3.Connection, revision_id: str) -> bytes:
+        row = conn.execute(
+            "SELECT content_sha256 FROM document_revisions WHERE revision_id = ?",
+            (revision_id,),
+        ).fetchone()
+        if row is None:
+            raise BewleyError(f"unknown revision: {revision_id}")
+        return (self.objects_dir / row["content_sha256"]).read_bytes()
+
     def relocate_annotations(self, document_id: str, old_revision_id: str, new_revision_id: str) -> None:
-        old_bytes = (self.objects_dir / old_revision_id).read_bytes()
-        new_bytes = (self.objects_dir / new_revision_id).read_bytes()
+        with self.connect() as conn:
+            old_bytes = self.revision_content(conn, old_revision_id)
+            new_bytes = self.revision_content(conn, new_revision_id)
         new_text = safe_decode(new_bytes)
         with self.connect() as conn:
             rows = conn.execute(
@@ -1084,7 +1095,7 @@ class Project:
             code = self.resolve_code(conn, code_ref)
             document = self.resolve_document(conn, document_ref)
             revision = self.current_revision(conn, document["document_id"])
-        content = (self.objects_dir / revision["revision_id"]).read_bytes()
+        content = (self.objects_dir / revision["content_sha256"]).read_bytes()
         text = safe_decode(content)
         payload: dict[str, Any] = {
             "annotation_id": uuid.uuid4().hex,
@@ -1136,7 +1147,7 @@ class Project:
                 raise BewleyError(f"unknown annotation id: {annotation_id}")
             doc = conn.execute("SELECT * FROM documents WHERE document_id = ?", (row["document_id"],)).fetchone()
             revision = self.current_revision(conn, row["document_id"])
-        content = (self.objects_dir / revision["revision_id"]).read_bytes()
+        content = (self.objects_dir / revision["content_sha256"]).read_bytes()
         text = safe_decode(content)
         start, end = byte_range
         if start < 0 or end <= start or end > len(content):
@@ -2670,7 +2681,7 @@ def current_text_by_document(project: Project, rows: list[sqlite3.Row]) -> dict[
             if row["document_id"] in texts:
                 continue
             revision = project.current_revision(conn, row["document_id"])
-            content = (project.objects_dir / revision["revision_id"]).read_bytes()
+            content = (project.objects_dir / revision["content_sha256"]).read_bytes()
             texts[row["document_id"]] = safe_decode(content)
     return texts
 
@@ -2812,7 +2823,7 @@ def document_viewer_payload(project: Project, document_ref: str) -> dict[str, An
             """,
             (doc["document_id"],),
         ).fetchall()
-    content = (project.objects_dir / revision["revision_id"]).read_bytes()
+    content = (project.objects_dir / revision["content_sha256"]).read_bytes()
     text = safe_decode(content)
     span_annotations = []
     document_annotations = []
@@ -3070,7 +3081,7 @@ def main(argv: list[str] | None = None) -> int:
                     with project.connect() as conn:
                         doc = project.resolve_document(conn, args.document_ref)
                         rev = project.current_revision(conn, doc["document_id"])
-                    content = (project.objects_dir / rev["revision_id"]).read_bytes().decode("utf-8")
+                    content = (project.objects_dir / rev["content_sha256"]).read_bytes().decode("utf-8")
                     byte_range = lines_to_byte_range(content, *parse_byte_range(args.lines))
                     event = project.add_annotation(args.code_ref, args.document_ref, "span", byte_range, args.memo)
                 print(event["payload"]["annotation_id"])

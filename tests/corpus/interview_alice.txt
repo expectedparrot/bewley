@@ -1,0 +1,30 @@
+Interviewer: Can you tell me about your experience with the platform?
+
+Alice: Sure. I've been using it for about two years now. At first I was
+really skeptical because I'd had bad experiences with similar tools before.
+But after the first month I started to trust it more.
+
+Interviewer: What changed your mind?
+
+Alice: Honestly, it was the transparency. I could see exactly what was
+happening with my data. That built a lot of trust over time. Even when
+things went wrong — like the outage last March — they were upfront about
+it. That meant a lot to me.
+
+Interviewer: Were there any friction points?
+
+Alice: Oh definitely. The onboarding was rough. The documentation was
+scattered and I had to figure out a lot on my own. I ended up developing
+my own workarounds for things that should have been straightforward.
+
+Interviewer: Can you give me a specific example?
+
+Alice: Yeah, the export feature. It was supposed to handle CSV but it kept
+mangling Unicode characters. So I wrote a little script to clean up the
+output every time. It worked, but it shouldn't have been necessary.
+
+Interviewer: How do you feel about it now overall?
+
+Alice: I trust it. I really do. But I think they could do better on the
+onboarding side. The core product is solid once you get past that initial
+learning curve.

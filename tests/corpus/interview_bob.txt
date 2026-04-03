@@ -1,0 +1,40 @@
+Interviewer: Thanks for joining us today, Bob. How long have you been
+using the platform?
+
+Bob: About six months. I came in through a colleague's recommendation.
+
+Interviewer: What was your first impression?
+
+Bob: Mixed. The interface looked clean but I couldn't find basic settings.
+I spent the first week just trying to configure notifications. That was
+frustrating.
+
+Interviewer: Did you consider switching to something else?
+
+Bob: I did, actually. There was a competitor product that seemed simpler.
+But my colleague convinced me to stick with it, saying the advanced
+features were worth the learning curve.
+
+Interviewer: And was that true?
+
+Bob: Partially. The analytics dashboard is genuinely excellent. I use it
+every day and it's saved me hours of manual reporting. But the integration
+with our existing tools was painful. We had to build custom middleware
+just to get the API to play nicely with our stack.
+
+Interviewer: How would you describe the support experience?
+
+Bob: Support was hit or miss. When I had a billing issue they resolved it
+in hours. But technical questions would sit in the queue for days. I ended
+up relying on community forums more than official support.
+
+Interviewer: Any other workarounds you've developed?
+
+Bob: A few. We have a shared wiki page of tips and tricks that my team
+maintains. Things like "always export in JSON, never CSV" and "restart
+the sync agent every Monday." It works but it's not ideal.
+
+Interviewer: Would you recommend it to others?
+
+Bob: With caveats, yes. It's powerful but it's not plug and play. You need
+someone technical on your team to get the most out of it.
