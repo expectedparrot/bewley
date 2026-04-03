@@ -11,9 +11,4 @@ venv/
 *.sqlite
 *.db
 .tmpdemo/
-examples/upwork/Transcripts/
-examples/upwork/Transcripts-*.zip
-examples/upwork/corpus/
-examples/upwork/exports/
-examples/.bewley/
-examples/upwork/.bewley/
+examples/
