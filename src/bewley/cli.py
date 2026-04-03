@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import uuid
@@ -384,8 +385,40 @@ class Project:
                 CREATE INDEX IF NOT EXISTS idx_annotations_anchor_status ON annotations (anchor_status);
                 CREATE INDEX IF NOT EXISTS idx_aliases_code_id ON code_aliases (code_id);
                 CREATE INDEX IF NOT EXISTS idx_revisions_document_current ON document_revisions (document_id, is_current);
+                CREATE TABLE IF NOT EXISTS memos (
+                  memo_id TEXT PRIMARY KEY,
+                  target_type TEXT NOT NULL,
+                  target_id TEXT,
+                  title TEXT,
+                  content_sha256 TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL,
+                  is_active INTEGER NOT NULL DEFAULT 1
+                );
+                CREATE INDEX IF NOT EXISTS idx_memos_target ON memos (target_type, target_id);
+                CREATE TABLE IF NOT EXISTS code_links (
+                  link_id TEXT PRIMARY KEY,
+                  source_code_id TEXT NOT NULL,
+                  target_code_id TEXT NOT NULL,
+                  relationship TEXT NOT NULL,
+                  memo TEXT,
+                  created_at TEXT NOT NULL,
+                  is_active INTEGER NOT NULL DEFAULT 1
+                );
+                CREATE INDEX IF NOT EXISTS idx_code_links_source ON code_links (source_code_id);
+                CREATE INDEX IF NOT EXISTS idx_code_links_target ON code_links (target_code_id);
+                CREATE TABLE IF NOT EXISTS project_settings (
+                  key TEXT PRIMARY KEY,
+                  value TEXT NOT NULL,
+                  updated_at TEXT NOT NULL
+                );
                 """
             )
+            # Migration: add parent_code_id column to codes if missing.
+            try:
+                conn.execute("ALTER TABLE codes ADD COLUMN parent_code_id TEXT")
+            except sqlite3.OperationalError:
+                pass
 
     def init_project(self) -> None:
         if self.meta.exists():
@@ -394,6 +427,7 @@ class Project:
             "corpus",
             ".bewley/events",
             ".bewley/objects/documents",
+            ".bewley/objects/memos",
             ".bewley/refs/codes",
             ".bewley/refs/documents",
             ".bewley/index",
@@ -519,7 +553,8 @@ class Project:
               description TEXT,
               color TEXT,
               status TEXT NOT NULL,
-              created_at TEXT NOT NULL
+              created_at TEXT NOT NULL,
+              parent_code_id TEXT
             );
             CREATE TABLE code_aliases (
               alias_name TEXT PRIMARY KEY,
@@ -559,6 +594,33 @@ class Project:
             CREATE INDEX idx_annotations_anchor_status ON annotations (anchor_status);
             CREATE INDEX idx_aliases_code_id ON code_aliases (code_id);
             CREATE INDEX idx_revisions_document_current ON document_revisions (document_id, is_current);
+            CREATE TABLE memos (
+              memo_id TEXT PRIMARY KEY,
+              target_type TEXT NOT NULL,
+              target_id TEXT,
+              title TEXT,
+              content_sha256 TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              is_active INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX idx_memos_target ON memos (target_type, target_id);
+            CREATE TABLE code_links (
+              link_id TEXT PRIMARY KEY,
+              source_code_id TEXT NOT NULL,
+              target_code_id TEXT NOT NULL,
+              relationship TEXT NOT NULL,
+              memo TEXT,
+              created_at TEXT NOT NULL,
+              is_active INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX idx_code_links_source ON code_links (source_code_id);
+            CREATE INDEX idx_code_links_target ON code_links (target_code_id);
+            CREATE TABLE project_settings (
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
             """
         )
 
@@ -655,6 +717,10 @@ class Project:
         if etype == "code_merged":
             for source_code_id in payload["source_code_ids"]:
                 conn.execute("UPDATE codes SET status = 'merged' WHERE code_id = ?", (source_code_id,))
+                conn.execute(
+                    "UPDATE codes SET parent_code_id = ? WHERE parent_code_id = ?",
+                    (payload["target_code_id"], source_code_id),
+                )
             return
         if etype == "code_split":
             conn.execute(
@@ -740,6 +806,50 @@ class Project:
                 (payload.get("memo"), payload["annotation_id"]),
             )
             return
+        if etype == "memo_created":
+            conn.execute(
+                """
+                INSERT INTO memos (memo_id, target_type, target_id, title, content_sha256, created_at, updated_at, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                """,
+                (payload["memo_id"], payload["target_type"], payload.get("target_id"), payload.get("title"),
+                 payload["content_sha256"], event["timestamp"], event["timestamp"]),
+            )
+            return
+        if etype == "memo_updated":
+            conn.execute(
+                "UPDATE memos SET content_sha256 = ?, updated_at = ? WHERE memo_id = ?",
+                (payload["content_sha256"], event["timestamp"], payload["memo_id"]),
+            )
+            return
+        if etype == "memo_deleted":
+            conn.execute("UPDATE memos SET is_active = 0, updated_at = ? WHERE memo_id = ?", (event["timestamp"], payload["memo_id"]))
+            return
+        if etype == "code_parent_set":
+            conn.execute(
+                "UPDATE codes SET parent_code_id = ? WHERE code_id = ?",
+                (payload["parent_code_id"], payload["code_id"]),
+            )
+            return
+        if etype == "code_link_created":
+            conn.execute(
+                """
+                INSERT INTO code_links (link_id, source_code_id, target_code_id, relationship, memo, created_at, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+                """,
+                (payload["link_id"], payload["source_code_id"], payload["target_code_id"],
+                 payload["relationship"], payload.get("memo"), event["timestamp"]),
+            )
+            return
+        if etype == "code_link_removed":
+            conn.execute("UPDATE code_links SET is_active = 0 WHERE link_id = ?", (payload["link_id"],))
+            return
+        if etype == "core_category_set":
+            conn.execute(
+                "INSERT OR REPLACE INTO project_settings (key, value, updated_at) VALUES ('core_category_code_id', ?, ?)",
+                (payload["code_id"], event["timestamp"]),
+            )
+            return
         if etype == "undo_recorded":
             self.apply_undo(conn, payload, event)
             return
@@ -758,6 +868,40 @@ class Project:
                 "UPDATE annotations SET is_active = 0, superseded_by_event_id = ? WHERE annotation_id = ?",
                 (event["event_id"], original["annotation_id"]),
             )
+            return
+        if undone_type == "memo_created":
+            conn.execute("UPDATE memos SET is_active = 0 WHERE memo_id = ?", (original["memo_id"],))
+            return
+        if undone_type == "memo_updated":
+            conn.execute(
+                "UPDATE memos SET content_sha256 = ? WHERE memo_id = ?",
+                (original["old_content_sha256"], original["memo_id"]),
+            )
+            return
+        if undone_type == "memo_deleted":
+            conn.execute("UPDATE memos SET is_active = 1 WHERE memo_id = ?", (original["memo_id"],))
+            return
+        if undone_type == "code_parent_set":
+            conn.execute(
+                "UPDATE codes SET parent_code_id = ? WHERE code_id = ?",
+                (original.get("old_parent_code_id"), original["code_id"]),
+            )
+            return
+        if undone_type == "code_link_created":
+            conn.execute("UPDATE code_links SET is_active = 0 WHERE link_id = ?", (original["link_id"],))
+            return
+        if undone_type == "code_link_removed":
+            conn.execute("UPDATE code_links SET is_active = 1 WHERE link_id = ?", (original["link_id"],))
+            return
+        if undone_type == "core_category_set":
+            old = original.get("old_code_id")
+            if old:
+                conn.execute(
+                    "INSERT OR REPLACE INTO project_settings (key, value, updated_at) VALUES ('core_category_code_id', ?, ?)",
+                    (old, event["timestamp"]),
+                )
+            else:
+                conn.execute("DELETE FROM project_settings WHERE key = 'core_category_code_id'")
             return
         raise BewleyError(f"unsupported undo event type in projection: {undone_type}")
 
@@ -812,6 +956,35 @@ class Project:
         if not target.exists():
             target.write_bytes(data)
         return digest
+
+    def store_memo_object(self, content: str) -> str:
+        data = content.encode("utf-8")
+        digest = sha256_bytes(data)
+        memo_dir = self.root / PROJECT_DIR / "objects" / "memos"
+        memo_dir.mkdir(parents=True, exist_ok=True)
+        target = memo_dir / digest
+        if not target.exists():
+            atomic_write_text(target, content)
+        return digest
+
+    def read_memo_content(self, content_sha256: str) -> str:
+        memo_path = self.root / PROJECT_DIR / "objects" / "memos" / content_sha256
+        if not memo_path.exists():
+            raise BewleyError(f"missing memo object: {content_sha256}")
+        return memo_path.read_text(encoding="utf-8")
+
+    @staticmethod
+    def _open_editor(initial_content: str = "") -> str:
+        editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as tmp:
+            tmp.write(initial_content)
+            tmp_path = tmp.name
+        try:
+            subprocess.run([editor, tmp_path], check=True)
+            return Path(tmp_path).read_text(encoding="utf-8")
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(tmp_path)
 
     def add_document(self, path_arg: str) -> dict[str, Any]:
         path = (self.root / path_arg).resolve() if not Path(path_arg).is_absolute() else Path(path_arg)
@@ -1220,8 +1393,13 @@ class Project:
                 problems.append(f"duplicate sequence number: {seq}")
             seen_sequences.add(seq)
             payload = event["payload"]
-            if "content_sha256" in payload and not (self.objects_dir / payload["content_sha256"]).exists():
-                problems.append(f"missing revision object: {payload['content_sha256']}")
+            if "content_sha256" in payload:
+                if event["event_type"] in {"memo_created", "memo_updated"}:
+                    obj_path = self.root / PROJECT_DIR / "objects" / "memos" / payload["content_sha256"]
+                else:
+                    obj_path = self.objects_dir / payload["content_sha256"]
+                if not obj_path.exists():
+                    problems.append(f"missing object: {payload['content_sha256']}")
         temp_db = self.db_path.with_suffix(".fsck.sqlite")
         with contextlib.suppress(FileNotFoundError):
             temp_db.unlink()
@@ -1232,7 +1410,7 @@ class Project:
             self.apply_event(conn, event)
         conn.commit()
         with self.connect() as actual:
-            for table in ["documents", "document_revisions", "codes", "code_aliases", "annotations", "events"]:
+            for table in ["documents", "document_revisions", "codes", "code_aliases", "annotations", "events", "memos", "code_links", "project_settings"]:
                 actual_count = actual.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 rebuilt_count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 if actual_count != rebuilt_count:
@@ -1275,7 +1453,12 @@ class Project:
                 break
         if target is None:
             raise BewleyError(f"unknown event id: {event_id}")
-        if target["event_type"] not in {"code_renamed", "annotation_added"}:
+        if target["event_type"] not in {
+            "code_renamed", "annotation_added",
+            "memo_created", "memo_updated", "memo_deleted",
+            "code_parent_set", "code_link_created", "code_link_removed",
+            "core_category_set",
+        }:
             raise BewleyError(f"undo not supported for event type: {target['event_type']}")
         return self.append_event(
             "undo_recorded",
@@ -1285,6 +1468,316 @@ class Project:
                 "original_payload": target["payload"],
             },
         )
+
+    # ── Memos ────────────────────────────────────────────────────────────
+
+    def resolve_memo(self, conn: sqlite3.Connection, memo_id: str) -> sqlite3.Row:
+        row = conn.execute("SELECT * FROM memos WHERE memo_id = ? AND is_active = 1", (memo_id,)).fetchone()
+        if row is None:
+            raise BewleyError(f"unknown or deleted memo: {memo_id}")
+        return row
+
+    def list_memos(self, conn: sqlite3.Connection, *, target_type: str | None = None, target_id: str | None = None) -> list[sqlite3.Row]:
+        query = "SELECT * FROM memos WHERE is_active = 1"
+        params: list[Any] = []
+        if target_type is not None:
+            query += " AND target_type = ?"
+            params.append(target_type)
+        if target_id is not None:
+            query += " AND target_id = ?"
+            params.append(target_id)
+        query += " ORDER BY created_at"
+        return conn.execute(query, params).fetchall()
+
+    def create_memo(self, target_type: str, target_ref: str | None, content: str, title: str | None = None) -> dict[str, Any]:
+        target_id: str | None = None
+        if target_type == "code":
+            with self.connect() as conn:
+                target_id = self.resolve_code(conn, target_ref)["code_id"]
+        elif target_type == "document":
+            with self.connect() as conn:
+                target_id = self.resolve_document(conn, target_ref)["document_id"]
+        content_sha256 = self.store_memo_object(content)
+        return self.append_event(
+            "memo_created",
+            {
+                "memo_id": uuid.uuid4().hex,
+                "target_type": target_type,
+                "target_id": target_id,
+                "title": title,
+                "content_sha256": content_sha256,
+            },
+        )
+
+    def update_memo(self, memo_id: str, content: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            memo = self.resolve_memo(conn, memo_id)
+        old_sha = memo["content_sha256"]
+        new_sha = self.store_memo_object(content)
+        if old_sha == new_sha:
+            raise BewleyError("memo content unchanged")
+        return self.append_event(
+            "memo_updated",
+            {"memo_id": memo_id, "content_sha256": new_sha, "old_content_sha256": old_sha},
+        )
+
+    def delete_memo(self, memo_id: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            self.resolve_memo(conn, memo_id)
+        return self.append_event("memo_deleted", {"memo_id": memo_id})
+
+    # ── Code hierarchies ─────────────────────────────────────────────────
+
+    def _would_create_cycle(self, conn: sqlite3.Connection, code_id: str, proposed_parent_id: str) -> bool:
+        visited: set[str] = set()
+        current: str | None = proposed_parent_id
+        while current is not None:
+            if current == code_id:
+                return True
+            if current in visited:
+                return True
+            visited.add(current)
+            row = conn.execute("SELECT parent_code_id FROM codes WHERE code_id = ?", (current,)).fetchone()
+            current = row["parent_code_id"] if row else None
+        return False
+
+    def set_code_parent(self, code_ref: str, parent_ref: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            code = self.resolve_code(conn, code_ref)
+            parent = self.resolve_code(conn, parent_ref)
+            if code["code_id"] == parent["code_id"]:
+                raise BewleyError("a code cannot be its own parent")
+            if parent["status"] == "merged":
+                raise BewleyError("cannot set parent to a merged code")
+            if self._would_create_cycle(conn, code["code_id"], parent["code_id"]):
+                raise BewleyError("setting this parent would create a cycle")
+            old_parent = code["parent_code_id"]
+        return self.append_event(
+            "code_parent_set",
+            {"code_id": code["code_id"], "parent_code_id": parent["code_id"], "old_parent_code_id": old_parent},
+        )
+
+    def clear_code_parent(self, code_ref: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            code = self.resolve_code(conn, code_ref)
+            old_parent = code["parent_code_id"]
+        if old_parent is None:
+            raise BewleyError("code has no parent")
+        return self.append_event(
+            "code_parent_set",
+            {"code_id": code["code_id"], "parent_code_id": None, "old_parent_code_id": old_parent},
+        )
+
+    # ── Code links ───────────────────────────────────────────────────────
+
+    def create_code_link(self, source_ref: str, target_ref: str, relationship: str, memo: str | None = None) -> dict[str, Any]:
+        with self.connect() as conn:
+            source = self.resolve_code(conn, source_ref)
+            target = self.resolve_code(conn, target_ref)
+            existing = conn.execute(
+                """
+                SELECT link_id FROM code_links
+                WHERE source_code_id = ? AND target_code_id = ? AND relationship = ? AND is_active = 1
+                """,
+                (source["code_id"], target["code_id"], relationship),
+            ).fetchone()
+            if existing:
+                raise BewleyError(f"duplicate link: {source['canonical_name']} --{relationship}--> {target['canonical_name']}")
+        return self.append_event(
+            "code_link_created",
+            {
+                "link_id": uuid.uuid4().hex,
+                "source_code_id": source["code_id"],
+                "target_code_id": target["code_id"],
+                "relationship": relationship,
+                "memo": memo,
+            },
+        )
+
+    def remove_code_link(self, link_id: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            row = conn.execute("SELECT * FROM code_links WHERE link_id = ? AND is_active = 1", (link_id,)).fetchone()
+            if row is None:
+                raise BewleyError(f"unknown or removed link: {link_id}")
+        return self.append_event(
+            "code_link_removed",
+            {
+                "link_id": link_id,
+                "source_code_id": row["source_code_id"],
+                "target_code_id": row["target_code_id"],
+                "relationship": row["relationship"],
+            },
+        )
+
+    def list_code_links(self, conn: sqlite3.Connection, code_ref: str | None = None) -> list[sqlite3.Row]:
+        if code_ref is None:
+            return conn.execute("SELECT * FROM code_links WHERE is_active = 1 ORDER BY created_at").fetchall()
+        code = self.resolve_code(conn, code_ref)
+        return conn.execute(
+            "SELECT * FROM code_links WHERE (source_code_id = ? OR target_code_id = ?) AND is_active = 1 ORDER BY created_at",
+            (code["code_id"], code["code_id"]),
+        ).fetchall()
+
+    # ── Core category ────────────────────────────────────────────────────
+
+    def set_core_category(self, code_ref: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            code = self.resolve_code(conn, code_ref)
+            if code["status"] == "merged":
+                raise BewleyError("cannot set a merged code as core category")
+            old_row = conn.execute("SELECT value FROM project_settings WHERE key = 'core_category_code_id'").fetchone()
+            old_code_id = old_row["value"] if old_row else None
+        return self.append_event(
+            "core_category_set",
+            {"code_id": code["code_id"], "old_code_id": old_code_id},
+        )
+
+    def get_core_category(self, conn: sqlite3.Connection) -> sqlite3.Row | None:
+        row = conn.execute("SELECT value FROM project_settings WHERE key = 'core_category_code_id'").fetchone()
+        if row is None:
+            return None
+        return conn.execute("SELECT * FROM codes WHERE code_id = ?", (row["value"],)).fetchone()
+
+    # ── Theory export ────────────────────────────────────────────────────
+
+    def export_theory_json(self) -> dict[str, Any]:
+        with self.connect() as conn:
+            core = self.get_core_category(conn)
+            codes = conn.execute("SELECT * FROM codes WHERE status = 'active' ORDER BY canonical_name").fetchall()
+            links = conn.execute("SELECT * FROM code_links WHERE is_active = 1 ORDER BY created_at").fetchall()
+            memos = conn.execute("SELECT * FROM memos WHERE is_active = 1 ORDER BY created_at").fetchall()
+            result: dict[str, Any] = {
+                "core_category": {"code_id": core["code_id"], "name": core["canonical_name"]} if core else None,
+                "codes": [],
+                "hierarchy": [],
+                "links": [],
+                "memos": [],
+            }
+            for c in codes:
+                ann_count = conn.execute(
+                    "SELECT COUNT(*) FROM annotations WHERE code_id = ? AND is_active = 1", (c["code_id"],)
+                ).fetchone()[0]
+                result["codes"].append({
+                    "code_id": c["code_id"],
+                    "name": c["canonical_name"],
+                    "description": c["description"],
+                    "parent_code_id": c["parent_code_id"],
+                    "annotation_count": ann_count,
+                })
+                if c["parent_code_id"]:
+                    result["hierarchy"].append({"parent": c["parent_code_id"], "child": c["code_id"]})
+            for link in links:
+                result["links"].append({
+                    "link_id": link["link_id"],
+                    "source_code_id": link["source_code_id"],
+                    "target_code_id": link["target_code_id"],
+                    "relationship": link["relationship"],
+                    "memo": link["memo"],
+                })
+            for m in memos:
+                result["memos"].append({
+                    "memo_id": m["memo_id"],
+                    "target_type": m["target_type"],
+                    "target_id": m["target_id"],
+                    "title": m["title"],
+                    "content_sha256": m["content_sha256"],
+                })
+        return result
+
+    def export_theory_mermaid(self) -> str:
+        data = self.export_theory_json()
+        lines = ["graph TD"]
+        code_map = {c["code_id"]: c for c in data["codes"]}
+        def _node_id(code_id: str) -> str:
+            name = code_map[code_id]["name"] if code_id in code_map else code_id[:8]
+            return name.replace("-", "_").replace(" ", "_")
+        if data["core_category"]:
+            lines.append("    classDef core fill:#f9f,stroke:#333,stroke-width:3px")
+        for c in data["codes"]:
+            nid = _node_id(c["code_id"])
+            label = f'{c["name"]} ({c["annotation_count"]})'
+            lines.append(f'    {nid}["{label}"]')
+            if data["core_category"] and c["code_id"] == data["core_category"]["code_id"]:
+                lines.append(f"    {nid}:::core")
+        for h in data["hierarchy"]:
+            lines.append(f"    {_node_id(h['parent'])} --> {_node_id(h['child'])}")
+        for link in data["links"]:
+            src = _node_id(link["source_code_id"])
+            tgt = _node_id(link["target_code_id"])
+            rel = link["relationship"]
+            lines.append(f'    {src} -->|"{rel}"| {tgt}')
+        return "\n".join(lines) + "\n"
+
+    def export_narrative(self) -> str:
+        data = self.export_theory_json()
+        code_map = {c["code_id"]: c for c in data["codes"]}
+        lines: list[str] = []
+        core_name = data["core_category"]["name"] if data["core_category"] else "Unset"
+        lines.append(f"# Theory: {core_name}")
+        lines.append("")
+        # Core category section
+        lines.append("## Core Category")
+        if data["core_category"]:
+            cc = code_map.get(data["core_category"]["code_id"])
+            if cc:
+                desc = cc.get("description") or ""
+                lines.append(f"**{cc['name']}**: {desc}".strip())
+        else:
+            lines.append("No core category set.")
+        lines.append("")
+        # Project memos
+        project_memos = [m for m in data["memos"] if m["target_type"] == "project"]
+        if project_memos:
+            lines.append("### Project Memos")
+            for m in project_memos:
+                title = m.get("title") or m["memo_id"][:8]
+                try:
+                    content = self.read_memo_content(m["content_sha256"])
+                    lines.append(f"- **{title}**: {content.strip()}")
+                except BewleyError:
+                    lines.append(f"- **{title}**: (content unavailable)")
+            lines.append("")
+        # Categories
+        lines.append("## Categories")
+        lines.append("")
+        for c in data["codes"]:
+            parent_note = ""
+            if c["parent_code_id"] and c["parent_code_id"] in code_map:
+                parent_note = f" (child of {code_map[c['parent_code_id']]['name']})"
+            lines.append(f"### {c['name']}{parent_note} — {c['annotation_count']} annotations")
+            if c.get("description"):
+                lines.append(c["description"])
+            # Code memos
+            code_memos = [m for m in data["memos"] if m["target_type"] == "code" and m["target_id"] == c["code_id"]]
+            for m in code_memos:
+                title = m.get("title") or "Memo"
+                try:
+                    content = self.read_memo_content(m["content_sha256"])
+                    lines.append(f"- *{title}*: {content.strip()}")
+                except BewleyError:
+                    lines.append(f"- *{title}*: (content unavailable)")
+            # Relationships
+            code_links = [lk for lk in data["links"] if lk["source_code_id"] == c["code_id"] or lk["target_code_id"] == c["code_id"]]
+            for lk in code_links:
+                if lk["source_code_id"] == c["code_id"]:
+                    other = code_map.get(lk["target_code_id"], {}).get("name", lk["target_code_id"][:8])
+                    lines.append(f"- --{lk['relationship']}--> {other}")
+                else:
+                    other = code_map.get(lk["source_code_id"], {}).get("name", lk["source_code_id"][:8])
+                    lines.append(f"- <--{lk['relationship']}-- {other}")
+            lines.append("")
+        # Summary
+        with self.connect() as conn:
+            doc_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+            active_codes = conn.execute("SELECT COUNT(*) FROM codes WHERE status = 'active'").fetchone()[0]
+            active_anns = conn.execute("SELECT COUNT(*) FROM annotations WHERE is_active = 1").fetchone()[0]
+        lines.append("## Data Summary")
+        lines.append(f"- Documents: {doc_count}")
+        lines.append(f"- Active codes: {active_codes}")
+        lines.append(f"- Active annotations: {active_anns}")
+        lines.append(f"- Core category: {core_name}")
+        lines.append("")
+        return "\n".join(lines)
 
 
 def parse_byte_range(spec: str) -> tuple[int, int]:
@@ -2458,7 +2951,8 @@ def build_parser() -> argparse.ArgumentParser:
     code_create.add_argument("name")
     code_create.add_argument("--description")
     code_create.add_argument("--color")
-    code_sub.add_parser("list")
+    code_list_p = code_sub.add_parser("list")
+    code_list_p.add_argument("--tree", action="store_true", help="show hierarchy as tree")
     code_show = code_sub.add_parser("show")
     code_show.add_argument("code_ref")
     code_rename = code_sub.add_parser("rename")
@@ -2476,6 +2970,26 @@ def build_parser() -> argparse.ArgumentParser:
     code_split.add_argument("--annotation", action="append", default=[])
     code_split.add_argument("--description")
     code_split.add_argument("--color")
+
+    code_set_parent = code_sub.add_parser("set-parent")
+    code_set_parent.add_argument("code_ref")
+    code_set_parent.add_argument("parent_ref")
+    code_clear_parent = code_sub.add_parser("clear-parent")
+    code_clear_parent.add_argument("code_ref")
+
+    code_link = code_sub.add_parser("link")
+    code_link.add_argument("source")
+    code_link.add_argument("target")
+    code_link.add_argument("relationship")
+    code_link.add_argument("--memo")
+    code_links_p = code_sub.add_parser("links")
+    code_links_p.add_argument("code_ref", nargs="?")
+    code_unlink = code_sub.add_parser("unlink")
+    code_unlink.add_argument("link_id")
+
+    code_set_core = code_sub.add_parser("set-core")
+    code_set_core.add_argument("code_ref")
+    code_sub.add_parser("show-core")
 
     annotate = sub.add_parser("annotate")
     annotate_sub = annotate.add_subparsers(dest="annotate_cmd", required=True)
@@ -2519,6 +3033,11 @@ def build_parser() -> argparse.ArgumentParser:
     export_document_html.add_argument("document_ref")
     export_document_html.add_argument("--output", default="bewley-document.html")
     export_document_html.add_argument("--title")
+    export_theory = export_sub.add_parser("theory")
+    export_theory.add_argument("--format", choices=["json", "mermaid"], default="mermaid")
+    export_theory.add_argument("--output")
+    export_narrative = export_sub.add_parser("narrative")
+    export_narrative.add_argument("--output")
 
     history = sub.add_parser("history")
     history.add_argument("--document")
@@ -2527,6 +3046,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     undo = sub.add_parser("undo")
     undo.add_argument("event_id")
+
+    memo = sub.add_parser("memo")
+    memo_sub = memo.add_subparsers(dest="memo_cmd", required=True)
+    memo_add = memo_sub.add_parser("add")
+    memo_target = memo_add.add_mutually_exclusive_group()
+    memo_target.add_argument("--code")
+    memo_target.add_argument("--document")
+    memo_add.add_argument("--title")
+    memo_add.add_argument("content", nargs="?")
+    memo_list = memo_sub.add_parser("list")
+    memo_list_target = memo_list.add_mutually_exclusive_group()
+    memo_list_target.add_argument("--code")
+    memo_list_target.add_argument("--document")
+    memo_show = memo_sub.add_parser("show")
+    memo_show.add_argument("memo_id")
+    memo_edit = memo_sub.add_parser("edit")
+    memo_edit.add_argument("memo_id")
+    memo_delete = memo_sub.add_parser("delete")
+    memo_delete.add_argument("memo_id")
 
     return parser
 
@@ -2599,10 +3137,22 @@ def cmd_show_document(project: Project, ref: str) -> int:
     return 0
 
 
-def cmd_code_list(project: Project) -> int:
+def cmd_code_list(project: Project, *, tree: bool = False) -> int:
     with project.connect() as conn:
-        rows = conn.execute("SELECT * FROM codes ORDER BY canonical_name").fetchall()
-    print_table([(row["code_id"], row["canonical_name"], row["status"]) for row in rows])
+        rows = conn.execute("SELECT * FROM codes WHERE status = 'active' ORDER BY canonical_name").fetchall()
+    if not tree:
+        print_table([(row["code_id"], row["canonical_name"], row["status"]) for row in rows])
+        return 0
+    # Tree display
+    by_parent: dict[str | None, list[sqlite3.Row]] = {}
+    for row in rows:
+        by_parent.setdefault(row["parent_code_id"], []).append(row)
+
+    def _print_tree(parent_id: str | None, indent: int) -> None:
+        for child in by_parent.get(parent_id, []):
+            print(f"{'  ' * indent}{child['canonical_name']}")
+            _print_tree(child["code_id"], indent + 1)
+    _print_tree(None, 0)
     return 0
 
 
@@ -2611,11 +3161,85 @@ def cmd_code_show(project: Project, ref: str) -> int:
         code = project.resolve_code(conn, ref)
         aliases = conn.execute("SELECT alias_name FROM code_aliases WHERE code_id = ? ORDER BY alias_name", (code["code_id"],)).fetchall()
         count = conn.execute("SELECT COUNT(*) FROM annotations WHERE code_id = ? AND is_active = 1", (code["code_id"],)).fetchone()[0]
+        parent_name = None
+        if code["parent_code_id"]:
+            parent_row = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (code["parent_code_id"],)).fetchone()
+            parent_name = parent_row["canonical_name"] if parent_row else code["parent_code_id"]
+        children = conn.execute(
+            "SELECT canonical_name FROM codes WHERE parent_code_id = ? AND status = 'active' ORDER BY canonical_name",
+            (code["code_id"],),
+        ).fetchall()
+        links = conn.execute(
+            "SELECT * FROM code_links WHERE (source_code_id = ? OR target_code_id = ?) AND is_active = 1",
+            (code["code_id"], code["code_id"]),
+        ).fetchall()
     print(f"code_id\t{code['code_id']}")
     print(f"name\t{code['canonical_name']}")
     print(f"status\t{code['status']}")
     print(f"active_annotations\t{count}")
     print(f"aliases\t{', '.join(row['alias_name'] for row in aliases)}")
+    if parent_name:
+        print(f"parent\t{parent_name}")
+    if children:
+        print(f"children\t{', '.join(row['canonical_name'] for row in children)}")
+    if links:
+        print("links")
+        for lk in links:
+            with project.connect() as conn:
+                src = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["source_code_id"],)).fetchone()
+                tgt = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["target_code_id"],)).fetchone()
+            src_name = src["canonical_name"] if src else lk["source_code_id"][:8]
+            tgt_name = tgt["canonical_name"] if tgt else lk["target_code_id"][:8]
+            print(f"  {lk['link_id'][:8]}\t{src_name} --{lk['relationship']}--> {tgt_name}")
+    return 0
+
+
+def cmd_code_links(project: Project, code_ref: str | None = None) -> int:
+    with project.connect() as conn:
+        links = project.list_code_links(conn, code_ref)
+        if not links:
+            print("no links")
+            return 0
+        for lk in links:
+            src = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["source_code_id"],)).fetchone()
+            tgt = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["target_code_id"],)).fetchone()
+            src_name = src["canonical_name"] if src else lk["source_code_id"][:8]
+            tgt_name = tgt["canonical_name"] if tgt else lk["target_code_id"][:8]
+            memo_part = f"  ({lk['memo']})" if lk["memo"] else ""
+            print(f"{lk['link_id']}\t{src_name} --{lk['relationship']}--> {tgt_name}{memo_part}")
+    return 0
+
+
+def cmd_memo_list(project: Project, *, target_type: str | None = None, target_ref: str | None = None) -> int:
+    target_id: str | None = None
+    with project.connect() as conn:
+        if target_type == "code" and target_ref:
+            target_id = project.resolve_code(conn, target_ref)["code_id"]
+        elif target_type == "document" and target_ref:
+            target_id = project.resolve_document(conn, target_ref)["document_id"]
+        rows = project.list_memos(conn, target_type=target_type, target_id=target_id)
+    if not rows:
+        print("no memos")
+        return 0
+    for row in rows:
+        title = row["title"] or ""
+        print(f"{row['memo_id']}\t{row['target_type']}\t{title}\t{row['created_at']}")
+    return 0
+
+
+def cmd_memo_show(project: Project, memo_id: str) -> int:
+    with project.connect() as conn:
+        memo = project.resolve_memo(conn, memo_id)
+    content = project.read_memo_content(memo["content_sha256"])
+    print(f"memo_id\t{memo['memo_id']}")
+    print(f"target_type\t{memo['target_type']}")
+    print(f"target_id\t{memo['target_id'] or '(project)'}")
+    if memo["title"]:
+        print(f"title\t{memo['title']}")
+    print(f"created_at\t{memo['created_at']}")
+    print(f"updated_at\t{memo['updated_at']}")
+    print("---")
+    print(content)
     return 0
 
 
@@ -3052,7 +3676,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(event["payload"]["code_id"])
                 return 0
             if args.code_cmd == "list":
-                return cmd_code_list(project)
+                return cmd_code_list(project, tree=args.tree)
             if args.code_cmd == "show":
                 return cmd_code_show(project, args.code_ref)
             if args.code_cmd == "rename":
@@ -3070,6 +3694,36 @@ def main(argv: list[str] | None = None) -> int:
             if args.code_cmd == "split":
                 event = project.split_code(args.source, args.new, args.annotation, args.description, args.color)
                 print(event["payload"]["new_code_id"])
+                return 0
+            if args.code_cmd == "set-parent":
+                event = project.set_code_parent(args.code_ref, args.parent_ref)
+                print(event["event_id"])
+                return 0
+            if args.code_cmd == "clear-parent":
+                event = project.clear_code_parent(args.code_ref)
+                print(event["event_id"])
+                return 0
+            if args.code_cmd == "link":
+                event = project.create_code_link(args.source, args.target, args.relationship, args.memo)
+                print(event["payload"]["link_id"])
+                return 0
+            if args.code_cmd == "links":
+                return cmd_code_links(project, args.code_ref)
+            if args.code_cmd == "unlink":
+                event = project.remove_code_link(args.link_id)
+                print(event["event_id"])
+                return 0
+            if args.code_cmd == "set-core":
+                event = project.set_core_category(args.code_ref)
+                print(event["event_id"])
+                return 0
+            if args.code_cmd == "show-core":
+                with project.connect() as conn:
+                    core = project.get_core_category(conn)
+                if core:
+                    print(f"{core['code_id']}\t{core['canonical_name']}")
+                else:
+                    print("no core category set")
                 return 0
         if args.command == "annotate":
             if args.annotate_cmd == "apply":
@@ -3106,6 +3760,66 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_export_html(project, args.output, args.title)
         if args.command == "export" and args.export_what == "document-html":
             return cmd_export_document_html(project, args.document_ref, args.output, args.title)
+        if args.command == "export" and args.export_what == "theory":
+            if args.format == "json":
+                text = json.dumps(project.export_theory_json(), indent=2, ensure_ascii=False)
+            else:
+                text = project.export_theory_mermaid()
+            if args.output:
+                Path(args.output).write_text(text, encoding="utf-8")
+                print(f"wrote {args.output}")
+            else:
+                print(text)
+            return 0
+        if args.command == "export" and args.export_what == "narrative":
+            text = project.export_narrative()
+            if args.output:
+                Path(args.output).write_text(text, encoding="utf-8")
+                print(f"wrote {args.output}")
+            else:
+                print(text)
+            return 0
+        if args.command == "memo":
+            if args.memo_cmd == "add":
+                if args.code:
+                    target_type, target_ref = "code", args.code
+                elif args.document:
+                    target_type, target_ref = "document", args.document
+                else:
+                    target_type, target_ref = "project", None
+                content = args.content
+                if content is None:
+                    content = project._open_editor()
+                    if not content.strip():
+                        print("aborted: empty memo")
+                        return 1
+                event = project.create_memo(target_type, target_ref, content, args.title)
+                print(event["payload"]["memo_id"])
+                return 0
+            if args.memo_cmd == "list":
+                if args.code:
+                    return cmd_memo_list(project, target_type="code", target_ref=args.code)
+                elif args.document:
+                    return cmd_memo_list(project, target_type="document", target_ref=args.document)
+                else:
+                    return cmd_memo_list(project)
+            if args.memo_cmd == "show":
+                return cmd_memo_show(project, args.memo_id)
+            if args.memo_cmd == "edit":
+                with project.connect() as conn:
+                    memo = project.resolve_memo(conn, args.memo_id)
+                old_content = project.read_memo_content(memo["content_sha256"])
+                new_content = project._open_editor(old_content)
+                if not new_content.strip():
+                    print("aborted: empty memo")
+                    return 1
+                event = project.update_memo(args.memo_id, new_content)
+                print(event["event_id"])
+                return 0
+            if args.memo_cmd == "delete":
+                event = project.delete_memo(args.memo_id)
+                print(event["event_id"])
+                return 0
         if args.command == "history":
             return cmd_history(project, args.document, args.code, args.annotation)
         if args.command == "undo":
