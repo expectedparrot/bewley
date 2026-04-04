@@ -1914,303 +1914,264 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
   <title>{safe_title}</title>
   <style>
     :root {{
-      --bg: #f4efe5;
-      --panel: rgba(255, 250, 242, 0.82);
-      --panel-strong: rgba(255, 248, 237, 0.96);
-      --ink: #1f1b18;
-      --muted: #6f645c;
-      --accent: #b74d2c;
-      --accent-soft: rgba(183, 77, 44, 0.12);
-      --border: rgba(64, 48, 37, 0.14);
-      --shadow: 0 18px 60px rgba(61, 42, 24, 0.12);
-      --radius: 22px;
-      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      --sans: "Avenir Next", "Segoe UI", sans-serif;
+      --ep-green: #428a5f;
+      --ep-green-light: #5ba97a;
+      --ep-green-soft: rgba(66, 138, 95, 0.10);
+      --ep-dark: #1a1a1a;
+      --ep-gray: #666666;
+      --ep-light-gray: #f5f5f5;
+      --ep-border: #e0e0e0;
+      --font-serif: Georgia, 'Times New Roman', serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
     }}
-    * {{
-      box-sizing: border-box;
-    }}
-    html, body {{
-      margin: 0;
-      min-height: 100%;
-      background:
-        radial-gradient(circle at top left, rgba(255, 209, 102, 0.22), transparent 32%),
-        radial-gradient(circle at top right, rgba(183, 77, 44, 0.16), transparent 34%),
-        linear-gradient(180deg, #f7f0e7 0%, var(--bg) 100%);
-      color: var(--ink);
-      font-family: var(--sans);
-    }}
+    * {{ box-sizing: border-box; }}
+    html {{ font-size: 16px; -webkit-font-smoothing: antialiased; }}
     body {{
-      padding: 32px 18px 48px;
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      color: var(--ep-dark);
+      background: #fff;
+      margin: 0;
+      padding: 1rem 1.5rem 2rem;
     }}
     .shell {{
-      max-width: 1280px;
+      max-width: 1200px;
       margin: 0 auto;
-      display: grid;
-      gap: 18px;
     }}
-    .hero, .controls, .summary, .sidebar, .main {{
-      backdrop-filter: blur(18px);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      border-radius: var(--radius);
+    header {{
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 3px solid var(--ep-green);
+      padding-bottom: 0.4rem;
+      margin-bottom: 1rem;
     }}
-    .hero {{
-      overflow: hidden;
-      position: relative;
-      padding: 28px;
-    }}
-    .hero::after {{
-      content: "";
-      position: absolute;
-      inset: auto -10% -35% 35%;
-      height: 220px;
-      background: linear-gradient(90deg, rgba(183, 77, 44, 0), rgba(183, 77, 44, 0.28));
-      transform: rotate(-8deg);
-      pointer-events: none;
-    }}
-    .eyebrow {{
-      margin: 0 0 10px;
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      font-size: 12px;
-      font-weight: 700;
-    }}
-    h1 {{
+    header h1 {{
       margin: 0;
-      font-size: clamp(2rem, 5vw, 4.2rem);
-      line-height: 0.95;
-      max-width: 11ch;
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--ep-dark);
     }}
-    .hero p {{
-      margin: 16px 0 0;
-      max-width: 64ch;
-      color: var(--muted);
-      font-size: 1rem;
-      line-height: 1.5;
+    header .brand {{
+      font-family: var(--font-serif);
+      color: var(--ep-green);
+      font-size: 0.9rem;
     }}
     .summary {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 12px;
-      padding: 14px;
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--ep-gray);
     }}
-    .stat {{
-      background: var(--panel-strong);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 14px;
-    }}
-    .stat-label {{
-      margin: 0;
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }}
-    .stat-value {{
-      margin: 10px 0 0;
-      font-size: 1.8rem;
+    .summary .stat-value {{
       font-weight: 700;
+      color: var(--ep-dark);
     }}
     .controls {{
-      display: grid;
-      gap: 14px;
-      padding: 16px;
-    }}
-    .toolbar {{
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 0.5rem;
       align-items: center;
-      justify-content: space-between;
+      margin-bottom: 1rem;
     }}
     .search {{
-      flex: 1 1 280px;
-      min-width: 220px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--panel-strong);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0 14px;
-    }}
-    .search input {{
-      width: 100%;
-      border: 0;
-      background: transparent;
-      color: var(--ink);
-      padding: 12px 0;
+      flex: 1 1 200px;
+      min-width: 180px;
+      border: 1px solid var(--ep-border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 0.85rem;
       outline: none;
-      font: inherit;
     }}
-    .toggle-row {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
+    .search:focus {{
+      border-color: var(--ep-green);
     }}
-    button, .scope-pill {{
-      border: 1px solid var(--border);
-      background: var(--panel-strong);
-      color: var(--ink);
-      border-radius: 999px;
-      padding: 9px 14px;
+    .controls button {{
+      border: 1px solid var(--ep-border);
+      background: #fff;
+      color: var(--ep-dark);
+      border-radius: 4px;
+      padding: 6px 12px;
       font: inherit;
+      font-size: 0.8rem;
       cursor: pointer;
-      transition: 160ms ease;
     }}
-    button:hover {{
-      transform: translateY(-1px);
-      border-color: rgba(64, 48, 37, 0.26);
+    .controls button:hover {{
+      background: var(--ep-light-gray);
     }}
-    button.is-active {{
-      background: var(--accent);
+    .controls button.is-active {{
+      background: var(--ep-green);
       color: white;
-      border-color: transparent;
+      border-color: var(--ep-green);
     }}
     .layout {{
       display: grid;
-      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-      gap: 18px;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 1rem;
       align-items: start;
     }}
-    .sidebar, .main {{
-      padding: 16px;
-    }}
     .sidebar h2, .main h2 {{
-      margin: 0 0 14px;
+      font-family: var(--font-serif);
       font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      color: var(--ep-green);
+      margin: 0 0 0.5rem;
+      border-bottom: 1px solid var(--ep-border);
+      padding-bottom: 0.2rem;
     }}
     .code-list {{
       display: grid;
-      gap: 10px;
-      max-height: 72vh;
+      gap: 4px;
+      max-height: 80vh;
       overflow: auto;
-      padding-right: 4px;
     }}
     .code-card {{
-      border: 1px solid var(--border);
-      background: var(--panel-strong);
-      border-radius: 18px;
-      padding: 14px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 6px 8px;
       cursor: pointer;
-      transition: 180ms ease;
+      font-size: 0.85rem;
+      line-height: 1.3;
     }}
     .code-card:hover {{
-      transform: translateY(-1px);
-      box-shadow: 0 10px 28px rgba(61, 42, 24, 0.1);
+      background: var(--ep-light-gray);
     }}
     .code-card.is-selected {{
-      border-color: transparent;
-      box-shadow: inset 0 0 0 2px var(--accent);
+      background: var(--ep-green-soft);
+      border-color: var(--ep-green);
     }}
     .code-top {{
       display: flex;
-      gap: 10px;
+      gap: 6px;
       align-items: center;
     }}
     .swatch {{
-      width: 14px;
-      height: 14px;
-      border-radius: 999px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
       flex: 0 0 auto;
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
     }}
     .code-name {{
-      font-weight: 700;
-      line-height: 1.2;
+      font-weight: 600;
       word-break: break-word;
     }}
     .code-meta {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }}
-    .code-description {{
-      margin: 10px 0 0;
-      color: var(--muted);
-      font-size: 0.95rem;
-      line-height: 1.45;
+      color: var(--ep-gray);
+      font-size: 0.78rem;
+      margin-top: 2px;
+      padding-left: 16px;
     }}
     .snippet-list {{
       display: grid;
-      gap: 12px;
+      gap: 8px;
     }}
     .snippet {{
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 16px;
-      background: var(--panel-strong);
+      border: 1px solid var(--ep-border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: #fff;
     }}
     .snippet-head {{
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 6px;
     }}
     .snippet-title {{
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
-      font-weight: 700;
     }}
     .chip {{
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      border-radius: 999px;
-      background: var(--accent-soft);
-      padding: 5px 10px;
-      color: var(--accent);
-      font-size: 0.84rem;
+      gap: 4px;
+      border-radius: 3px;
+      background: var(--ep-green-soft);
+      padding: 2px 8px;
+      color: var(--ep-green);
+      font-size: 0.78rem;
       font-weight: 700;
     }}
     .snippet-meta {{
-      color: var(--muted);
-      font-size: 0.9rem;
+      color: var(--ep-gray);
+      font-size: 0.78rem;
     }}
-    .snippet pre {{
-      margin: 14px 0 0;
-      padding: 14px;
-      border-radius: 16px;
-      background: #201914;
-      color: #fff7ee;
+    .context-scroll {{
+      max-height: 260px;
       overflow: auto;
+      margin-top: 6px;
+      border-radius: 4px;
+      border: 1px solid var(--ep-border);
+    }}
+    .context-scroll pre {{
+      margin: 0;
+      padding: 8px 10px;
+      background: var(--ep-light-gray);
+      color: var(--ep-dark);
       white-space: pre-wrap;
-      font-family: var(--mono);
-      font-size: 0.92rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
       line-height: 1.55;
     }}
-    .snippet p {{
-      margin: 14px 0 0;
-      color: var(--muted);
-      line-height: 1.5;
+    .context-scroll .hl {{
+      background: rgba(255, 220, 50, 0.45);
+      display: inline;
+    }}
+    .recenter {{
+      display: none;
+      position: sticky;
+      bottom: 4px;
+      float: right;
+      margin: -24px 4px 0 0;
+      border: 1px solid var(--ep-border);
+      background: #fff;
+      color: var(--ep-gray);
+      border-radius: 3px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      z-index: 1;
+      opacity: 0.85;
+    }}
+    .recenter:hover {{
+      background: var(--ep-light-gray);
+      opacity: 1;
+    }}
+    .context-scroll.scrolled-away .recenter {{
+      display: block;
+    }}
+    .context-scroll .ctx {{
+      color: var(--ep-gray);
+      display: inline;
+    }}
+    .snippet .memo {{
+      margin: 6px 0 0;
+      font-size: 0.85rem;
+      color: var(--ep-gray);
+      font-style: italic;
+      line-height: 1.4;
     }}
     .empty {{
-      border: 1px dashed var(--border);
-      border-radius: 18px;
-      padding: 24px;
-      color: var(--muted);
+      border: 1px dashed var(--ep-border);
+      border-radius: 6px;
+      padding: 1.5rem;
+      color: var(--ep-gray);
       text-align: center;
-      background: rgba(255, 255, 255, 0.36);
     }}
     .footer {{
-      color: var(--muted);
-      font-size: 0.9rem;
+      color: var(--ep-gray);
+      font-size: 0.78rem;
       text-align: right;
+      margin-top: 1rem;
     }}
-    @media (max-width: 900px) {{
+    @media (max-width: 768px) {{
       .layout {{
         grid-template-columns: 1fr;
       }}
@@ -2222,26 +2183,18 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
 </head>
 <body>
   <div class="shell">
-    <section class="hero">
-      <p class="eyebrow">Bewley Code Explorer</p>
+    <header>
       <h1>{safe_title}</h1>
-      <p>Browse the active codebook, inspect snippet density, filter by document and scope, and search directly across coded text without leaving the project.</p>
-    </section>
-    <section class="summary" id="summary"></section>
-    <section class="controls">
-      <div class="toolbar">
-        <label class="search" aria-label="Search snippets and code names">
-          <span>Search</span>
-          <input id="search" type="search" placeholder="code, memo, document, or snippet text">
-        </label>
-        <div class="toggle-row">
-          <button class="is-active" data-scope="all" type="button">All scopes</button>
-          <button data-scope="span" type="button">Span only</button>
-          <button data-scope="document" type="button">Document only</button>
-          <button id="clear-filters" type="button">Clear filters</button>
-        </div>
-      </div>
-    </section>
+      <span class="brand">E[&#x1f99c;] Expected Parrot</span>
+    </header>
+    <div class="summary" id="summary"></div>
+    <div class="controls">
+      <input id="search" class="search" type="search" placeholder="Search codes, documents, snippet text&hellip;">
+      <button class="is-active" data-scope="all" type="button">All</button>
+      <button data-scope="span" type="button">Span</button>
+      <button data-scope="document" type="button">Document</button>
+      <button id="clear-filters" type="button">Clear</button>
+    </div>
     <div class="layout">
       <aside class="sidebar">
         <h2>Codes</h2>
@@ -2256,11 +2209,8 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
   </div>
   <script>
     const data = {data_json};
-    const state = {{
-      selectedCode: null,
-      scope: "all",
-      search: "",
-    }};
+    const docTexts = data.document_texts || {{}};
+    const state = {{ selectedCode: null, scope: "all", search: "" }};
 
     const codeListEl = document.getElementById("code-list");
     const snippetListEl = document.getElementById("snippet-list");
@@ -2269,105 +2219,89 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
     const searchEl = document.getElementById("search");
     const scopeButtons = Array.from(document.querySelectorAll("[data-scope]"));
 
-    function fmtCount(value, singular, plural) {{
-      return `${{value}} ${{value === 1 ? singular : plural}}`;
-    }}
-
-    function escapeHtml(value) {{
-      return value
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
+    function escapeHtml(v) {{
+      return v.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
     }}
 
     function cardForCode(code) {{
-      const selected = state.selectedCode === code.code_id;
-      const aliases = code.aliases.length ? `Aliases: ${{code.aliases.join(", ")}}` : "No aliases";
-      return `
-        <article class="code-card ${{selected ? "is-selected" : ""}}" data-code-id="${{code.code_id}}">
-          <div class="code-top">
-            <span class="swatch" style="background:${{code.display_color}}"></span>
-            <div class="code-name">${{escapeHtml(code.name)}}</div>
-          </div>
-          <div class="code-meta">
-            <span>${{fmtCount(code.annotation_count, "annotation", "annotations")}}</span>
-            <span>${{fmtCount(code.document_count, "document", "documents")}}</span>
-            <span>${{escapeHtml(code.status)}}</span>
-          </div>
-          <p class="code-description">${{escapeHtml(code.description || aliases)}}</p>
-        </article>
-      `;
+      const sel = state.selectedCode === code.code_id;
+      return `<div class="code-card ${{sel ? "is-selected" : ""}}" data-code-id="${{code.code_id}}">
+        <div class="code-top">
+          <span class="swatch" style="background:${{code.display_color}}"></span>
+          <span class="code-name">${{escapeHtml(code.name)}}</span>
+        </div>
+        <div class="code-meta">${{code.annotation_count}} annot · ${{code.document_count}} doc${{code.document_count !== 1 ? "s" : ""}}</div>
+      </div>`;
+    }}
+
+    function buildContextHtml(snippet) {{
+      if (snippet.scope_type === "document") {{
+        return `<pre>&lt;document-level annotation&gt;</pre>`;
+      }}
+      const lines = docTexts[snippet.document_path];
+      if (!lines) {{
+        return `<pre>${{escapeHtml(snippet.exact_text || "")}}</pre>`;
+      }}
+      const start = snippet.start_line;
+      const end = snippet.end_line;
+      const ctxBefore = Math.max(0, start - 1 - 10);
+      const ctxAfter = Math.min(lines.length, end + 10);
+      let parts = [];
+      for (let i = ctxBefore; i < ctxAfter; i++) {{
+        const lineNum = i + 1;
+        const escaped = escapeHtml(lines[i]);
+        if (lineNum >= start && lineNum <= end) {{
+          parts.push(`<span class="hl">${{escaped}}</span>`);
+        }} else {{
+          parts.push(`<span class="ctx">${{escaped}}</span>`);
+        }}
+      }}
+      return `<pre>${{parts.join("\\n")}}</pre>`;
     }}
 
     function snippetCard(snippet) {{
       const range = snippet.scope_type === "document"
         ? "Whole document"
-        : `Lines ${{snippet.start_line}}-${{snippet.end_line}}`;
-      const text = snippet.scope_type === "document"
-        ? "<document-level annotation>"
-        : escapeHtml(snippet.exact_text || "");
-      const memo = snippet.memo ? `<p>${{escapeHtml(snippet.memo)}}</p>` : "";
-      return `
-        <article class="snippet">
-          <div class="snippet-head">
-            <div class="snippet-title">
-              <span class="chip">
-                <span class="swatch" style="background:${{snippet.code_color}}"></span>
-                ${{escapeHtml(snippet.code_name)}}
-              </span>
-              <span class="scope-pill">${{escapeHtml(snippet.scope_type)}}</span>
-            </div>
-            <div class="snippet-meta">${{escapeHtml(snippet.document_path)}} · ${{escapeHtml(range)}} · ${{escapeHtml(snippet.anchor_status)}}</div>
+        : `Lines ${{snippet.start_line}}\u2013${{snippet.end_line}}`;
+      const memo = snippet.memo ? `<div class="memo">${{escapeHtml(snippet.memo)}}</div>` : "";
+      const contextHtml = buildContextHtml(snippet);
+      return `<article class="snippet">
+        <div class="snippet-head">
+          <div class="snippet-title">
+            <span class="chip"><span class="swatch" style="background:${{snippet.code_color}}"></span>${{escapeHtml(snippet.code_name)}}</span>
           </div>
-          <pre>${{text}}</pre>
-          ${{memo}}
-        </article>
-      `;
+          <div class="snippet-meta">${{escapeHtml(snippet.document_path)}} &middot; ${{escapeHtml(range)}}</div>
+        </div>
+        <div class="context-scroll">${{contextHtml}}<button class="recenter" type="button">&uarr; Back to highlight</button></div>
+        ${{memo}}
+      </article>`;
     }}
 
-    function matchesSnippet(snippet) {{
-      if (state.selectedCode && snippet.code_id !== state.selectedCode) {{
-        return false;
-      }}
-      if (state.scope !== "all" && snippet.scope_type !== state.scope) {{
-        return false;
-      }}
-      if (!state.search) {{
-        return true;
-      }}
-      const haystack = [
-        snippet.code_name,
-        snippet.document_path,
-        snippet.memo || "",
-        snippet.exact_text || "",
-        snippet.anchor_status,
-      ].join("\\n").toLowerCase();
-      return haystack.includes(state.search);
+    function matchesSnippet(s) {{
+      if (state.selectedCode && s.code_id !== state.selectedCode) return false;
+      if (state.scope !== "all" && s.scope_type !== state.scope) return false;
+      if (!state.search) return true;
+      return [s.code_name, s.document_path, s.memo||"", s.exact_text||""].join("\\n").toLowerCase().includes(state.search);
     }}
 
     function renderSummary(snippets) {{
-      const activeCodes = state.selectedCode ? 1 : data.codes.length;
-      const docs = new Set(snippets.map((snippet) => snippet.document_path));
-      const conflicted = snippets.filter((snippet) => snippet.anchor_status === "conflicted").length;
+      const codes = state.selectedCode ? 1 : data.codes.length;
+      const docs = new Set(snippets.map(s => s.document_path)).size;
+      const conflicted = snippets.filter(s => s.anchor_status === "conflicted").length;
       summaryEl.innerHTML = [
-        ["Visible codes", activeCodes],
-        ["Visible snippets", snippets.length],
-        ["Visible documents", docs.size],
-        ["Conflicted anchors", conflicted],
-      ].map(([label, value]) => `
-        <div class="stat">
-          <p class="stat-label">${{label}}</p>
-          <p class="stat-value">${{value}}</p>
-        </div>
-      `).join("");
+        `<span><span class="stat-value">${{codes}}</span> codes</span>`,
+        `<span><span class="stat-value">${{snippets.length}}</span> snippets</span>`,
+        `<span><span class="stat-value">${{docs}}</span> documents</span>`,
+        conflicted ? `<span><span class="stat-value">${{conflicted}}</span> conflicted</span>` : "",
+      ].filter(Boolean).join("");
     }}
 
     function renderCodes() {{
       codeListEl.innerHTML = data.codes.map(cardForCode).join("");
-      for (const node of codeListEl.querySelectorAll(".code-card")) {{
-        node.addEventListener("click", () => {{
-          const codeId = node.getAttribute("data-code-id");
-          state.selectedCode = state.selectedCode === codeId ? null : codeId;
+      for (const n of codeListEl.querySelectorAll(".code-card")) {{
+        n.addEventListener("click", () => {{
+          const id = n.getAttribute("data-code-id");
+          state.selectedCode = state.selectedCode === id ? null : id;
           render();
         }});
       }}
@@ -2375,43 +2309,48 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
 
     function renderSnippets() {{
       const filtered = data.snippets.filter(matchesSnippet);
-      if (!filtered.length) {{
-        snippetListEl.innerHTML = `<div class="empty">No coded snippets match the current filters.</div>`;
-      }} else {{
-        snippetListEl.innerHTML = filtered.map(snippetCard).join("");
-      }}
+      snippetListEl.innerHTML = filtered.length
+        ? filtered.map(snippetCard).join("")
+        : `<div class="empty">No snippets match the current filters.</div>`;
       renderSummary(filtered);
-      footerEl.textContent = `Generated from ${{data.project_root}} on ${{data.generated_at}}`;
+      // Auto-scroll highlighted text into view and wire up recenter buttons
+      for (const el of snippetListEl.querySelectorAll(".context-scroll")) {{
+        const hl = el.querySelector(".hl");
+        if (!hl) continue;
+        const scrollToHl = () => {{
+          const top = hl.offsetTop - el.offsetTop - el.clientHeight / 3;
+          el.scrollTop = Math.max(0, top);
+          el.classList.remove("scrolled-away");
+        }};
+        scrollToHl();
+        el.addEventListener("scroll", () => {{
+          const hlTop = hl.offsetTop - el.offsetTop;
+          const visible = hlTop >= el.scrollTop && hlTop < el.scrollTop + el.clientHeight;
+          el.classList.toggle("scrolled-away", !visible);
+        }});
+        const btn = el.querySelector(".recenter");
+        if (btn) btn.addEventListener("click", scrollToHl);
+      }}
+      footerEl.textContent = `Generated ${{data.generated_at}}`;
     }}
 
     function render() {{
-      scopeButtons.forEach((button) => {{
-        button.classList.toggle("is-active", button.dataset.scope === state.scope);
-      }});
+      scopeButtons.forEach(b => b.classList.toggle("is-active", b.dataset.scope === state.scope));
       renderCodes();
       renderSnippets();
     }}
 
-    searchEl.addEventListener("input", (event) => {{
-      state.search = event.target.value.trim().toLowerCase();
+    searchEl.addEventListener("input", e => {{
+      state.search = e.target.value.trim().toLowerCase();
       renderSnippets();
     }});
-
-    for (const button of scopeButtons) {{
-      button.addEventListener("click", () => {{
-        state.scope = button.dataset.scope;
-        render();
-      }});
+    for (const b of scopeButtons) {{
+      b.addEventListener("click", () => {{ state.scope = b.dataset.scope; render(); }});
     }}
-
     document.getElementById("clear-filters").addEventListener("click", () => {{
-      state.selectedCode = null;
-      state.scope = "all";
-      state.search = "";
-      searchEl.value = "";
+      state.selectedCode = null; state.scope = "all"; state.search = ""; searchEl.value = "";
       render();
     }});
-
     render();
   </script>
 </body>
@@ -4164,6 +4103,17 @@ def code_explorer_payload(project: Project) -> dict[str, Any]:
             ORDER BY c.canonical_name, d.current_path, COALESCE(a.start_line, 0), a.annotation_id
             """
         ).fetchall()
+        # Collect document texts for in-context snippet rendering
+        doc_paths_needed = {row["current_path"] for row in annotations if row["scope_type"] == "span"}
+        doc_texts: dict[str, list[str]] = {}
+        for dpath in doc_paths_needed:
+            doc_row = conn.execute(
+                "SELECT document_id FROM documents WHERE current_path = ?", (dpath,)
+            ).fetchone()
+            if doc_row:
+                rev = project.current_revision(conn, doc_row["document_id"])
+                content = (project.objects_dir / rev["content_sha256"]).read_bytes()
+                doc_texts[dpath] = safe_decode(content).splitlines()
     aliases_by_code: dict[str, list[str]] = {}
     for row in alias_rows:
         aliases_by_code.setdefault(row["code_id"], []).append(row["alias_name"])
@@ -4204,6 +4154,7 @@ def code_explorer_payload(project: Project) -> dict[str, Any]:
         "document_count": len({item["document_path"] for item in snippet_items}),
         "codes": code_items,
         "snippets": snippet_items,
+        "document_texts": doc_texts,
     }
 
 
@@ -4371,7 +4322,7 @@ def cmd_export_quotes(project: Project, code_ref: str | None, query_expr: str | 
 def cmd_export_html(project: Project, output_path: str, title: str | None) -> dict:
     payload = code_explorer_payload(project)
     document_count = payload["document_count"]
-    resolved_title = title or f"Bewley Explorer · {project.root.name} · {payload['code_count']} codes / {document_count} docs"
+    resolved_title = title or f"Qualitative coding explorer · {project.root.name} · {payload['code_count']} codes / {document_count} docs"
     target = Path(output_path)
     if not target.is_absolute():
         target = project.root / target
