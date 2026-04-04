@@ -15,13 +15,7 @@ Bewley is designed for researchers who want a rigorous, inspectable audit trail 
 
 ## Installation
 
-Requires Python 3.12+.
-
-```bash
-pip install bewley
-```
-
-Or install from source:
+Install from source:
 
 ```bash
 git clone https://github.com/expectedparrot/bewley.git
