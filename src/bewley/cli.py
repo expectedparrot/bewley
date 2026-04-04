@@ -2920,151 +2920,810 @@ def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="bewley")
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser = argparse.ArgumentParser(
+        prog="bewley",
+        description=(
+            "Bewley — a local-first CLI for qualitative coding of interview data and UTF-8 text corpora.\n\n"
+            "Bewley manages a project stored in a .bewley/ directory (similar to .git/).\n"
+            "Every mutation is recorded as an append-only JSON event. The SQLite index\n"
+            "is a derived projection and can be rebuilt from events at any time.\n\n"
+            "Quick start:\n"
+            "  bewley init                         Create a new project in the current directory\n"
+            "  bewley add interview.txt             Add a document to the corpus\n"
+            "  bewley code create themes/trust      Create an analytic code\n"
+            "  bewley annotate apply trust doc1 --lines 10:20   Apply code to a text span\n"
+            "  bewley query 'trust & rapport'       Query annotations by boolean expression\n"
+            "  bewley export snippets --code trust --format text   Export coded snippets\n\n"
+            "Use 'bewley <command> --help' for detailed help on any command.\n"
+            "Use 'bewley <command> <subcommand> --help' for help on subcommands."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
 
-    sub.add_parser("init")
-    sub.add_parser("status")
-    sub.add_parser("fsck")
-    sub.add_parser("rebuild-index")
+    # --- Project management ---
 
-    add = sub.add_parser("add")
-    add.add_argument("path")
+    sub.add_parser(
+        "init",
+        help="Create a new bewley project in the current directory.",
+        description=(
+            "Initialize a new bewley project in the current working directory.\n\n"
+            "Creates the .bewley/ metadata directory with subdirectories for events,\n"
+            "objects, index, locks, and refs. Also creates an empty corpus/ directory\n"
+            "for user documents.\n\n"
+            "This command must be run once before any other bewley command.\n"
+            "It is safe to run in an already-initialized directory (it will error\n"
+            "if .bewley/ already exists).\n\n"
+            "Output: prints 'initialized' on success."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
-    update = sub.add_parser("update")
-    update.add_argument("path")
+    sub.add_parser(
+        "status",
+        help="Show project summary: document, revision, code, and annotation counts.",
+        description=(
+            "Display a tab-separated summary of the current project state.\n\n"
+            "Output columns (one per line, tab-separated key/value):\n"
+            "  documents                Number of logical documents\n"
+            "  revisions                Total document revisions across all documents\n"
+            "  codes                    Number of analytic codes\n"
+            "  active_annotations       Number of active (non-removed) annotations\n"
+            "  conflicted_annotations   Annotations with anchor_status='conflicted'\n\n"
+            "Exit code: 0 on success."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
-    list_parser = sub.add_parser("list")
-    list_sub = list_parser.add_subparsers(dest="list_what", required=True)
-    list_sub.add_parser("documents")
+    sub.add_parser(
+        "fsck",
+        help="Verify project integrity: events, objects, and index consistency.",
+        description=(
+            "Run integrity checks on the project.\n\n"
+            "Validates:\n"
+            "  - Event sequence numbering and hash chains\n"
+            "  - Content-addressed object integrity (SHA-256 verification)\n"
+            "  - Referential integrity between events and index\n\n"
+            "Output: prints 'ok' if no problems found.\n"
+            "On failure: prints each problem to stderr, exits with code 1."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
-    show = sub.add_parser("show")
-    show_sub = show.add_subparsers(dest="show_what", required=True)
-    show_doc = show_sub.add_parser("document")
-    show_doc.add_argument("document_ref")
-    show_snippets = show_sub.add_parser("snippets")
-    show_snippets.add_argument("--code", required=True)
+    sub.add_parser(
+        "rebuild-index",
+        help="Rebuild the SQLite index from the append-only event log.",
+        description=(
+            "Destroy and rebuild the SQLite index (bewley.sqlite) by replaying\n"
+            "all events from .bewley/events/.\n\n"
+            "This is safe because the event log is the source of truth, not SQLite.\n"
+            "Use this if the index becomes corrupted or after manual event edits.\n\n"
+            "Output: prints 'rebuilt' on success."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
-    code = sub.add_parser("code")
-    code_sub = code.add_subparsers(dest="code_cmd", required=True)
-    code_create = code_sub.add_parser("create")
-    code_create.add_argument("name")
-    code_create.add_argument("--description")
-    code_create.add_argument("--color")
-    code_list_p = code_sub.add_parser("list")
-    code_list_p.add_argument("--tree", action="store_true", help="show hierarchy as tree")
-    code_show = code_sub.add_parser("show")
-    code_show.add_argument("code_ref")
-    code_rename = code_sub.add_parser("rename")
-    code_rename.add_argument("old")
-    code_rename.add_argument("new")
-    code_alias = code_sub.add_parser("alias")
-    code_alias.add_argument("code_ref")
-    code_alias.add_argument("alias")
-    code_merge = code_sub.add_parser("merge")
-    code_merge.add_argument("sources", nargs="+")
-    code_merge.add_argument("--into", required=True)
-    code_split = code_sub.add_parser("split")
-    code_split.add_argument("source")
-    code_split.add_argument("--new", required=True)
-    code_split.add_argument("--annotation", action="append", default=[])
-    code_split.add_argument("--description")
-    code_split.add_argument("--color")
+    # --- Document management ---
 
-    code_set_parent = code_sub.add_parser("set-parent")
-    code_set_parent.add_argument("code_ref")
-    code_set_parent.add_argument("parent_ref")
-    code_clear_parent = code_sub.add_parser("clear-parent")
-    code_clear_parent.add_argument("code_ref")
+    add = sub.add_parser(
+        "add",
+        help="Add a UTF-8 text file to the corpus as a new document.",
+        description=(
+            "Add a new document to the project corpus.\n\n"
+            "The file must be valid UTF-8. It is copied into content-addressed\n"
+            "storage (.bewley/objects/documents/<sha256>) and a corresponding\n"
+            "entry is created in the corpus/ directory.\n\n"
+            "Output: prints the new document_id (a UUID).\n\n"
+            "Example:\n"
+            "  bewley add interviews/participant_01.txt"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    add.add_argument("path", help="Path to the UTF-8 text file to add.")
 
-    code_link = code_sub.add_parser("link")
-    code_link.add_argument("source")
-    code_link.add_argument("target")
-    code_link.add_argument("relationship")
-    code_link.add_argument("--memo")
-    code_links_p = code_sub.add_parser("links")
-    code_links_p.add_argument("code_ref", nargs="?")
-    code_unlink = code_sub.add_parser("unlink")
-    code_unlink.add_argument("link_id")
+    update = sub.add_parser(
+        "update",
+        help="Update an existing document with a new revision from the file on disk.",
+        description=(
+            "Create a new revision of an existing document.\n\n"
+            "The file at the given path must already be tracked by bewley (i.e.,\n"
+            "it was previously added with 'bewley add'). If the file content has\n"
+            "changed since the last revision, a new immutable revision is stored.\n"
+            "Existing span annotations are relocated to the new revision using\n"
+            "best-effort fuzzy matching.\n\n"
+            "Output: prints the new revision_id, or 'no-op' if content is unchanged.\n\n"
+            "Example:\n"
+            "  bewley update corpus/participant_01.txt"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    update.add_argument("path", help="Path to the updated UTF-8 text file (must already be tracked).")
 
-    code_set_core = code_sub.add_parser("set-core")
-    code_set_core.add_argument("code_ref")
-    code_sub.add_parser("show-core")
+    list_parser = sub.add_parser(
+        "list",
+        help="List project entities (documents, etc.).",
+        description="List entities in the project. Use a subcommand to specify what to list.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    list_sub = list_parser.add_subparsers(dest="list_what", required=True, metavar="ENTITY")
+    list_sub.add_parser(
+        "documents",
+        help="List all documents with their IDs, paths, and revision counts.",
+        description=(
+            "List all documents in the project.\n\n"
+            "Output: tab-separated table with columns:\n"
+            "  document_id    UUID identifying the logical document\n"
+            "  current_path   Relative path in the corpus/ directory\n"
+            "  revision_count Number of stored revisions"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
-    annotate = sub.add_parser("annotate")
-    annotate_sub = annotate.add_subparsers(dest="annotate_cmd", required=True)
-    ann_apply = annotate_sub.add_parser("apply")
-    ann_apply.add_argument("code_ref")
-    ann_apply.add_argument("document_ref")
+    show = sub.add_parser(
+        "show",
+        help="Show detailed information about a document or code snippets.",
+        description="Show detailed information. Use a subcommand to specify what to show.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    show_sub = show.add_subparsers(dest="show_what", required=True, metavar="ENTITY")
+
+    show_doc = show_sub.add_parser(
+        "document",
+        help="Show metadata, revisions, and annotations for a document.",
+        description=(
+            "Display detailed information about a single document.\n\n"
+            "Shows: document_id, current path, all revisions (with timestamps,\n"
+            "byte lengths, line counts), and all active annotations on the document.\n\n"
+            "The document_ref can be a document_id (UUID), a path, or a path prefix.\n\n"
+            "Example:\n"
+            "  bewley show document participant_01"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    show_doc.add_argument("document_ref", help="Document identifier: UUID, path, or path prefix.")
+
+    show_snippets = show_sub.add_parser(
+        "snippets",
+        help="Show text snippets for all annotations of a given code.",
+        description=(
+            "Display the actual text content of every annotation for a code.\n\n"
+            "For span annotations, shows the text within the byte range.\n"
+            "For document-level annotations, shows '(whole document)'.\n\n"
+            "Example:\n"
+            "  bewley show snippets --code trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    show_snippets.add_argument("--code", required=True, help="Code name, alias, or code_id to show snippets for.")
+
+    # --- Code management ---
+
+    code = sub.add_parser(
+        "code",
+        help="Create, list, show, rename, merge, split, and organize analytic codes.",
+        description=(
+            "Manage analytic codes (qualitative labels applied to text).\n\n"
+            "Codes are the primary analytic unit in qualitative coding. Each code\n"
+            "has a unique code_id, a canonical name, optional description and color,\n"
+            "and may have aliases, a parent (for hierarchy), and links to other codes.\n\n"
+            "Subcommands:\n"
+            "  create        Create a new code\n"
+            "  list          List all codes\n"
+            "  show          Show details of a single code\n"
+            "  rename        Rename a code\n"
+            "  alias         Add an alias to a code\n"
+            "  merge         Merge multiple codes into one\n"
+            "  split         Split annotations from one code into a new code\n"
+            "  set-parent    Set a code's parent in the hierarchy\n"
+            "  clear-parent  Remove a code from its parent\n"
+            "  link          Create a named relationship between two codes\n"
+            "  links         List code relationships\n"
+            "  unlink        Remove a code relationship\n"
+            "  set-core      Designate a code as the core category\n"
+            "  show-core     Show the current core category"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_sub = code.add_subparsers(dest="code_cmd", required=True, metavar="SUBCOMMAND")
+
+    code_create = code_sub.add_parser(
+        "create",
+        help="Create a new analytic code.",
+        description=(
+            "Create a new analytic code with a given name.\n\n"
+            "Code names may contain slashes for organizational grouping\n"
+            "(e.g., 'themes/trust', 'emotions/positive/joy').\n\n"
+            "Output: prints the new code_id (a UUID).\n\n"
+            "Examples:\n"
+            "  bewley code create trust\n"
+            "  bewley code create themes/rapport --description 'Mutual understanding'\n"
+            "  bewley code create urgent --color red"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_create.add_argument("name", help="Name for the new code (may include slashes for grouping).")
+    code_create.add_argument("--description", help="Free-text description of what this code represents.")
+    code_create.add_argument("--color", help="Display color (for HTML exports).")
+
+    code_list_p = code_sub.add_parser(
+        "list",
+        help="List all codes with their IDs, names, and annotation counts.",
+        description=(
+            "List all analytic codes in the project.\n\n"
+            "Output: tab-separated table with columns:\n"
+            "  code_id          UUID identifying the code\n"
+            "  canonical_name   Current name of the code\n"
+            "  annotation_count Number of active annotations using this code\n\n"
+            "With --tree: displays codes as an indented hierarchy based on\n"
+            "parent-child relationships set via 'code set-parent'."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_list_p.add_argument("--tree", action="store_true", help="Show codes as an indented parent-child hierarchy.")
+
+    code_show = code_sub.add_parser(
+        "show",
+        help="Show detailed info for a code: metadata, aliases, annotations.",
+        description=(
+            "Display detailed information about a single code.\n\n"
+            "Shows: code_id, canonical name, description, color, aliases,\n"
+            "parent code (if any), and all active annotations.\n\n"
+            "The code_ref can be a code_id (UUID), canonical name, or alias.\n\n"
+            "Example:\n"
+            "  bewley code show trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_show.add_argument("code_ref", help="Code identifier: UUID, canonical name, or alias.")
+
+    code_rename = code_sub.add_parser(
+        "rename",
+        help="Rename a code (all annotations follow automatically).",
+        description=(
+            "Change the canonical name of an existing code.\n\n"
+            "All annotations referencing this code remain valid. The old name\n"
+            "is not retained as an alias (use 'code alias' if you want that).\n\n"
+            "Output: prints the event_id.\n\n"
+            "Example:\n"
+            "  bewley code rename trust interpersonal_trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_rename.add_argument("old", help="Current name (or code_id) of the code to rename.")
+    code_rename.add_argument("new", help="New canonical name for the code.")
+
+    code_alias = code_sub.add_parser(
+        "alias",
+        help="Add an alternative name (alias) to a code.",
+        description=(
+            "Add an alias to an existing code. After aliasing, the code can\n"
+            "be referenced by either its canonical name or any alias.\n\n"
+            "Output: prints the event_id.\n\n"
+            "Example:\n"
+            "  bewley code alias trust rapport"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_alias.add_argument("code_ref", help="Code to add the alias to (name, alias, or UUID).")
+    code_alias.add_argument("alias", help="New alias name.")
+
+    code_merge = code_sub.add_parser(
+        "merge",
+        help="Merge one or more source codes into a target code.",
+        description=(
+            "Merge multiple source codes into a single target code.\n\n"
+            "All annotations from the source codes are reassigned to the target.\n"
+            "Source codes are deactivated after merging. This is useful when\n"
+            "codes turn out to represent the same concept.\n\n"
+            "Output: prints the event_id.\n\n"
+            "Example:\n"
+            "  bewley code merge trust_v1 trust_v2 --into trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_merge.add_argument("sources", nargs="+", help="One or more source codes to merge (names or UUIDs).")
+    code_merge.add_argument("--into", required=True, help="Target code that absorbs the source annotations.")
+
+    code_split = code_sub.add_parser(
+        "split",
+        help="Move selected annotations from one code to a new code.",
+        description=(
+            "Split a subset of annotations from an existing code into a new code.\n\n"
+            "You must specify which annotations to move using --annotation flags.\n"
+            "The source code retains all annotations not explicitly moved.\n\n"
+            "Output: prints the new code_id.\n\n"
+            "Example:\n"
+            "  bewley code split trust --new deep_trust --annotation ann1 --annotation ann2"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_split.add_argument("source", help="Source code to split from (name or UUID).")
+    code_split.add_argument("--new", required=True, help="Name for the new code.")
+    code_split.add_argument("--annotation", action="append", default=[], help="Annotation ID to move (repeat for multiple).")
+    code_split.add_argument("--description", help="Description for the new code.")
+    code_split.add_argument("--color", help="Color for the new code.")
+
+    code_set_parent = code_sub.add_parser(
+        "set-parent",
+        help="Set a code's parent to build a hierarchical code tree.",
+        description=(
+            "Assign a parent code, creating a hierarchical relationship.\n\n"
+            "Use 'code list --tree' to visualize the hierarchy.\n\n"
+            "Output: prints the event_id.\n\n"
+            "Example:\n"
+            "  bewley code set-parent deep_trust trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_set_parent.add_argument("code_ref", help="Child code (name or UUID).")
+    code_set_parent.add_argument("parent_ref", help="Parent code (name or UUID).")
+
+    code_clear_parent = code_sub.add_parser(
+        "clear-parent",
+        help="Remove a code from its parent (make it a root code).",
+        description=(
+            "Remove the parent-child relationship for a code, making it a root node.\n\n"
+            "Output: prints the event_id.\n\n"
+            "Example:\n"
+            "  bewley code clear-parent deep_trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_clear_parent.add_argument("code_ref", help="Code to detach from its parent (name or UUID).")
+
+    code_link = code_sub.add_parser(
+        "link",
+        help="Create a named relationship (link) between two codes.",
+        description=(
+            "Create a directional, labeled relationship between two codes.\n\n"
+            "The relationship is a free-text string (e.g., 'causes', 'contradicts',\n"
+            "'is_context_for'). Optionally attach a memo explaining the link.\n\n"
+            "Output: prints the new link_id.\n\n"
+            "Example:\n"
+            "  bewley code link trust rapport causes --memo 'Trust enables rapport'"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_link.add_argument("source", help="Source code of the relationship (name or UUID).")
+    code_link.add_argument("target", help="Target code of the relationship (name or UUID).")
+    code_link.add_argument("relationship", help="Label for the relationship (e.g., 'causes', 'contradicts').")
+    code_link.add_argument("--memo", help="Optional memo explaining the link.")
+
+    code_links_p = code_sub.add_parser(
+        "links",
+        help="List relationships (links) between codes.",
+        description=(
+            "List all code-to-code relationships, optionally filtered to a single code.\n\n"
+            "Output: tab-separated table with columns:\n"
+            "  link_id        UUID of the link\n"
+            "  source_name    Source code name\n"
+            "  relationship   Relationship label\n"
+            "  target_name    Target code name\n\n"
+            "Example:\n"
+            "  bewley code links          # all links\n"
+            "  bewley code links trust    # links involving 'trust'"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_links_p.add_argument("code_ref", nargs="?", help="Optional code to filter links by (name or UUID).")
+
+    code_unlink = code_sub.add_parser(
+        "unlink",
+        help="Remove a relationship (link) between two codes.",
+        description=(
+            "Remove a code-to-code relationship by its link_id.\n\n"
+            "Use 'bewley code links' to find the link_id.\n\n"
+            "Output: prints the event_id."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_unlink.add_argument("link_id", help="UUID of the link to remove (from 'code links' output).")
+
+    code_set_core = code_sub.add_parser(
+        "set-core",
+        help="Designate a code as the core category for grounded theory.",
+        description=(
+            "Set a code as the project's core category.\n\n"
+            "In grounded theory, the core category is the central concept that\n"
+            "integrates and explains the main pattern in the data.\n\n"
+            "Output: prints the event_id.\n\n"
+            "Example:\n"
+            "  bewley code set-core trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_set_core.add_argument("code_ref", help="Code to designate as core category (name or UUID).")
+
+    code_sub.add_parser(
+        "show-core",
+        help="Show the current core category (if set).",
+        description=(
+            "Display the project's current core category.\n\n"
+            "Output: tab-separated code_id and canonical_name, or\n"
+            "'no core category set' if none is designated."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    # --- Annotation management ---
+
+    annotate = sub.add_parser(
+        "annotate",
+        help="Apply, remove, show, or resolve annotations (coded labels on text).",
+        description=(
+            "Manage annotations — applications of codes to documents or text spans.\n\n"
+            "An annotation links a code to either:\n"
+            "  - A whole document (--document)\n"
+            "  - A byte range within a document revision (--bytes START:END)\n"
+            "  - A line range within a document revision (--lines START:END)\n\n"
+            "Subcommands:\n"
+            "  apply     Apply a code to a document or text span\n"
+            "  remove    Remove an annotation\n"
+            "  show      Show details of a single annotation\n"
+            "  resolve   Manually fix a conflicted annotation's byte range"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    annotate_sub = annotate.add_subparsers(dest="annotate_cmd", required=True, metavar="SUBCOMMAND")
+
+    ann_apply = annotate_sub.add_parser(
+        "apply",
+        help="Apply a code to a document or text span.",
+        description=(
+            "Create a new annotation linking a code to a document.\n\n"
+            "Exactly one of --document, --bytes, or --lines is required:\n"
+            "  --document       Apply to the whole document\n"
+            "  --bytes S:E      Apply to byte range [S, E) in the current revision\n"
+            "  --lines S:E      Apply to line range [S, E] (1-based, inclusive),\n"
+            "                   which is converted to a byte range internally\n\n"
+            "Output: prints the new annotation_id (a UUID).\n\n"
+            "Examples:\n"
+            "  bewley annotate apply trust doc1 --document\n"
+            "  bewley annotate apply trust participant_01 --bytes 100:250\n"
+            "  bewley annotate apply trust participant_01 --lines 10:20\n"
+            "  bewley annotate apply trust doc1 --lines 5:8 --memo 'Key passage about trust'"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ann_apply.add_argument("code_ref", help="Code to apply (name, alias, or UUID).")
+    ann_apply.add_argument("document_ref", help="Document to annotate (UUID, path, or path prefix).")
     mode_group = ann_apply.add_mutually_exclusive_group(required=True)
-    mode_group.add_argument("--document", action="store_true")
-    mode_group.add_argument("--bytes")
-    mode_group.add_argument("--lines")
-    ann_apply.add_argument("--memo")
-    ann_remove = annotate_sub.add_parser("remove")
-    ann_remove.add_argument("annotation_id")
-    ann_show = annotate_sub.add_parser("show")
-    ann_show.add_argument("annotation_id")
-    ann_resolve = annotate_sub.add_parser("resolve")
-    ann_resolve.add_argument("annotation_id")
-    ann_resolve.add_argument("--bytes", required=True)
-    ann_resolve.add_argument("--memo")
+    mode_group.add_argument("--document", action="store_true", help="Apply code to the entire document.")
+    mode_group.add_argument("--bytes", help="Byte range as START:END (0-based, exclusive end).")
+    mode_group.add_argument("--lines", help="Line range as START:END (1-based, inclusive).")
+    ann_apply.add_argument("--memo", help="Optional memo to attach to this annotation.")
 
-    query = sub.add_parser("query")
-    query.add_argument("expr")
-    query.add_argument("--mode", choices=["document", "annotation"])
+    ann_remove = annotate_sub.add_parser(
+        "remove",
+        help="Remove (deactivate) an annotation.",
+        description=(
+            "Remove an annotation by its annotation_id.\n\n"
+            "The annotation is deactivated (not deleted from history).\n"
+            "This can be undone with 'bewley undo'.\n\n"
+            "Output: prints the event_id."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ann_remove.add_argument("annotation_id", help="UUID of the annotation to remove.")
 
-    export = sub.add_parser("export")
-    export_sub = export.add_subparsers(dest="export_what", required=True)
-    export_snippets = export_sub.add_parser("snippets")
-    export_snippets.add_argument("--code", required=True)
-    export_snippets.add_argument("--format", choices=["jsonl", "text"], required=True)
-    export_snippets.add_argument("--context-lines", type=int, default=0)
-    export_quotes = export_sub.add_parser("quotes")
+    ann_show = annotate_sub.add_parser(
+        "show",
+        help="Show full details of a single annotation.",
+        description=(
+            "Display detailed metadata for an annotation.\n\n"
+            "Shows: annotation_id, code, document, scope type, byte range,\n"
+            "line range, anchor status, and the annotated text content.\n\n"
+            "Example:\n"
+            "  bewley annotate show <annotation_id>"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ann_show.add_argument("annotation_id", help="UUID of the annotation to show.")
+
+    ann_resolve = annotate_sub.add_parser(
+        "resolve",
+        help="Manually resolve a conflicted annotation by setting a new byte range.",
+        description=(
+            "Fix a conflicted annotation by specifying the correct byte range\n"
+            "in the current document revision.\n\n"
+            "When a document is updated, span annotations are relocated using\n"
+            "fuzzy matching. If matching confidence is below the threshold,\n"
+            "the annotation is marked 'conflicted'. Use this command to\n"
+            "manually set the correct range.\n\n"
+            "Output: prints the event_id.\n\n"
+            "Example:\n"
+            "  bewley annotate resolve <annotation_id> --bytes 120:280"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ann_resolve.add_argument("annotation_id", help="UUID of the conflicted annotation.")
+    ann_resolve.add_argument("--bytes", required=True, help="New byte range as START:END.")
+    ann_resolve.add_argument("--memo", help="Optional memo explaining the resolution.")
+
+    # --- Querying ---
+
+    query = sub.add_parser(
+        "query",
+        help="Query annotations using boolean code expressions (AND, OR, NOT).",
+        description=(
+            "Search for documents or annotations matching a boolean code expression.\n\n"
+            "Expression syntax:\n"
+            "  code_name           Documents/annotations with this code\n"
+            "  A & B               AND — both codes present\n"
+            "  A | B               OR — either code present\n"
+            "  !A                  NOT — code absent\n"
+            "  (A & B) | C         Parentheses for grouping\n\n"
+            "Modes:\n"
+            "  --mode document     (default) Return documents matching the expression\n"
+            "  --mode annotation   Return individual annotations matching the expression\n\n"
+            "Output: tab-separated table of matching entities.\n\n"
+            "Examples:\n"
+            "  bewley query trust\n"
+            "  bewley query 'trust & rapport'\n"
+            "  bewley query '!trust' --mode document\n"
+            "  bewley query '(trust | rapport) & !small_talk' --mode annotation"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    query.add_argument("expr", help="Boolean code expression (use quotes if it contains spaces or shell metacharacters).")
+    query.add_argument("--mode", choices=["document", "annotation"], help="Query mode: 'document' (default) or 'annotation'.")
+
+    # --- Export ---
+
+    export = sub.add_parser(
+        "export",
+        help="Export coded data as snippets, quotes, HTML, theory diagrams, or narratives.",
+        description=(
+            "Export project data in various formats.\n\n"
+            "Subcommands:\n"
+            "  snippets        Export text snippets for a code (JSONL or plain text)\n"
+            "  quotes          Export quotes filtered by code or query expression\n"
+            "  html            Export all codes and annotations as a standalone HTML page\n"
+            "  document-html   Export a single document with inline annotations as HTML\n"
+            "  theory          Export code hierarchy, links, and core category as JSON or Mermaid\n"
+            "  narrative       Export an integrative narrative summary"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    export_sub = export.add_subparsers(dest="export_what", required=True, metavar="FORMAT")
+
+    export_snippets = export_sub.add_parser(
+        "snippets",
+        help="Export text snippets for a code as JSONL or plain text.",
+        description=(
+            "Export all annotated text snippets for a given code.\n\n"
+            "Formats:\n"
+            "  text   Plain text with snippet boundaries marked\n"
+            "  jsonl  One JSON object per line with fields:\n"
+            "         annotation_id, code, document_path, text, start_byte, end_byte\n\n"
+            "Example:\n"
+            "  bewley export snippets --code trust --format jsonl\n"
+            "  bewley export snippets --code trust --format text --context-lines 2"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    export_snippets.add_argument("--code", required=True, help="Code to export snippets for (name or UUID).")
+    export_snippets.add_argument("--format", choices=["jsonl", "text"], required=True, help="Output format: 'jsonl' or 'text'.")
+    export_snippets.add_argument("--context-lines", type=int, default=0, help="Number of surrounding lines to include (default: 0).")
+
+    export_quotes = export_sub.add_parser(
+        "quotes",
+        help="Export quotes filtered by code or boolean query expression.",
+        description=(
+            "Export annotated quotes, filtered by a single code or a boolean query.\n\n"
+            "Exactly one of --code or --query is required.\n\n"
+            "Formats:\n"
+            "  text   Plain text with quote boundaries marked\n"
+            "  jsonl  One JSON object per line\n\n"
+            "Examples:\n"
+            "  bewley export quotes --code trust --format text\n"
+            "  bewley export quotes --query 'trust & rapport' --format jsonl"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     export_quotes_selector = export_quotes.add_mutually_exclusive_group(required=True)
-    export_quotes_selector.add_argument("--code")
-    export_quotes_selector.add_argument("--query")
-    export_quotes.add_argument("--format", choices=["jsonl", "text"], required=True)
-    export_quotes.add_argument("--context-lines", type=int, default=0)
-    export_html = export_sub.add_parser("html")
-    export_html.add_argument("--output", default="bewley-codes.html")
-    export_html.add_argument("--title")
-    export_document_html = export_sub.add_parser("document-html")
-    export_document_html.add_argument("document_ref")
-    export_document_html.add_argument("--output", default="bewley-document.html")
-    export_document_html.add_argument("--title")
-    export_theory = export_sub.add_parser("theory")
-    export_theory.add_argument("--format", choices=["json", "mermaid"], default="mermaid")
-    export_theory.add_argument("--output")
-    export_narrative = export_sub.add_parser("narrative")
-    export_narrative.add_argument("--output")
+    export_quotes_selector.add_argument("--code", help="Single code to filter by (name or UUID).")
+    export_quotes_selector.add_argument("--query", help="Boolean code expression to filter by.")
+    export_quotes.add_argument("--format", choices=["jsonl", "text"], required=True, help="Output format: 'jsonl' or 'text'.")
+    export_quotes.add_argument("--context-lines", type=int, default=0, help="Number of surrounding lines to include (default: 0).")
 
-    history = sub.add_parser("history")
-    history.add_argument("--document")
-    history.add_argument("--code")
-    history.add_argument("--annotation")
+    export_html = export_sub.add_parser(
+        "html",
+        help="Export all codes and annotations as a standalone HTML file.",
+        description=(
+            "Generate a self-contained HTML page showing all codes and their\n"
+            "annotated snippets.\n\n"
+            "Example:\n"
+            "  bewley export html --output analysis.html --title 'My Analysis'"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    export_html.add_argument("--output", default="bewley-codes.html", help="Output file path (default: bewley-codes.html).")
+    export_html.add_argument("--title", help="Page title for the HTML output.")
 
-    undo = sub.add_parser("undo")
-    undo.add_argument("event_id")
+    export_document_html = export_sub.add_parser(
+        "document-html",
+        help="Export a single document with inline annotation highlights as HTML.",
+        description=(
+            "Generate a self-contained HTML page showing a single document\n"
+            "with annotation spans highlighted inline.\n\n"
+            "Example:\n"
+            "  bewley export document-html participant_01 --output doc.html"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    export_document_html.add_argument("document_ref", help="Document to export (UUID, path, or prefix).")
+    export_document_html.add_argument("--output", default="bewley-document.html", help="Output file path (default: bewley-document.html).")
+    export_document_html.add_argument("--title", help="Page title for the HTML output.")
 
-    memo = sub.add_parser("memo")
-    memo_sub = memo.add_subparsers(dest="memo_cmd", required=True)
-    memo_add = memo_sub.add_parser("add")
+    export_theory = export_sub.add_parser(
+        "theory",
+        help="Export code hierarchy, links, and core category as JSON or Mermaid diagram.",
+        description=(
+            "Export the theoretical structure: code hierarchy, inter-code links,\n"
+            "and the designated core category.\n\n"
+            "Formats:\n"
+            "  mermaid  (default) A Mermaid diagram suitable for rendering\n"
+            "  json     Structured JSON with codes, links, hierarchy, and core\n\n"
+            "Examples:\n"
+            "  bewley export theory\n"
+            "  bewley export theory --format json --output theory.json"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    export_theory.add_argument("--format", choices=["json", "mermaid"], default="mermaid", help="Output format (default: mermaid).")
+    export_theory.add_argument("--output", help="Write output to file instead of stdout.")
+
+    export_narrative = export_sub.add_parser(
+        "narrative",
+        help="Export an integrative narrative summary of the project.",
+        description=(
+            "Generate a narrative summary integrating codes, memos, hierarchy,\n"
+            "and the core category into a readable text.\n\n"
+            "Examples:\n"
+            "  bewley export narrative\n"
+            "  bewley export narrative --output narrative.md"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    export_narrative.add_argument("--output", help="Write output to file instead of stdout.")
+
+    # --- History & undo ---
+
+    history = sub.add_parser(
+        "history",
+        help="Show the event history, optionally filtered by document, code, or annotation.",
+        description=(
+            "Display the append-only event log.\n\n"
+            "Without filters, shows all events. Use filters to narrow:\n"
+            "  --document DOC_REF   Events related to a specific document\n"
+            "  --code CODE_REF      Events related to a specific code\n"
+            "  --annotation ANN_ID  Events related to a specific annotation\n\n"
+            "Output: tab-separated table with event_id, event_type, and timestamp.\n\n"
+            "Examples:\n"
+            "  bewley history\n"
+            "  bewley history --document participant_01\n"
+            "  bewley history --code trust"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    history.add_argument("--document", help="Filter events by document (UUID or path prefix).")
+    history.add_argument("--code", help="Filter events by code (name, alias, or UUID).")
+    history.add_argument("--annotation", help="Filter events by annotation UUID.")
+
+    undo = sub.add_parser(
+        "undo",
+        help="Undo a previous event by emitting a compensating event.",
+        description=(
+            "Undo a previous operation by appending a compensating event.\n\n"
+            "The original event is NOT deleted (the log is append-only).\n"
+            "Instead, a new event is recorded that reverses the effect.\n\n"
+            "Not all event types may be undoable.\n\n"
+            "Output: prints the new compensating event_id.\n\n"
+            "Example:\n"
+            "  bewley undo evt_00000000003"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    undo.add_argument("event_id", help="Event ID to undo (from 'bewley history' output).")
+
+    # --- Memos ---
+
+    memo = sub.add_parser(
+        "memo",
+        help="Create, list, show, edit, and delete analytic memos.",
+        description=(
+            "Manage analytic memos — free-text notes attached to codes, documents,\n"
+            "or the project as a whole.\n\n"
+            "Memos are a core part of qualitative analysis. They capture the\n"
+            "researcher's evolving interpretations, theoretical insights, and\n"
+            "methodological decisions.\n\n"
+            "Subcommands:\n"
+            "  add      Create a new memo\n"
+            "  list     List memos (optionally filtered by code or document)\n"
+            "  show     Show the full content of a memo\n"
+            "  edit     Edit a memo in your $EDITOR\n"
+            "  delete   Delete a memo"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    memo_sub = memo.add_subparsers(dest="memo_cmd", required=True, metavar="SUBCOMMAND")
+
+    memo_add = memo_sub.add_parser(
+        "add",
+        help="Create a new memo, optionally attached to a code or document.",
+        description=(
+            "Create a new analytic memo.\n\n"
+            "Target (optional, defaults to project-level):\n"
+            "  --code CODE_REF       Attach to a code\n"
+            "  --document DOC_REF    Attach to a document\n\n"
+            "Content can be provided as a positional argument or omitted to\n"
+            "open $EDITOR for composition.\n\n"
+            "Output: prints the new memo_id.\n\n"
+            "Examples:\n"
+            "  bewley memo add 'Initial thoughts on trust theme'\n"
+            "  bewley memo add --code trust 'Trust appears in 8 of 12 interviews'\n"
+            "  bewley memo add --code trust --title 'Saturation note' 'No new properties since interview 10'"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     memo_target = memo_add.add_mutually_exclusive_group()
-    memo_target.add_argument("--code")
-    memo_target.add_argument("--document")
-    memo_add.add_argument("--title")
-    memo_add.add_argument("content", nargs="?")
-    memo_list = memo_sub.add_parser("list")
+    memo_target.add_argument("--code", help="Attach memo to this code (name, alias, or UUID).")
+    memo_target.add_argument("--document", help="Attach memo to this document (UUID or path prefix).")
+    memo_add.add_argument("--title", help="Optional title for the memo.")
+    memo_add.add_argument("content", nargs="?", help="Memo content (omit to open $EDITOR).")
+
+    memo_list = memo_sub.add_parser(
+        "list",
+        help="List memos, optionally filtered by code or document.",
+        description=(
+            "List analytic memos in the project.\n\n"
+            "Without filters, lists all memos (project-level and attached).\n"
+            "Use --code or --document to filter.\n\n"
+            "Output: tab-separated table with memo_id, target, title, and timestamp."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     memo_list_target = memo_list.add_mutually_exclusive_group()
-    memo_list_target.add_argument("--code")
-    memo_list_target.add_argument("--document")
-    memo_show = memo_sub.add_parser("show")
-    memo_show.add_argument("memo_id")
-    memo_edit = memo_sub.add_parser("edit")
-    memo_edit.add_argument("memo_id")
-    memo_delete = memo_sub.add_parser("delete")
-    memo_delete.add_argument("memo_id")
+    memo_list_target.add_argument("--code", help="Filter memos attached to this code.")
+    memo_list_target.add_argument("--document", help="Filter memos attached to this document.")
+
+    memo_show = memo_sub.add_parser(
+        "show",
+        help="Show the full content of a memo.",
+        description=(
+            "Display the full content and metadata of a single memo.\n\n"
+            "Example:\n"
+            "  bewley memo show <memo_id>"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    memo_show.add_argument("memo_id", help="UUID of the memo to show.")
+
+    memo_edit = memo_sub.add_parser(
+        "edit",
+        help="Edit a memo in your $EDITOR.",
+        description=(
+            "Open a memo's content in $EDITOR for editing.\n\n"
+            "The updated content is saved as a new event (the old content\n"
+            "is preserved in the event history)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    memo_edit.add_argument("memo_id", help="UUID of the memo to edit.")
+
+    memo_delete = memo_sub.add_parser(
+        "delete",
+        help="Delete a memo.",
+        description=(
+            "Delete a memo by its memo_id.\n\n"
+            "The deletion is recorded as an event (the memo content is\n"
+            "preserved in event history and can be recovered with undo).\n\n"
+            "Output: prints the event_id."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    memo_delete.add_argument("memo_id", help="UUID of the memo to delete.")
 
     return parser
 
