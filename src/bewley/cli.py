@@ -1795,6 +1795,24 @@ def print_table(rows: list[tuple[Any, ...]]) -> None:
         print("\t".join("" if item is None else str(item) for item in row))
 
 
+def _json_output(data: Any) -> None:
+    """Print data as formatted JSON to stdout."""
+    print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+
+
+def _human_kv(data: dict, keys: list[str] | None = None) -> None:
+    """Print dict as tab-separated key-value lines."""
+    for key in (keys or data.keys()):
+        if key in data and data[key] is not None:
+            print(f"{key}\t{data[key]}")
+
+
+def _human_rows(rows: list[dict], columns: list[str]) -> None:
+    """Print list of dicts as tab-separated table rows."""
+    for row in rows:
+        print("\t".join("" if row.get(c) is None else str(row[c]) for c in columns))
+
+
 def default_code_color(name: str) -> str:
     digest = sha256_text(name)
     hue = int(digest[:6], 16) % 360
@@ -2939,6 +2957,8 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--human-output", "-H", action="store_true", default=False,
+                        help="Output human-readable text instead of JSON.")
     sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
 
     # --- Project management ---
@@ -3503,7 +3523,7 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     export_snippets.add_argument("--code", required=True, help="Code to export snippets for (name or UUID).")
-    export_snippets.add_argument("--format", choices=["jsonl", "text"], required=True, help="Output format: 'jsonl' or 'text'.")
+    export_snippets.add_argument("--format", choices=["jsonl", "text"], default="text", help="Output format for human mode: 'jsonl' or 'text'.")
     export_snippets.add_argument("--context-lines", type=int, default=0, help="Number of surrounding lines to include (default: 0).")
 
     export_quotes = export_sub.add_parser(
@@ -3524,7 +3544,7 @@ def build_parser() -> argparse.ArgumentParser:
     export_quotes_selector = export_quotes.add_mutually_exclusive_group(required=True)
     export_quotes_selector.add_argument("--code", help="Single code to filter by (name or UUID).")
     export_quotes_selector.add_argument("--query", help="Boolean code expression to filter by.")
-    export_quotes.add_argument("--format", choices=["jsonl", "text"], required=True, help="Output format: 'jsonl' or 'text'.")
+    export_quotes.add_argument("--format", choices=["jsonl", "text"], default="text", help="Output format for human mode: 'jsonl' or 'text'.")
     export_quotes.add_argument("--context-lines", type=int, default=0, help="Number of surrounding lines to include (default: 0).")
 
     export_html = export_sub.add_parser(
@@ -3728,7 +3748,102 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def cmd_status(project: Project) -> int:
+def _human_status(result: dict) -> None:
+    for key in ("documents", "revisions", "codes", "active_annotations", "conflicted_annotations"):
+        print(f"{key}\t{result[key]}")
+
+
+def _human_list_documents(result: list[dict]) -> None:
+    _human_rows(result, ["document_id", "current_path", "revision_count"])
+
+
+def _human_show_document(result: dict) -> None:
+    print(f"document_id\t{result['document_id']}")
+    print(f"path\t{result['path']}")
+    print("revisions")
+    _human_rows(result["revisions"], ["revision_id", "created_at", "byte_length", "line_count", "is_current"])
+    print("annotations")
+    _human_rows(result["annotations"], ["annotation_id", "canonical_name", "scope_type", "start_line", "end_line", "anchor_status", "is_active"])
+
+
+def _human_code_list(result: list[dict]) -> None:
+    _human_rows(result, ["code_id", "canonical_name", "status"])
+
+
+def _human_code_tree(nodes: list[dict], indent: int = 0) -> None:
+    for node in nodes:
+        print(f"{'  ' * indent}{node['canonical_name']}")
+        if "children" in node:
+            _human_code_tree(node["children"], indent + 1)
+
+
+def _human_code_show(result: dict) -> None:
+    print(f"code_id\t{result['code_id']}")
+    print(f"name\t{result['name']}")
+    print(f"status\t{result['status']}")
+    print(f"active_annotations\t{result['active_annotations']}")
+    print(f"aliases\t{', '.join(result['aliases'])}")
+    if "parent" in result:
+        print(f"parent\t{result['parent']}")
+    if "children" in result:
+        print(f"children\t{', '.join(result['children'])}")
+    if "links" in result:
+        print("links")
+        for lk in result["links"]:
+            print(f"  {lk['link_id'][:8]}\t{lk['source_name']} --{lk['relationship']}--> {lk['target_name']}")
+
+
+def _human_code_links(result: list[dict]) -> None:
+    if not result:
+        print("no links")
+        return
+    for lk in result:
+        memo_part = f"  ({lk['memo']})" if lk.get("memo") else ""
+        print(f"{lk['link_id']}\t{lk['source_name']} --{lk['relationship']}--> {lk['target_name']}{memo_part}")
+
+
+def _human_memo_list(result: list[dict]) -> None:
+    if not result:
+        print("no memos")
+        return
+    for row in result:
+        print(f"{row['memo_id']}\t{row['target_type']}\t{row['title']}\t{row['created_at']}")
+
+
+def _human_memo_show(result: dict) -> None:
+    print(f"memo_id\t{result['memo_id']}")
+    print(f"target_type\t{result['target_type']}")
+    print(f"target_id\t{result['target_id']}")
+    if result.get("title"):
+        print(f"title\t{result['title']}")
+    print(f"created_at\t{result['created_at']}")
+    print(f"updated_at\t{result['updated_at']}")
+    print("---")
+    print(result["content"])
+
+
+def _human_annotate_show(result: dict) -> None:
+    for key, val in result.items():
+        print(f"{key}\t{val}")
+
+
+def _human_show_snippets(result: list[dict]) -> None:
+    _human_rows(result, ["annotation_id", "code_name", "document_path", "start_line", "end_line", "anchor_status", "text"])
+
+
+def _human_query_documents(result: list[dict]) -> None:
+    _human_rows(result, ["document_id", "current_path"])
+
+
+def _human_query_annotations(result: list[dict]) -> None:
+    _human_rows(result, ["annotation_id", "canonical_name", "current_path", "start_line", "end_line", "anchor_status"])
+
+
+def _human_history(result: list[dict]) -> None:
+    _human_rows(result, ["sequence_number", "timestamp", "event_type", "event_id"])
+
+
+def cmd_status(project: Project) -> dict:
     with project.connect() as conn:
         doc_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
         rev_count = conn.execute("SELECT COUNT(*) FROM document_revisions").fetchone()[0]
@@ -3737,15 +3852,16 @@ def cmd_status(project: Project) -> int:
         conflict_count = conn.execute(
             "SELECT COUNT(*) FROM annotations WHERE is_active = 1 AND anchor_status = 'conflicted'"
         ).fetchone()[0]
-    print(f"documents\t{doc_count}")
-    print(f"revisions\t{rev_count}")
-    print(f"codes\t{code_count}")
-    print(f"active_annotations\t{ann_count}")
-    print(f"conflicted_annotations\t{conflict_count}")
-    return 0
+    return {
+        "documents": doc_count,
+        "revisions": rev_count,
+        "codes": code_count,
+        "active_annotations": ann_count,
+        "conflicted_annotations": conflict_count,
+    }
 
 
-def cmd_list_documents(project: Project) -> int:
+def cmd_list_documents(project: Project) -> list[dict]:
     with project.connect() as conn:
         rows = conn.execute(
             """
@@ -3756,11 +3872,10 @@ def cmd_list_documents(project: Project) -> int:
             ORDER BY d.current_path
             """
         ).fetchall()
-    print_table([(row["document_id"], row["current_path"], row["revision_count"]) for row in rows])
-    return 0
+    return [{"document_id": row["document_id"], "current_path": row["current_path"], "revision_count": row["revision_count"]} for row in rows]
 
 
-def cmd_show_document(project: Project, ref: str) -> int:
+def cmd_show_document(project: Project, ref: str) -> dict:
     with project.connect() as conn:
         doc = project.resolve_document(conn, ref)
         revisions = conn.execute(
@@ -3782,40 +3897,43 @@ def cmd_show_document(project: Project, ref: str) -> int:
             """,
             (doc["document_id"],),
         ).fetchall()
-    print(f"document_id\t{doc['document_id']}")
-    print(f"path\t{doc['current_path']}")
-    print("revisions")
-    print_table([(r["revision_id"], r["created_at"], r["byte_length"], r["line_count"], r["is_current"]) for r in revisions])
-    print("annotations")
-    print_table(
-        [
-            (a["annotation_id"], a["canonical_name"], a["scope_type"], a["start_line"], a["end_line"], a["anchor_status"], a["is_active"])
+    return {
+        "document_id": doc["document_id"],
+        "path": doc["current_path"],
+        "revisions": [
+            {"revision_id": r["revision_id"], "created_at": r["created_at"], "byte_length": r["byte_length"], "line_count": r["line_count"], "is_current": r["is_current"]}
+            for r in revisions
+        ],
+        "annotations": [
+            {"annotation_id": a["annotation_id"], "canonical_name": a["canonical_name"], "scope_type": a["scope_type"], "start_line": a["start_line"], "end_line": a["end_line"], "anchor_status": a["anchor_status"], "is_active": a["is_active"]}
             for a in annotations
-        ]
-    )
-    return 0
+        ],
+    }
 
 
-def cmd_code_list(project: Project, *, tree: bool = False) -> int:
+def cmd_code_list(project: Project, *, tree: bool = False) -> list[dict]:
     with project.connect() as conn:
         rows = conn.execute("SELECT * FROM codes WHERE status = 'active' ORDER BY canonical_name").fetchall()
     if not tree:
-        print_table([(row["code_id"], row["canonical_name"], row["status"]) for row in rows])
-        return 0
-    # Tree display
+        return [{"code_id": row["code_id"], "canonical_name": row["canonical_name"], "status": row["status"]} for row in rows]
+    # Tree structure
     by_parent: dict[str | None, list[sqlite3.Row]] = {}
     for row in rows:
         by_parent.setdefault(row["parent_code_id"], []).append(row)
 
-    def _print_tree(parent_id: str | None, indent: int) -> None:
+    def _build_tree(parent_id: str | None) -> list[dict]:
+        result = []
         for child in by_parent.get(parent_id, []):
-            print(f"{'  ' * indent}{child['canonical_name']}")
-            _print_tree(child["code_id"], indent + 1)
-    _print_tree(None, 0)
-    return 0
+            node = {"canonical_name": child["canonical_name"], "code_id": child["code_id"]}
+            children = _build_tree(child["code_id"])
+            if children:
+                node["children"] = children
+            result.append(node)
+        return result
+    return _build_tree(None)
 
 
-def cmd_code_show(project: Project, ref: str) -> int:
+def cmd_code_show(project: Project, ref: str) -> dict:
     with project.connect() as conn:
         code = project.resolve_code(conn, ref)
         aliases = conn.execute("SELECT alias_name FROM code_aliases WHERE code_id = ? ORDER BY alias_name", (code["code_id"],)).fetchall()
@@ -3832,44 +3950,50 @@ def cmd_code_show(project: Project, ref: str) -> int:
             "SELECT * FROM code_links WHERE (source_code_id = ? OR target_code_id = ?) AND is_active = 1",
             (code["code_id"], code["code_id"]),
         ).fetchall()
-    print(f"code_id\t{code['code_id']}")
-    print(f"name\t{code['canonical_name']}")
-    print(f"status\t{code['status']}")
-    print(f"active_annotations\t{count}")
-    print(f"aliases\t{', '.join(row['alias_name'] for row in aliases)}")
-    if parent_name:
-        print(f"parent\t{parent_name}")
-    if children:
-        print(f"children\t{', '.join(row['canonical_name'] for row in children)}")
-    if links:
-        print("links")
-        for lk in links:
-            with project.connect() as conn:
-                src = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["source_code_id"],)).fetchone()
-                tgt = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["target_code_id"],)).fetchone()
-            src_name = src["canonical_name"] if src else lk["source_code_id"][:8]
-            tgt_name = tgt["canonical_name"] if tgt else lk["target_code_id"][:8]
-            print(f"  {lk['link_id'][:8]}\t{src_name} --{lk['relationship']}--> {tgt_name}")
-    return 0
-
-
-def cmd_code_links(project: Project, code_ref: str | None = None) -> int:
-    with project.connect() as conn:
-        links = project.list_code_links(conn, code_ref)
-        if not links:
-            print("no links")
-            return 0
+        link_items = []
         for lk in links:
             src = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["source_code_id"],)).fetchone()
             tgt = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["target_code_id"],)).fetchone()
-            src_name = src["canonical_name"] if src else lk["source_code_id"][:8]
-            tgt_name = tgt["canonical_name"] if tgt else lk["target_code_id"][:8]
-            memo_part = f"  ({lk['memo']})" if lk["memo"] else ""
-            print(f"{lk['link_id']}\t{src_name} --{lk['relationship']}--> {tgt_name}{memo_part}")
-    return 0
+            link_items.append({
+                "link_id": lk["link_id"],
+                "source_name": src["canonical_name"] if src else lk["source_code_id"][:8],
+                "relationship": lk["relationship"],
+                "target_name": tgt["canonical_name"] if tgt else lk["target_code_id"][:8],
+            })
+    result: dict[str, Any] = {
+        "code_id": code["code_id"],
+        "name": code["canonical_name"],
+        "status": code["status"],
+        "active_annotations": count,
+        "aliases": [row["alias_name"] for row in aliases],
+    }
+    if parent_name:
+        result["parent"] = parent_name
+    if children:
+        result["children"] = [row["canonical_name"] for row in children]
+    if link_items:
+        result["links"] = link_items
+    return result
 
 
-def cmd_memo_list(project: Project, *, target_type: str | None = None, target_ref: str | None = None) -> int:
+def cmd_code_links(project: Project, code_ref: str | None = None) -> list[dict]:
+    with project.connect() as conn:
+        links = project.list_code_links(conn, code_ref)
+        result = []
+        for lk in links:
+            src = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["source_code_id"],)).fetchone()
+            tgt = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["target_code_id"],)).fetchone()
+            result.append({
+                "link_id": lk["link_id"],
+                "source_name": src["canonical_name"] if src else lk["source_code_id"][:8],
+                "relationship": lk["relationship"],
+                "target_name": tgt["canonical_name"] if tgt else lk["target_code_id"][:8],
+                "memo": lk["memo"],
+            })
+    return result
+
+
+def cmd_memo_list(project: Project, *, target_type: str | None = None, target_ref: str | None = None) -> list[dict]:
     target_id: str | None = None
     with project.connect() as conn:
         if target_type == "code" and target_ref:
@@ -3877,32 +4001,25 @@ def cmd_memo_list(project: Project, *, target_type: str | None = None, target_re
         elif target_type == "document" and target_ref:
             target_id = project.resolve_document(conn, target_ref)["document_id"]
         rows = project.list_memos(conn, target_type=target_type, target_id=target_id)
-    if not rows:
-        print("no memos")
-        return 0
-    for row in rows:
-        title = row["title"] or ""
-        print(f"{row['memo_id']}\t{row['target_type']}\t{title}\t{row['created_at']}")
-    return 0
+    return [{"memo_id": row["memo_id"], "target_type": row["target_type"], "title": row["title"] or "", "created_at": row["created_at"]} for row in rows]
 
 
-def cmd_memo_show(project: Project, memo_id: str) -> int:
+def cmd_memo_show(project: Project, memo_id: str) -> dict:
     with project.connect() as conn:
         memo = project.resolve_memo(conn, memo_id)
     content = project.read_memo_content(memo["content_sha256"])
-    print(f"memo_id\t{memo['memo_id']}")
-    print(f"target_type\t{memo['target_type']}")
-    print(f"target_id\t{memo['target_id'] or '(project)'}")
-    if memo["title"]:
-        print(f"title\t{memo['title']}")
-    print(f"created_at\t{memo['created_at']}")
-    print(f"updated_at\t{memo['updated_at']}")
-    print("---")
-    print(content)
-    return 0
+    return {
+        "memo_id": memo["memo_id"],
+        "target_type": memo["target_type"],
+        "target_id": memo["target_id"] or "(project)",
+        "title": memo["title"],
+        "created_at": memo["created_at"],
+        "updated_at": memo["updated_at"],
+        "content": content,
+    }
 
 
-def cmd_annotate_show(project: Project, annotation_id: str) -> int:
+def cmd_annotate_show(project: Project, annotation_id: str) -> dict:
     with project.connect() as conn:
         row = conn.execute(
             """
@@ -3916,9 +4033,7 @@ def cmd_annotate_show(project: Project, annotation_id: str) -> int:
         ).fetchone()
         if row is None:
             raise BewleyError(f"unknown annotation id: {annotation_id}")
-    for key in row.keys():
-        print(f"{key}\t{row[key]}")
-    return 0
+    return {key: row[key] for key in row.keys()}
 
 
 def snippets_for_code(project: Project, code_ref: str) -> list[sqlite3.Row]:
@@ -4171,91 +4286,89 @@ def document_viewer_payload(project: Project, document_ref: str) -> dict[str, An
     }
 
 
-def cmd_show_snippets(project: Project, code_ref: str) -> int:
+def cmd_show_snippets(project: Project, code_ref: str) -> list[dict]:
     rows = snippets_for_code(project, code_ref)
-    for row in rows:
-        text = row["exact_text"] if row["scope_type"] == "span" else "<document>"
-        print_table(
-            [(
-                row["annotation_id"],
-                row["canonical_name"],
-                row["current_path"],
-                row["start_line"],
-                row["end_line"],
-                row["anchor_status"],
-                text,
-            )]
-        )
-    return 0
+    return [
+        {
+            "annotation_id": row["annotation_id"],
+            "code_name": row["canonical_name"],
+            "document_path": row["current_path"],
+            "start_line": row["start_line"],
+            "end_line": row["end_line"],
+            "anchor_status": row["anchor_status"],
+            "text": row["exact_text"] if row["scope_type"] == "span" else "<document>",
+        }
+        for row in rows
+    ]
 
 
-def cmd_query(project: Project, expr: str, mode: str | None) -> int:
+def cmd_query(project: Project, expr: str, mode: str | None) -> list[dict]:
     cfg_mode = project.config().get("default_query_mode", DEFAULT_QUERY_MODE)
     selected_mode = mode or cfg_mode
     if selected_mode == "document":
         rows = project.query_documents(expr)
-        print_table([(row["document_id"], row["current_path"]) for row in rows])
-        return 0
+        return [{"document_id": row["document_id"], "current_path": row["current_path"]} for row in rows]
     rows = project.query_annotations(expr)
-    print_table(
-        [
-            (row["annotation_id"], row["canonical_name"], row["current_path"], row["start_line"], row["end_line"], row["anchor_status"])
-            for row in rows
-        ]
-    )
-    return 0
+    return [
+        {"annotation_id": row["annotation_id"], "canonical_name": row["canonical_name"], "current_path": row["current_path"], "start_line": row["start_line"], "end_line": row["end_line"], "anchor_status": row["anchor_status"]}
+        for row in rows
+    ]
 
 
-def cmd_export_snippets(project: Project, code_ref: str, fmt: str, context_lines: int) -> int:
+def cmd_export_snippets(project: Project, code_ref: str, fmt: str, context_lines: int, human_output: bool) -> list[dict] | None:
     rows = snippets_for_code(project, code_ref)
     text_by_document = current_text_by_document(project, rows) if context_lines > 0 else {}
-    if fmt == "text":
-        for row in rows:
-            selected = row["exact_text"] if row["scope_type"] == "span" else "<document>"
-            if context_lines > 0 and row["scope_type"] == "span" and row["start_line"] is not None and row["end_line"] is not None:
-                before, after = line_window(
-                    text_by_document[row["document_id"]],
-                    row["start_line"],
-                    row["end_line"],
-                    context_lines,
-                )
-                print(
-                    f"{row['canonical_name']}\t{row['current_path']}\t{row['annotation_id']}\t"
-                    f"before={before!r}\tselected={selected!r}\tafter={after!r}"
-                )
-                continue
-            print(f"{row['canonical_name']}\t{row['current_path']}\t{row['annotation_id']}\t{selected}")
-        return 0
-    for row in rows:
-        print(json.dumps(snippet_export_item(row, context_lines, text_by_document), ensure_ascii=False))
-    return 0
+    if human_output:
+        if fmt == "text":
+            for row in rows:
+                selected = row["exact_text"] if row["scope_type"] == "span" else "<document>"
+                if context_lines > 0 and row["scope_type"] == "span" and row["start_line"] is not None and row["end_line"] is not None:
+                    before, after = line_window(
+                        text_by_document[row["document_id"]],
+                        row["start_line"],
+                        row["end_line"],
+                        context_lines,
+                    )
+                    print(
+                        f"{row['canonical_name']}\t{row['current_path']}\t{row['annotation_id']}\t"
+                        f"before={before!r}\tselected={selected!r}\tafter={after!r}"
+                    )
+                    continue
+                print(f"{row['canonical_name']}\t{row['current_path']}\t{row['annotation_id']}\t{selected}")
+        else:
+            for row in rows:
+                print(json.dumps(snippet_export_item(row, context_lines, text_by_document), ensure_ascii=False))
+        return None  # Already printed in human mode
+    return [snippet_export_item(row, context_lines, text_by_document) for row in rows]
 
 
-def cmd_export_quotes(project: Project, code_ref: str | None, query_expr: str | None, fmt: str, context_lines: int) -> int:
+def cmd_export_quotes(project: Project, code_ref: str | None, query_expr: str | None, fmt: str, context_lines: int, human_output: bool) -> list[dict] | None:
     rows = [row for row in export_rows_for_selector(project, code_ref=code_ref, query_expr=query_expr) if row["scope_type"] == "span"]
     text_by_document = current_text_by_document(project, rows) if context_lines > 0 else {}
-    if fmt == "text":
-        for row in rows:
-            item = quote_export_item(row, context_lines, text_by_document)
-            parts = [
-                row["canonical_name"],
-                row["current_path"],
-                row["annotation_id"],
-                f"bytes={row['start_byte']}:{row['end_byte']}",
-                f"lines={row['start_line']}:{row['end_line']}",
-                f"exact={row['exact_text']!r}",
-            ]
-            if context_lines > 0:
-                parts.append(f"before={item.get('context_before', '')!r}")
-                parts.append(f"after={item.get('context_after', '')!r}")
-            print("\t".join(parts))
-        return 0
-    for row in rows:
-        print(json.dumps(quote_export_item(row, context_lines, text_by_document), ensure_ascii=False))
-    return 0
+    if human_output:
+        if fmt == "text":
+            for row in rows:
+                item = quote_export_item(row, context_lines, text_by_document)
+                parts = [
+                    row["canonical_name"],
+                    row["current_path"],
+                    row["annotation_id"],
+                    f"bytes={row['start_byte']}:{row['end_byte']}",
+                    f"lines={row['start_line']}:{row['end_line']}",
+                    f"exact={row['exact_text']!r}",
+                ]
+                if context_lines > 0:
+                    parts.append(f"before={item.get('context_before', '')!r}")
+                    parts.append(f"after={item.get('context_after', '')!r}")
+                print("\t".join(parts))
+        else:
+            for row in rows:
+                print(json.dumps(quote_export_item(row, context_lines, text_by_document), ensure_ascii=False))
+        return None
+    return [quote_export_item(row, context_lines, text_by_document) for row in rows]
 
 
-def cmd_export_html(project: Project, output_path: str, title: str | None) -> int:
+def cmd_export_html(project: Project, output_path: str, title: str | None) -> dict:
     payload = code_explorer_payload(project)
     document_count = payload["document_count"]
     resolved_title = title or f"Bewley Explorer · {project.root.name} · {payload['code_count']} codes / {document_count} docs"
@@ -4263,126 +4376,161 @@ def cmd_export_html(project: Project, output_path: str, title: str | None) -> in
     if not target.is_absolute():
         target = project.root / target
     atomic_write_text(target, build_code_explorer_html(payload, resolved_title))
-    print(str(target))
-    return 0
+    return {"output_path": str(target)}
 
 
-def cmd_export_document_html(project: Project, document_ref: str, output_path: str, title: str | None) -> int:
+def cmd_export_document_html(project: Project, document_ref: str, output_path: str, title: str | None) -> dict:
     payload = document_viewer_payload(project, document_ref)
     resolved_title = title or f"Bewley Document Viewer · {payload['document_path']}"
     target = Path(output_path)
     if not target.is_absolute():
         target = project.root / target
     atomic_write_text(target, build_document_viewer_html(payload, resolved_title))
-    print(str(target))
-    return 0
+    return {"output_path": str(target)}
 
 
-def cmd_history(project: Project, document: str | None, code: str | None, annotation: str | None) -> int:
+def cmd_history(project: Project, document: str | None, code: str | None, annotation: str | None) -> list[dict]:
     rows = project.history(document_ref=document, code_ref=code, annotation_id=annotation)
-    for event in rows:
-        print_table([(event["sequence_number"], event["timestamp"], event["event_type"], event["event_id"])])
-    return 0
+    return [{"sequence_number": event["sequence_number"], "timestamp": event["timestamp"], "event_type": event["event_type"], "event_id": event["event_id"]} for event in rows]
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    human = args.human_output
+
+    def _output(result: Any, human_fn=None) -> None:
+        if human and human_fn:
+            human_fn(result)
+        elif human:
+            print(result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        else:
+            _json_output(result)
+
+    def _output_id(result: dict) -> None:
+        """Output a single-value dict like {"document_id": "..."} -- in human mode, print just the value."""
+        if human:
+            val = next(iter(result.values()))
+            print(val)
+        else:
+            _json_output(result)
+
     try:
         if args.command == "init":
             project = Project(Path.cwd())
             project.init_project()
-            print("initialized")
+            _output({"status": "initialized"}, lambda r: print("initialized"))
             return 0
 
         project = Project.discover()
 
         if args.command == "status":
-            return cmd_status(project)
+            _output(cmd_status(project), _human_status)
+            return 0
         if args.command == "fsck":
             problems = project.fsck()
             if problems:
-                for problem in problems:
-                    print(problem, file=sys.stderr)
+                if human:
+                    for problem in problems:
+                        print(problem, file=sys.stderr)
+                else:
+                    _json_output({"status": "error", "problems": problems})
                 return 1
-            print("ok")
+            _output({"status": "ok"}, lambda r: print("ok"))
             return 0
         if args.command == "rebuild-index":
             project.rebuild_index()
             project.append_event("index_rebuilt", {"timestamp": utcnow()})
-            print("rebuilt")
+            _output({"status": "rebuilt"}, lambda r: print("rebuilt"))
             return 0
         if args.command == "add":
             event = project.add_document(args.path)
-            print(event["payload"]["document_id"])
+            _output_id({"document_id": event["payload"]["document_id"]})
             return 0
         if args.command == "update":
             event = project.update_document(args.path)
             if event is None:
-                print("no-op")
+                _output({"status": "no-op"}, lambda r: print("no-op"))
             else:
-                print(event["payload"]["revision_id"])
+                _output_id({"revision_id": event["payload"]["revision_id"]})
             return 0
         if args.command == "list" and args.list_what == "documents":
-            return cmd_list_documents(project)
+            _output(cmd_list_documents(project), _human_list_documents)
+            return 0
         if args.command == "show" and args.show_what == "document":
-            return cmd_show_document(project, args.document_ref)
+            _output(cmd_show_document(project, args.document_ref), _human_show_document)
+            return 0
         if args.command == "show" and args.show_what == "snippets":
-            return cmd_show_snippets(project, args.code)
+            _output(cmd_show_snippets(project, args.code), _human_show_snippets)
+            return 0
         if args.command == "code":
             if args.code_cmd == "create":
                 event = project.add_code(args.name, args.description, args.color)
-                print(event["payload"]["code_id"])
+                _output_id({"code_id": event["payload"]["code_id"]})
                 return 0
             if args.code_cmd == "list":
-                return cmd_code_list(project, tree=args.tree)
+                result = cmd_code_list(project, tree=args.tree)
+                if args.tree:
+                    _output(result, _human_code_tree)
+                else:
+                    _output(result, _human_code_list)
+                return 0
             if args.code_cmd == "show":
-                return cmd_code_show(project, args.code_ref)
+                _output(cmd_code_show(project, args.code_ref), _human_code_show)
+                return 0
             if args.code_cmd == "rename":
                 event = project.rename_code(args.old, args.new)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.code_cmd == "alias":
                 event = project.alias_code(args.code_ref, args.alias)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.code_cmd == "merge":
                 event = project.merge_codes(args.sources, args.into)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.code_cmd == "split":
                 event = project.split_code(args.source, args.new, args.annotation, args.description, args.color)
-                print(event["payload"]["new_code_id"])
+                _output_id({"new_code_id": event["payload"]["new_code_id"]})
                 return 0
             if args.code_cmd == "set-parent":
                 event = project.set_code_parent(args.code_ref, args.parent_ref)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.code_cmd == "clear-parent":
                 event = project.clear_code_parent(args.code_ref)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.code_cmd == "link":
                 event = project.create_code_link(args.source, args.target, args.relationship, args.memo)
-                print(event["payload"]["link_id"])
+                _output_id({"link_id": event["payload"]["link_id"]})
                 return 0
             if args.code_cmd == "links":
-                return cmd_code_links(project, args.code_ref)
+                _output(cmd_code_links(project, args.code_ref), _human_code_links)
+                return 0
             if args.code_cmd == "unlink":
                 event = project.remove_code_link(args.link_id)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.code_cmd == "set-core":
                 event = project.set_core_category(args.code_ref)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.code_cmd == "show-core":
                 with project.connect() as conn:
                     core = project.get_core_category(conn)
                 if core:
-                    print(f"{core['code_id']}\t{core['canonical_name']}")
+                    result = {"code_id": core["code_id"], "canonical_name": core["canonical_name"]}
+                    if human:
+                        print(f"{core['code_id']}\t{core['canonical_name']}")
+                    else:
+                        _json_output(result)
                 else:
-                    print("no core category set")
+                    if human:
+                        print("no core category set")
+                    else:
+                        _json_output(None)
                 return 0
         if args.command == "annotate":
             if args.annotate_cmd == "apply":
@@ -4397,46 +4545,82 @@ def main(argv: list[str] | None = None) -> int:
                     content = (project.objects_dir / rev["content_sha256"]).read_bytes().decode("utf-8")
                     byte_range = lines_to_byte_range(content, *parse_byte_range(args.lines))
                     event = project.add_annotation(args.code_ref, args.document_ref, "span", byte_range, args.memo)
-                print(event["payload"]["annotation_id"])
+                _output_id({"annotation_id": event["payload"]["annotation_id"]})
                 return 0
             if args.annotate_cmd == "remove":
                 event = project.remove_annotation(args.annotation_id)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.annotate_cmd == "show":
-                return cmd_annotate_show(project, args.annotation_id)
+                _output(cmd_annotate_show(project, args.annotation_id), _human_annotate_show)
+                return 0
             if args.annotate_cmd == "resolve":
                 event = project.resolve_annotation(args.annotation_id, parse_byte_range(args.bytes), args.memo)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
         if args.command == "query":
-            return cmd_query(project, args.expr, args.mode)
+            result = cmd_query(project, args.expr, args.mode)
+            cfg_mode = project.config().get("default_query_mode", DEFAULT_QUERY_MODE)
+            selected_mode = args.mode or cfg_mode
+            if human:
+                if selected_mode == "document":
+                    _human_query_documents(result)
+                else:
+                    _human_query_annotations(result)
+            else:
+                _json_output(result)
+            return 0
         if args.command == "export" and args.export_what == "snippets":
-            return cmd_export_snippets(project, args.code, args.format, args.context_lines)
+            result = cmd_export_snippets(project, args.code, args.format, args.context_lines, human)
+            if result is not None:
+                _json_output(result)
+            return 0
         if args.command == "export" and args.export_what == "quotes":
-            return cmd_export_quotes(project, args.code, args.query, args.format, args.context_lines)
+            result = cmd_export_quotes(project, args.code, args.query, args.format, args.context_lines, human)
+            if result is not None:
+                _json_output(result)
+            return 0
         if args.command == "export" and args.export_what == "html":
-            return cmd_export_html(project, args.output, args.title)
+            result = cmd_export_html(project, args.output, args.title)
+            _output(result, lambda r: print(r["output_path"]))
+            return 0
         if args.command == "export" and args.export_what == "document-html":
-            return cmd_export_document_html(project, args.document_ref, args.output, args.title)
+            result = cmd_export_document_html(project, args.document_ref, args.output, args.title)
+            _output(result, lambda r: print(r["output_path"]))
+            return 0
         if args.command == "export" and args.export_what == "theory":
-            if args.format == "json":
-                text = json.dumps(project.export_theory_json(), indent=2, ensure_ascii=False)
+            if human:
+                if args.format == "json":
+                    text = json.dumps(project.export_theory_json(), indent=2, ensure_ascii=False)
+                else:
+                    text = project.export_theory_mermaid()
+                if args.output:
+                    Path(args.output).write_text(text, encoding="utf-8")
+                    print(f"wrote {args.output}")
+                else:
+                    print(text)
             else:
-                text = project.export_theory_mermaid()
-            if args.output:
-                Path(args.output).write_text(text, encoding="utf-8")
-                print(f"wrote {args.output}")
-            else:
-                print(text)
+                result = project.export_theory_json()
+                if args.output:
+                    Path(args.output).write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+                    _json_output({"output_path": args.output})
+                else:
+                    _json_output(result)
             return 0
         if args.command == "export" and args.export_what == "narrative":
             text = project.export_narrative()
-            if args.output:
-                Path(args.output).write_text(text, encoding="utf-8")
-                print(f"wrote {args.output}")
+            if human:
+                if args.output:
+                    Path(args.output).write_text(text, encoding="utf-8")
+                    print(f"wrote {args.output}")
+                else:
+                    print(text)
             else:
-                print(text)
+                if args.output:
+                    Path(args.output).write_text(text, encoding="utf-8")
+                    _json_output({"output_path": args.output})
+                else:
+                    _json_output({"text": text})
             return 0
         if args.command == "memo":
             if args.memo_cmd == "add":
@@ -4450,47 +4634,63 @@ def main(argv: list[str] | None = None) -> int:
                 if content is None:
                     content = project._open_editor()
                     if not content.strip():
-                        print("aborted: empty memo")
+                        if human:
+                            print("aborted: empty memo")
+                        else:
+                            _json_output({"error": "aborted: empty memo"})
                         return 1
                 event = project.create_memo(target_type, target_ref, content, args.title)
-                print(event["payload"]["memo_id"])
+                _output_id({"memo_id": event["payload"]["memo_id"]})
                 return 0
             if args.memo_cmd == "list":
                 if args.code:
-                    return cmd_memo_list(project, target_type="code", target_ref=args.code)
+                    result = cmd_memo_list(project, target_type="code", target_ref=args.code)
                 elif args.document:
-                    return cmd_memo_list(project, target_type="document", target_ref=args.document)
+                    result = cmd_memo_list(project, target_type="document", target_ref=args.document)
                 else:
-                    return cmd_memo_list(project)
+                    result = cmd_memo_list(project)
+                _output(result, _human_memo_list)
+                return 0
             if args.memo_cmd == "show":
-                return cmd_memo_show(project, args.memo_id)
+                _output(cmd_memo_show(project, args.memo_id), _human_memo_show)
+                return 0
             if args.memo_cmd == "edit":
                 with project.connect() as conn:
                     memo = project.resolve_memo(conn, args.memo_id)
                 old_content = project.read_memo_content(memo["content_sha256"])
                 new_content = project._open_editor(old_content)
                 if not new_content.strip():
-                    print("aborted: empty memo")
+                    if human:
+                        print("aborted: empty memo")
+                    else:
+                        _json_output({"error": "aborted: empty memo"})
                     return 1
                 event = project.update_memo(args.memo_id, new_content)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
             if args.memo_cmd == "delete":
                 event = project.delete_memo(args.memo_id)
-                print(event["event_id"])
+                _output_id({"event_id": event["event_id"]})
                 return 0
         if args.command == "history":
-            return cmd_history(project, args.document, args.code, args.annotation)
+            _output(cmd_history(project, args.document, args.code, args.annotation), _human_history)
+            return 0
         if args.command == "undo":
             event = project.undo(args.event_id)
-            print(event["event_id"])
+            _output_id({"event_id": event["event_id"]})
             return 0
         raise BewleyError("unimplemented command")
     except BewleyError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        if human:
+            print(f"error: {exc}", file=sys.stderr)
+        else:
+            _json_output({"error": str(exc)})
         return 2
     except KeyboardInterrupt:
-        print("error: interrupted", file=sys.stderr)
+        if human:
+            print("error: interrupted", file=sys.stderr)
+        else:
+            _json_output({"error": "interrupted"})
         return 130
 
 

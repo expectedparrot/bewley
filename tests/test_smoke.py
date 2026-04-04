@@ -11,14 +11,17 @@ from bewley.cli import main
 
 
 class BewleySmokeTest(unittest.TestCase):
-    def run_cli(self, cwd: Path, *args: str) -> tuple[int, str, str]:
+    def run_cli(self, cwd: Path, *args: str, human: bool = True) -> tuple[int, str, str]:
         old_cwd = Path.cwd()
         stdout = io.StringIO()
         stderr = io.StringIO()
+        cli_args = list(args)
+        if human:
+            cli_args = ["-H"] + cli_args
         try:
             os.chdir(cwd)
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                code = main(list(args))
+                code = main(cli_args)
         finally:
             os.chdir(old_cwd)
         return code, stdout.getvalue(), stderr.getvalue()
