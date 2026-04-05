@@ -3201,6 +3201,219 @@ def build_static_code_explorer_html(payload: dict[str, Any], title: str) -> str:
 """
 
 
+def build_embeddable_code_explorer_html(payload: dict[str, Any], title: str) -> str:
+    """Build an embeddable HTML fragment for a code explorer.
+
+    Returns a ``<div class="bewley-embed">`` containing scoped CSS (via
+    ``.bewley-embed`` prefix on every rule) plus the code sections and TOC.
+    No ``<html>``, ``<head>``, or ``<body>`` wrapper — designed to be dropped
+    into a pandoc ``--embed-resources`` HTML report or any container page.
+    """
+    safe_title = html.escape(title)
+    codes = sorted(payload["codes"], key=lambda c: -c["annotation_count"])
+    codes = [c for c in codes if c["annotation_count"] > 0]
+    doc_texts: dict[str, list[str]] = payload.get("document_texts", {})
+
+    snippets_by_code: dict[str, list[dict]] = {}
+    for s in payload.get("snippets", []):
+        snippets_by_code.setdefault(s["code_name"], []).append(s)
+
+    def _escape(text: str) -> str:
+        return html.escape(text)
+
+    def _snippet_html(s: dict) -> str:
+        scope = s.get("scope_type", "document")
+        doc_path = s.get("document_path", "")
+        if scope == "span" and s.get("exact_text"):
+            text = s["exact_text"].strip()
+        elif scope == "document" and doc_path in doc_texts:
+            text = "\n".join(doc_texts[doc_path])
+        elif s.get("exact_text"):
+            text = s["exact_text"].strip()
+        else:
+            text = "(document-level annotation)"
+        memo = s.get("memo") or ""
+        lines = []
+        lines.append('<div class="bw-snippet">')
+        lines.append(f'<pre class="bw-snippet-text">{_escape(text)}</pre>')
+        if memo:
+            lines.append(f'<div class="bw-snippet-memo">{_escape(memo)}</div>')
+        lines.append(f'<div class="bw-snippet-source">{_escape(doc_path)}</div>')
+        lines.append('</div>')
+        return "\n".join(lines)
+
+    code_sections = []
+    for c in codes:
+        slug = c["name"].replace("/", "-")
+        color = c.get("display_color", "#428a5f")
+        desc = c.get("description", "")
+        code_snippets = snippets_by_code.get(c["name"], [])
+
+        section_lines = []
+        section_lines.append(f'<details class="bw-code-section" id="bw-{_escape(slug)}">')
+        section_lines.append(f'<summary class="bw-code-header">')
+        section_lines.append(f'<span class="bw-color-dot" style="background:{color}"></span>')
+        section_lines.append(f'<strong class="bw-code-name">{_escape(c["name"])}</strong>')
+        section_lines.append(f'<span class="bw-badge">{c["annotation_count"]}</span>')
+        if desc:
+            section_lines.append(f' <span class="bw-code-desc">{_escape(desc)}</span>')
+        section_lines.append('</summary>')
+        for s in code_snippets:
+            section_lines.append(_snippet_html(s))
+        section_lines.append('</details>')
+        code_sections.append("\n".join(section_lines))
+
+    toc_items = []
+    for c in codes:
+        slug = c["name"].replace("/", "-")
+        toc_items.append(
+            f'<span class="bw-toc-item">'
+            f'<a href="#bw-{_escape(slug)}">{_escape(c["name"])}</a>'
+            f'<span class="bw-toc-count">({c["annotation_count"]})</span>'
+            f'</span>'
+        )
+
+    return f"""<div class="bewley-embed">
+<style>
+  .bewley-embed {{
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.5;
+    color: #1a1a1a;
+  }}
+  .bewley-embed .bw-header {{
+    border-bottom: 2px solid #428a5f;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.8rem;
+  }}
+  .bewley-embed .bw-header h3 {{
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #1a1a1a;
+  }}
+  .bewley-embed .bw-stats {{
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+  }}
+  .bewley-embed .bw-toc {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem 1.2rem;
+    margin-bottom: 1.2rem;
+    padding: 0.8rem;
+    background: #f5f5f5;
+    border-radius: 5px;
+    font-size: 0.82rem;
+  }}
+  .bewley-embed .bw-toc-item a {{
+    text-decoration: none;
+    color: #1a1a1a;
+    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  }}
+  .bewley-embed .bw-toc-item a:hover {{ color: #428a5f; }}
+  .bewley-embed .bw-toc-count {{ color: #999; font-size: 0.78rem; }}
+  .bewley-embed .bw-code-section {{
+    margin-bottom: 0.6rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+  }}
+  .bewley-embed .bw-code-header {{
+    cursor: pointer;
+    padding: 0.5rem 0.8rem;
+    background: #fafafa;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    list-style: none;
+  }}
+  .bewley-embed .bw-code-header::-webkit-details-marker {{ display: none; }}
+  .bewley-embed .bw-code-header::before {{
+    content: '\\25B6';
+    display: inline-block;
+    margin-right: 0.4rem;
+    font-size: 0.6rem;
+    transition: transform 0.15s;
+    color: #999;
+  }}
+  .bewley-embed details[open] > .bw-code-header::before {{
+    transform: rotate(90deg);
+  }}
+  .bewley-embed .bw-color-dot {{
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }}
+  .bewley-embed .bw-code-name {{
+    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.88rem;
+  }}
+  .bewley-embed .bw-badge {{
+    display: inline-block;
+    background: #428a5f;
+    color: #fff;
+    font-size: 0.68rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 8px;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+  }}
+  .bewley-embed .bw-code-desc {{
+    color: #888;
+    font-style: italic;
+    font-size: 0.82rem;
+    margin-left: 0.5rem;
+  }}
+  .bewley-embed .bw-snippet {{
+    background: #f8f8f8;
+    border-left: 3px solid #428a5f;
+    padding: 0.5rem 0.8rem;
+    margin: 0.4rem 0.8rem;
+    border-radius: 0 4px 4px 0;
+  }}
+  .bewley-embed .bw-snippet-text {{
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+    max-height: 12rem;
+    overflow-y: auto;
+  }}
+  .bewley-embed .bw-snippet-memo {{
+    font-size: 0.78rem;
+    color: #428a5f;
+    font-style: italic;
+    margin-top: 0.2rem;
+  }}
+  .bewley-embed .bw-snippet-source {{
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 0.2rem;
+    font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  }}
+  .bewley-embed .bw-footer {{
+    text-align: center;
+    color: #999;
+    font-size: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e0e0e0;
+  }}
+</style>
+  <div class="bw-header">
+    <h3>{safe_title}</h3>
+  </div>
+  <p class="bw-stats">{payload['code_count']} codes &middot; {payload['snippet_count']} annotations &middot; {payload['document_count']} documents</p>
+  <div class="bw-toc">
+{"".join(toc_items)}
+  </div>
+{"".join(code_sections)}
+  <div class="bw-footer">Generated by bewley</div>
+</div>
+"""
 
 
 def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
@@ -5477,14 +5690,16 @@ def cmd_export_quotes(project: Project, code_ref: str | None, query_expr: str | 
     return [quote_export_item(row, context_lines, text_by_document) for row in rows]
 
 
-def cmd_export_html(project: Project, output_path: str, title: str | None, *, static: bool = False) -> dict:
+def cmd_export_html(project: Project, output_path: str, title: str | None, *, static: bool = False, embed: bool = False) -> dict:
     payload = code_explorer_payload(project)
     document_count = payload["document_count"]
     resolved_title = title or f"Qualitative coding explorer · {project.root.name} · {payload['code_count']} codes / {document_count} docs"
     target = Path(output_path)
     if not target.is_absolute():
         target = project.root / target
-    if static:
+    if embed:
+        html_content = build_embeddable_code_explorer_html(payload, resolved_title)
+    elif static:
         html_content = build_static_code_explorer_html(payload, resolved_title)
     else:
         html_content = build_code_explorer_html(payload, resolved_title)
@@ -5724,7 +5939,7 @@ def main(argv: list[str] | None = None) -> int:
                 _json_output(result)
             return 0
         if args.command == "export" and args.export_what == "html":
-            result = cmd_export_html(project, args.output, args.title, static=args.static)
+            result = cmd_export_html(project, args.output, args.title, static=args.static, embed=args.embed)
             _output(result, lambda r: print(r["output_path"]))
             return 0
         if args.command == "export" and args.export_what == "document-html":
