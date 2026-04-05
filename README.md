@@ -78,6 +78,41 @@ bewley status
 bewley list documents
 ```
 
+### 2b. Optional: transcribe audio into the corpus
+
+If you have source interview audio, Bewley can ask OpenAI to transcribe it and then add the transcript as a normal corpus document:
+
+```bash
+export OPENAI_API_KEY=...
+bewley add-audio recordings/interview-alice.m4a --output corpus/interview-alice.txt
+```
+
+For speaker-turn transcripts with timestamps, use the diarization response:
+
+```bash
+bewley add-audio recordings/interview-alice.m4a \
+  --output corpus/interview-alice.txt \
+  --model gpt-4o-transcribe-diarize \
+  --response-format diarized_json
+```
+
+Inspect the linkage later:
+
+```bash
+bewley show document corpus/interview-alice.txt
+bewley show audio corpus/interview-alice.txt
+```
+
+Video works the same way, but Bewley first extracts audio with `ffmpeg` and chunks long recordings into transcription-safe pieces before merging the transcript back together:
+
+```bash
+bewley add-video recordings/interview-alice.mp4 \
+  --output corpus/interview-alice.txt \
+  --response-format verbose_json
+
+bewley show video corpus/interview-alice.txt
+```
+
 ### 3. Create codes
 
 Define your analytic codes:
@@ -264,6 +299,8 @@ my-study/
     HEAD                 ← pointer to latest event
     events/              ← append-only event log (one JSON file per action)
     objects/documents/   ← immutable document snapshots (SHA-256 addressed)
+    objects/audio/       ← immutable stored audio sources for transcribed documents
+    objects/video/       ← immutable stored video sources for transcribed documents
     index/bewley.sqlite  ← rebuildable query index (not the source of truth)
     locks/write.lock     ← prevents concurrent writes
     logs/rebuild.log
@@ -282,9 +319,13 @@ bewley fsck
 bewley rebuild-index
 
 bewley add <path>
+bewley add-audio <audio-path> [--output <path>] [--model <model>] [--response-format json|verbose_json|diarized_json]
+bewley add-video <video-path> [--output <path>] [--model <model>] [--response-format json|verbose_json|diarized_json]
 bewley update <path>
 bewley list documents
 bewley show document <ref>
+bewley show audio <ref>
+bewley show video <ref>
 
 bewley code create <name> [--description <text>]
 bewley code list

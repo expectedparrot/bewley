@@ -6,6 +6,7 @@ import datetime as dt
 import html
 import hashlib
 import json
+import mimetypes
 import os
 import shutil
 import sqlite3
@@ -26,12 +27,18 @@ PROJECT_DIR = ".bewley"
 DB_PATH = Path(PROJECT_DIR) / "index" / "bewley.sqlite"
 EVENTS_DIR = Path(PROJECT_DIR) / "events"
 OBJECTS_DIR = Path(PROJECT_DIR) / "objects" / "documents"
+AUDIO_OBJECTS_DIR = Path(PROJECT_DIR) / "objects" / "audio"
+VIDEO_OBJECTS_DIR = Path(PROJECT_DIR) / "objects" / "video"
 LOCK_PATH = Path(PROJECT_DIR) / "locks" / "write.lock"
 CONFIG_PATH = Path(PROJECT_DIR) / "config.toml"
 HEAD_PATH = Path(PROJECT_DIR) / "HEAD"
 DEFAULT_QUERY_MODE = "document"
 CONTEXT_BYTES = 32
 FUZZY_RELOCATION_THRESHOLD = 0.92
+OPENAI_AUDIO_LIMIT_BYTES = 25 * 1024 * 1024
+OPENAI_MEDIA_TARGET_BYTES = 24 * 1024 * 1024
+DEFAULT_VIDEO_CHUNK_OVERLAP_SECONDS = 3.0
+DEFAULT_EXTRACT_AUDIO_BITRATE_KBPS = 96
 
 
 class BewleyError(Exception):
@@ -133,6 +140,16 @@ def lines_to_byte_range(text: str, start_line: int, end_line: int) -> tuple[int,
 
 def safe_decode(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
+
+
+def format_timestamp(seconds: Any) -> str:
+    try:
+        total = max(0.0, float(seconds))
+    except (TypeError, ValueError):
+        return "00:00.00"
+    minutes = int(total // 60)
+    remainder = total - (minutes * 60)
+    return f"{minutes:02d}:{remainder:05.2f}"
 
 
 def annotation_overlap(a: sqlite3.Row, b: sqlite3.Row) -> bool:
@@ -297,6 +314,14 @@ class Project:
         return self.root / OBJECTS_DIR
 
     @property
+    def audio_objects_dir(self) -> Path:
+        return self.root / AUDIO_OBJECTS_DIR
+
+    @property
+    def video_objects_dir(self) -> Path:
+        return self.root / VIDEO_OBJECTS_DIR
+
+    @property
     def lock_path(self) -> Path:
         return self.root / LOCK_PATH
 
@@ -338,6 +363,48 @@ class Project:
                   source_path TEXT NOT NULL,
                   parent_revision_id TEXT,
                   is_current INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS document_audio_sources (
+                  document_id TEXT PRIMARY KEY,
+                  audio_sha256 TEXT NOT NULL,
+                  original_audio_path TEXT NOT NULL,
+                  original_audio_filename TEXT NOT NULL,
+                  media_type TEXT NOT NULL,
+                  transcription_model TEXT NOT NULL,
+                  transcription_response_format TEXT NOT NULL,
+                  transcription_language TEXT,
+                  transcript_style TEXT NOT NULL,
+                  segment_count INTEGER NOT NULL DEFAULT 0,
+                  metadata_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS document_video_sources (
+                  document_id TEXT PRIMARY KEY,
+                  video_sha256 TEXT NOT NULL,
+                  original_video_path TEXT NOT NULL,
+                  original_video_filename TEXT NOT NULL,
+                  media_type TEXT NOT NULL,
+                  duration_seconds REAL NOT NULL,
+                  transcription_model TEXT NOT NULL,
+                  transcription_response_format TEXT NOT NULL,
+                  transcription_language TEXT,
+                  transcript_style TEXT NOT NULL,
+                  chunk_count INTEGER NOT NULL DEFAULT 0,
+                  metadata_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS document_video_chunks (
+                  document_id TEXT NOT NULL,
+                  chunk_index INTEGER NOT NULL,
+                  extract_start_seconds REAL NOT NULL,
+                  extract_end_seconds REAL NOT NULL,
+                  logical_start_seconds REAL NOT NULL,
+                  logical_end_seconds REAL NOT NULL,
+                  chunk_audio_sha256 TEXT NOT NULL,
+                  byte_length INTEGER NOT NULL,
+                  media_type TEXT NOT NULL,
+                  metadata_json TEXT NOT NULL,
+                  PRIMARY KEY (document_id, chunk_index)
                 );
                 CREATE TABLE IF NOT EXISTS codes (
                   code_id TEXT PRIMARY KEY,
@@ -427,6 +494,8 @@ class Project:
             "corpus",
             ".bewley/events",
             ".bewley/objects/documents",
+            ".bewley/objects/audio",
+            ".bewley/objects/video",
             ".bewley/objects/memos",
             ".bewley/refs/codes",
             ".bewley/refs/documents",
@@ -546,6 +615,48 @@ class Project:
               source_path TEXT NOT NULL,
               parent_revision_id TEXT,
               is_current INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE document_audio_sources (
+              document_id TEXT PRIMARY KEY,
+              audio_sha256 TEXT NOT NULL,
+              original_audio_path TEXT NOT NULL,
+              original_audio_filename TEXT NOT NULL,
+              media_type TEXT NOT NULL,
+              transcription_model TEXT NOT NULL,
+              transcription_response_format TEXT NOT NULL,
+              transcription_language TEXT,
+              transcript_style TEXT NOT NULL,
+              segment_count INTEGER NOT NULL DEFAULT 0,
+              metadata_json TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE document_video_sources (
+              document_id TEXT PRIMARY KEY,
+              video_sha256 TEXT NOT NULL,
+              original_video_path TEXT NOT NULL,
+              original_video_filename TEXT NOT NULL,
+              media_type TEXT NOT NULL,
+              duration_seconds REAL NOT NULL,
+              transcription_model TEXT NOT NULL,
+              transcription_response_format TEXT NOT NULL,
+              transcription_language TEXT,
+              transcript_style TEXT NOT NULL,
+              chunk_count INTEGER NOT NULL DEFAULT 0,
+              metadata_json TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE TABLE document_video_chunks (
+              document_id TEXT NOT NULL,
+              chunk_index INTEGER NOT NULL,
+              extract_start_seconds REAL NOT NULL,
+              extract_end_seconds REAL NOT NULL,
+              logical_start_seconds REAL NOT NULL,
+              logical_end_seconds REAL NOT NULL,
+              chunk_audio_sha256 TEXT NOT NULL,
+              byte_length INTEGER NOT NULL,
+              media_type TEXT NOT NULL,
+              metadata_json TEXT NOT NULL,
+              PRIMARY KEY (document_id, chunk_index)
             );
             CREATE TABLE codes (
               code_id TEXT PRIMARY KEY,
@@ -692,6 +803,80 @@ class Project:
                     payload["parent_revision_id"],
                 ),
             )
+            return
+        if etype == "document_audio_linked":
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO document_audio_sources (
+                  document_id, audio_sha256, original_audio_path, original_audio_filename, media_type,
+                  transcription_model, transcription_response_format, transcription_language, transcript_style,
+                  segment_count, metadata_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["document_id"],
+                    payload["audio_sha256"],
+                    payload["original_audio_path"],
+                    payload["original_audio_filename"],
+                    payload["media_type"],
+                    payload["transcription_model"],
+                    payload["transcription_response_format"],
+                    payload.get("transcription_language"),
+                    payload["transcript_style"],
+                    payload["segment_count"],
+                    json.dumps(payload["transcription_metadata"], ensure_ascii=False, sort_keys=True),
+                    event["timestamp"],
+                ),
+            )
+            return
+        if etype == "document_video_linked":
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO document_video_sources (
+                  document_id, video_sha256, original_video_path, original_video_filename, media_type,
+                  duration_seconds, transcription_model, transcription_response_format, transcription_language,
+                  transcript_style, chunk_count, metadata_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["document_id"],
+                    payload["video_sha256"],
+                    payload["original_video_path"],
+                    payload["original_video_filename"],
+                    payload["media_type"],
+                    payload["duration_seconds"],
+                    payload["transcription_model"],
+                    payload["transcription_response_format"],
+                    payload.get("transcription_language"),
+                    payload["transcript_style"],
+                    payload["chunk_count"],
+                    json.dumps(payload["transcription_metadata"], ensure_ascii=False, sort_keys=True),
+                    event["timestamp"],
+                ),
+            )
+            conn.execute("DELETE FROM document_video_chunks WHERE document_id = ?", (payload["document_id"],))
+            for chunk in payload["chunks"]:
+                conn.execute(
+                    """
+                    INSERT INTO document_video_chunks (
+                      document_id, chunk_index, extract_start_seconds, extract_end_seconds,
+                      logical_start_seconds, logical_end_seconds, chunk_audio_sha256, byte_length,
+                      media_type, metadata_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        payload["document_id"],
+                        chunk["chunk_index"],
+                        chunk["extract_start_seconds"],
+                        chunk["extract_end_seconds"],
+                        chunk["logical_start_seconds"],
+                        chunk["logical_end_seconds"],
+                        chunk["chunk_audio_sha256"],
+                        chunk["byte_length"],
+                        chunk["media_type"],
+                        json.dumps(chunk["transcription_metadata"], ensure_ascii=False, sort_keys=True),
+                    ),
+                )
             return
         if etype == "code_created":
             conn.execute(
@@ -957,6 +1142,20 @@ class Project:
             target.write_bytes(data)
         return digest
 
+    def store_audio_object(self, data: bytes) -> str:
+        digest = sha256_bytes(data)
+        target = self.audio_objects_dir / digest
+        if not target.exists():
+            target.write_bytes(data)
+        return digest
+
+    def store_video_object(self, data: bytes) -> str:
+        digest = sha256_bytes(data)
+        target = self.video_objects_dir / digest
+        if not target.exists():
+            target.write_bytes(data)
+        return digest
+
     def store_memo_object(self, content: str) -> str:
         data = content.encode("utf-8")
         digest = sha256_bytes(data)
@@ -1018,6 +1217,372 @@ class Project:
                 "source_path": str(rel),
             },
         )
+
+    def resolve_output_path(self, path_arg: str | None, source_path: Path) -> tuple[Path, Path]:
+        output_ref = Path(path_arg) if path_arg else Path("corpus") / f"{source_path.stem}.txt"
+        output_path = (self.root / output_ref).resolve() if not output_ref.is_absolute() else output_ref
+        try:
+            rel = output_path.relative_to(self.root)
+        except ValueError as exc:
+            raise BewleyError("transcript output path must be inside the project root") from exc
+        return output_path, rel
+
+    def normalize_segments(self, transcription: dict[str, Any]) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for segment in transcription.get("segments") or []:
+            text = str(segment.get("text") or "").strip()
+            if not text:
+                continue
+            try:
+                start = float(segment.get("start", 0.0))
+                end = float(segment.get("end", start))
+            except (TypeError, ValueError):
+                continue
+            if end <= start:
+                continue
+            normalized.append(
+                {
+                    "start": start,
+                    "end": end,
+                    "speaker": str(segment.get("speaker") or "speaker").strip(),
+                    "text": text,
+                }
+            )
+        return normalized
+
+    def render_transcript_text(self, transcription: dict[str, Any], transcript_style: str) -> str:
+        if transcript_style == "segments":
+            segments = self.normalize_segments(transcription)
+            lines: list[str] = []
+            for segment in segments:
+                lines.append(
+                    f"[{format_timestamp(segment['start'])} - {format_timestamp(segment['end'])}] "
+                    f"{segment['speaker']}: {segment['text']}"
+                )
+            if lines:
+                return "\n".join(lines) + "\n"
+        text = str(transcription.get("text", "")).strip()
+        if not text:
+            raise BewleyError("transcription response did not contain transcript text")
+        return text + "\n"
+
+    def ffprobe_duration_seconds(self, media_path: Path) -> float:
+        completed = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(media_path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        try:
+            duration = float(completed.stdout.strip())
+        except ValueError as exc:
+            raise BewleyError(f"ffprobe returned an invalid duration for {media_path}") from exc
+        if duration <= 0:
+            raise BewleyError(f"ffprobe returned a non-positive duration for {media_path}")
+        return duration
+
+    def build_video_chunk_plan(
+        self,
+        video_path: Path,
+        *,
+        max_upload_bytes: int,
+        overlap_seconds: float,
+        audio_bitrate_kbps: int,
+    ) -> list[dict[str, Any]]:
+        duration_seconds = self.ffprobe_duration_seconds(video_path)
+        bytes_per_second = (audio_bitrate_kbps * 1000) / 8
+        logical_chunk_seconds = max(30.0, max_upload_bytes / bytes_per_second)
+        chunks: list[dict[str, Any]] = []
+        logical_start = 0.0
+        chunk_index = 0
+        while logical_start < duration_seconds:
+            logical_end = min(duration_seconds, logical_start + logical_chunk_seconds)
+            extract_start = logical_start if chunk_index == 0 else max(0.0, logical_start - overlap_seconds)
+            extract_end = logical_end
+            chunks.append(
+                {
+                    "chunk_index": chunk_index,
+                    "extract_start_seconds": round(extract_start, 3),
+                    "extract_end_seconds": round(extract_end, 3),
+                    "logical_start_seconds": round(logical_start, 3),
+                    "logical_end_seconds": round(logical_end, 3),
+                }
+            )
+            if logical_end >= duration_seconds:
+                break
+            logical_start = logical_end
+            chunk_index += 1
+        return chunks
+
+    def extract_audio_chunk(
+        self,
+        video_path: Path,
+        chunk_path: Path,
+        *,
+        extract_start_seconds: float,
+        extract_end_seconds: float,
+        audio_bitrate_kbps: int,
+    ) -> None:
+        duration = max(0.1, extract_end_seconds - extract_start_seconds)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-ss",
+                f"{extract_start_seconds:.3f}",
+                "-i",
+                str(video_path),
+                "-t",
+                f"{duration:.3f}",
+                "-vn",
+                "-ac",
+                "1",
+                "-b:a",
+                f"{audio_bitrate_kbps}k",
+                str(chunk_path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    def merge_chunk_transcriptions(self, chunk_results: list[dict[str, Any]]) -> dict[str, Any]:
+        merged_segments: list[dict[str, Any]] = []
+        merged_text_parts: list[str] = []
+        language: str | None = None
+        for result in sorted(chunk_results, key=lambda item: item["chunk_index"]):
+            transcription = result["transcription"]
+            if not language:
+                language = transcription.get("language")
+            local_segments = self.normalize_segments(transcription)
+            absolute_segments: list[dict[str, Any]] = []
+            for segment in local_segments:
+                abs_start = result["extract_start_seconds"] + segment["start"]
+                abs_end = result["extract_start_seconds"] + segment["end"]
+                if abs_end <= result["logical_start_seconds"]:
+                    continue
+                absolute_segments.append(
+                    {
+                        "start": max(abs_start, result["logical_start_seconds"]),
+                        "end": min(abs_end, result["logical_end_seconds"]),
+                        "speaker": segment["speaker"],
+                        "text": segment["text"],
+                    }
+                )
+            if absolute_segments:
+                merged_segments.extend(absolute_segments)
+            else:
+                text = str(transcription.get("text") or "").strip()
+                if text:
+                    merged_text_parts.append(text)
+        merged: dict[str, Any] = {"language": language}
+        if merged_segments:
+            merged["segments"] = merged_segments
+            merged["text"] = " ".join(segment["text"] for segment in merged_segments)
+        else:
+            merged["text"] = "\n\n".join(merged_text_parts).strip()
+        return merged
+
+    def transcribe_audio_with_openai(
+        self,
+        audio_path: Path,
+        *,
+        model: str,
+        language: str | None,
+        prompt: str | None,
+        response_format: str,
+    ) -> dict[str, Any]:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise BewleyError("OPENAI_API_KEY is required for media transcription")
+        if not audio_path.is_file():
+            raise BewleyError(f"media file not found: {audio_path}")
+        size = audio_path.stat().st_size
+        if size > OPENAI_AUDIO_LIMIT_BYTES:
+            raise BewleyError("media file exceeds OpenAI's 25 MB transcription upload limit")
+        if response_format == "diarized_json" and prompt:
+            raise BewleyError("prompt is not supported with diarized_json transcripts")
+        command = [
+            "curl",
+            "--silent",
+            "--show-error",
+            "--fail-with-body",
+            "https://api.openai.com/v1/audio/transcriptions",
+            "-H",
+            f"Authorization: Bearer {api_key}",
+            "-F",
+            f"file=@{audio_path}",
+            "-F",
+            f"model={model}",
+            "-F",
+            f"response_format={response_format}",
+        ]
+        if language:
+            command.extend(["-F", f"language={language}"])
+        if prompt:
+            command.extend(["-F", f"prompt={prompt}"])
+        completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise BewleyError("OpenAI transcription response was not valid JSON") from exc
+        if not isinstance(payload, dict):
+            raise BewleyError("unexpected OpenAI transcription response shape")
+        return payload
+
+    def add_audio_document(
+        self,
+        audio_path_arg: str,
+        transcript_path_arg: str | None,
+        *,
+        model: str,
+        language: str | None,
+        prompt: str | None,
+        response_format: str,
+    ) -> dict[str, Any]:
+        audio_path = (self.root / audio_path_arg).resolve() if not Path(audio_path_arg).is_absolute() else Path(audio_path_arg)
+        if not audio_path.is_file():
+            raise BewleyError(f"audio file not found: {audio_path_arg}")
+        transcript_path, resolved_transcript_rel = self.resolve_output_path(transcript_path_arg, audio_path)
+        transcription = self.transcribe_audio_with_openai(
+            audio_path,
+            model=model,
+            language=language,
+            prompt=prompt,
+            response_format=response_format,
+        )
+        transcript_style = "segments" if response_format == "diarized_json" and transcription.get("segments") else "plain"
+        transcript_text = self.render_transcript_text(transcription, transcript_style)
+        atomic_write_text(transcript_path, transcript_text)
+        add_event = self.add_document(str(resolved_transcript_rel))
+        audio_bytes = audio_path.read_bytes()
+        audio_sha256 = self.store_audio_object(audio_bytes)
+        mime_type = mimetypes.guess_type(audio_path.name)[0] or "application/octet-stream"
+        link_event = self.append_event(
+            "document_audio_linked",
+            {
+                "document_id": add_event["payload"]["document_id"],
+                "audio_sha256": audio_sha256,
+                "original_audio_path": str(audio_path),
+                "original_audio_filename": audio_path.name,
+                "media_type": mime_type,
+                "transcription_model": model,
+                "transcription_response_format": response_format,
+                "transcription_language": transcription.get("language") or language,
+                "transcript_style": transcript_style,
+                "segment_count": len(transcription.get("segments") or []),
+                "transcription_metadata": transcription,
+            },
+        )
+        return {
+            "document_id": add_event["payload"]["document_id"],
+            "transcript_path": str(resolved_transcript_rel),
+            "audio_link_event_id": link_event["event_id"],
+        }
+
+    def add_video_document(
+        self,
+        video_path_arg: str,
+        transcript_path_arg: str | None,
+        *,
+        model: str,
+        language: str | None,
+        prompt: str | None,
+        response_format: str,
+        audio_bitrate_kbps: int,
+        chunk_overlap_seconds: float,
+    ) -> dict[str, Any]:
+        video_path = (self.root / video_path_arg).resolve() if not Path(video_path_arg).is_absolute() else Path(video_path_arg)
+        if not video_path.is_file():
+            raise BewleyError(f"video file not found: {video_path_arg}")
+        transcript_path, resolved_transcript_rel = self.resolve_output_path(transcript_path_arg, video_path)
+        chunk_plan = self.build_video_chunk_plan(
+            video_path,
+            max_upload_bytes=OPENAI_MEDIA_TARGET_BYTES,
+            overlap_seconds=chunk_overlap_seconds,
+            audio_bitrate_kbps=audio_bitrate_kbps,
+        )
+        chunk_results: list[dict[str, Any]] = []
+        chunk_payloads: list[dict[str, Any]] = []
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_dir = Path(tempdir)
+            for chunk in chunk_plan:
+                chunk_path = temp_dir / f"{video_path.stem}.chunk-{chunk['chunk_index']:03d}.mp3"
+                self.extract_audio_chunk(
+                    video_path,
+                    chunk_path,
+                    extract_start_seconds=chunk["extract_start_seconds"],
+                    extract_end_seconds=chunk["extract_end_seconds"],
+                    audio_bitrate_kbps=audio_bitrate_kbps,
+                )
+                chunk_bytes = chunk_path.read_bytes()
+                if len(chunk_bytes) > OPENAI_AUDIO_LIMIT_BYTES:
+                    raise BewleyError(
+                        f"extracted chunk {chunk['chunk_index']} exceeds OpenAI's 25 MB transcription upload limit"
+                    )
+                chunk_audio_sha256 = self.store_audio_object(chunk_bytes)
+                transcription = self.transcribe_audio_with_openai(
+                    chunk_path,
+                    model=model,
+                    language=language,
+                    prompt=prompt,
+                    response_format=response_format,
+                )
+                chunk_results.append({**chunk, "transcription": transcription})
+                chunk_payloads.append(
+                    {
+                        "chunk_index": chunk["chunk_index"],
+                        "extract_start_seconds": chunk["extract_start_seconds"],
+                        "extract_end_seconds": chunk["extract_end_seconds"],
+                        "logical_start_seconds": chunk["logical_start_seconds"],
+                        "logical_end_seconds": chunk["logical_end_seconds"],
+                        "chunk_audio_sha256": chunk_audio_sha256,
+                        "byte_length": len(chunk_bytes),
+                        "media_type": "audio/mpeg",
+                        "transcription_metadata": transcription,
+                    }
+                )
+        merged_transcription = self.merge_chunk_transcriptions(chunk_results)
+        transcript_style = "segments" if self.normalize_segments(merged_transcription) else "plain"
+        transcript_text = self.render_transcript_text(merged_transcription, transcript_style)
+        atomic_write_text(transcript_path, transcript_text)
+        add_event = self.add_document(str(resolved_transcript_rel))
+        video_bytes = video_path.read_bytes()
+        video_sha256 = self.store_video_object(video_bytes)
+        mime_type = mimetypes.guess_type(video_path.name)[0] or "application/octet-stream"
+        duration_seconds = max(chunk["logical_end_seconds"] for chunk in chunk_plan)
+        link_event = self.append_event(
+            "document_video_linked",
+            {
+                "document_id": add_event["payload"]["document_id"],
+                "video_sha256": video_sha256,
+                "original_video_path": str(video_path),
+                "original_video_filename": video_path.name,
+                "media_type": mime_type,
+                "duration_seconds": duration_seconds,
+                "transcription_model": model,
+                "transcription_response_format": response_format,
+                "transcription_language": merged_transcription.get("language") or language,
+                "transcript_style": transcript_style,
+                "chunk_count": len(chunk_payloads),
+                "chunks": chunk_payloads,
+                "transcription_metadata": merged_transcription,
+            },
+        )
+        return {
+            "document_id": add_event["payload"]["document_id"],
+            "transcript_path": str(resolved_transcript_rel),
+            "video_link_event_id": link_event["event_id"],
+        }
 
     def maybe_move_document(self, conn: sqlite3.Connection, document_id: str, current_path: str, new_path: str) -> None:
         if current_path != new_path:
@@ -1400,6 +1965,18 @@ class Project:
                     obj_path = self.objects_dir / payload["content_sha256"]
                 if not obj_path.exists():
                     problems.append(f"missing object: {payload['content_sha256']}")
+            if "audio_sha256" in payload:
+                obj_path = self.audio_objects_dir / payload["audio_sha256"]
+                if not obj_path.exists():
+                    problems.append(f"missing audio object: {payload['audio_sha256']}")
+            if "video_sha256" in payload:
+                obj_path = self.video_objects_dir / payload["video_sha256"]
+                if not obj_path.exists():
+                    problems.append(f"missing video object: {payload['video_sha256']}")
+            for chunk in payload.get("chunks", []):
+                obj_path = self.audio_objects_dir / chunk["chunk_audio_sha256"]
+                if not obj_path.exists():
+                    problems.append(f"missing chunk audio object: {chunk['chunk_audio_sha256']}")
         temp_db = self.db_path.with_suffix(".fsck.sqlite")
         with contextlib.suppress(FileNotFoundError):
             temp_db.unlink()
@@ -1410,7 +1987,20 @@ class Project:
             self.apply_event(conn, event)
         conn.commit()
         with self.connect() as actual:
-            for table in ["documents", "document_revisions", "codes", "code_aliases", "annotations", "events", "memos", "code_links", "project_settings"]:
+            for table in [
+                "documents",
+                "document_revisions",
+                "document_audio_sources",
+                "document_video_sources",
+                "document_video_chunks",
+                "codes",
+                "code_aliases",
+                "annotations",
+                "events",
+                "memos",
+                "code_links",
+                "project_settings",
+            ]:
                 actual_count = actual.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 rebuilt_count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 if actual_count != rebuilt_count:
@@ -2236,6 +2826,15 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
 
     function buildContextHtml(snippet) {{
       if (snippet.scope_type === "document") {{
+        const lines = docTexts[snippet.document_path];
+        if (lines && lines.length > 0) {{
+          const maxLines = Math.min(lines.length, 60);
+          let parts = lines.slice(0, maxLines).map(l => `<span class="ctx">${{escapeHtml(l)}}</span>`);
+          if (lines.length > maxLines) {{
+            parts.push(`<span class="ctx">... (${{lines.length - maxLines}} more lines)</span>`);
+          }}
+          return `<pre>${{parts.join("\\n")}}</pre>`;
+        }}
         return `<pre>&lt;document-level annotation&gt;</pre>`;
       }}
       const lines = docTexts[snippet.document_path];
@@ -2356,6 +2955,252 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
 </body>
 </html>
 """
+
+
+def build_static_code_explorer_html(payload: dict[str, Any], title: str) -> str:
+    """Build a pure HTML/CSS code explorer with no JavaScript.
+
+    For whole-document annotations, the full document text is rendered in the
+    snippet area.  For span annotations, the exact annotated text is shown with
+    context lines from the surrounding document.
+    """
+    safe_title = html.escape(title)
+    codes = sorted(payload["codes"], key=lambda c: -c["annotation_count"])
+    codes = [c for c in codes if c["annotation_count"] > 0]
+    doc_texts: dict[str, list[str]] = payload.get("document_texts", {})
+
+    # Group snippets by code
+    snippets_by_code: dict[str, list[dict]] = {}
+    for s in payload.get("snippets", []):
+        snippets_by_code.setdefault(s["code_name"], []).append(s)
+
+    def _escape(text: str) -> str:
+        return html.escape(text)
+
+    def _snippet_html(s: dict) -> str:
+        scope = s.get("scope_type", "document")
+        doc_path = s.get("document_path", "")
+        if scope == "span" and s.get("exact_text"):
+            text = s["exact_text"].strip()
+        elif scope == "document" and doc_path in doc_texts:
+            text = "\n".join(doc_texts[doc_path])
+        elif s.get("exact_text"):
+            text = s["exact_text"].strip()
+        else:
+            text = "(document-level annotation)"
+        memo = s.get("memo") or ""
+        lines = []
+        lines.append('<div class="snippet">')
+        lines.append(f'<pre class="snippet-text">{_escape(text)}</pre>')
+        if memo:
+            lines.append(f'<div class="snippet-memo">{_escape(memo)}</div>')
+        lines.append(f'<div class="snippet-source">{_escape(doc_path)}</div>')
+        lines.append('</div>')
+        return "\n".join(lines)
+
+    # Build code sections
+    code_sections = []
+    for c in codes:
+        slug = c["name"].replace("/", "-")
+        color = c.get("display_color", "var(--ep-green)")
+        desc = c.get("description", "")
+        code_snippets = snippets_by_code.get(c["name"], [])
+
+        section_lines = []
+        section_lines.append(f'<section class="code-section" id="{_escape(slug)}">')
+        section_lines.append(f'<div class="code-header">')
+        section_lines.append(f'<h2><span class="color-dot" style="background:{color}"></span>{_escape(c["name"])}</h2>')
+        section_lines.append(f'<span class="badge">{c["annotation_count"]} annotation{"s" if c["annotation_count"] != 1 else ""}</span>')
+        section_lines.append('</div>')
+        if desc:
+            section_lines.append(f'<p class="desc">{_escape(desc)}</p>')
+        for s in code_snippets:
+            section_lines.append(_snippet_html(s))
+        section_lines.append('</section>')
+        code_sections.append("\n".join(section_lines))
+
+    # Build TOC
+    toc_items = []
+    for c in codes:
+        slug = c["name"].replace("/", "-")
+        toc_items.append(
+            f'<div class="toc-item">'
+            f'<a href="#{_escape(slug)}">{_escape(c["name"])}</a> '
+            f'<span class="toc-count">({c["annotation_count"]})</span>'
+            f'</div>'
+        )
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{safe_title}</title>
+  <style>
+    :root {{
+      --ep-green: #428a5f;
+      --ep-green-light: #5ba97a;
+      --ep-green-soft: rgba(66, 138, 95, 0.10);
+      --ep-dark: #1a1a1a;
+      --ep-gray: #666666;
+      --ep-light-gray: #f5f5f5;
+      --ep-border: #e0e0e0;
+      --font-serif: Georgia, 'Times New Roman', serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    }}
+    * {{ box-sizing: border-box; }}
+    html {{ font-size: 16px; -webkit-font-smoothing: antialiased; }}
+    body {{
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      color: var(--ep-dark);
+      background: #fff;
+      margin: 0;
+      padding: 1rem 1.5rem 2rem;
+    }}
+    .shell {{ max-width: 960px; margin: 0 auto; }}
+    header {{
+      border-bottom: 3px solid var(--ep-green);
+      padding-bottom: 0.4rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }}
+    header h1 {{
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--ep-dark);
+    }}
+    header .brand {{
+      font-family: var(--font-serif);
+      color: var(--ep-green);
+      font-size: 0.9rem;
+    }}
+    .stats {{
+      color: var(--ep-gray);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }}
+    .toc {{
+      columns: 2;
+      column-gap: 2rem;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: var(--ep-light-gray);
+      border-radius: 6px;
+    }}
+    .toc-item {{
+      break-inside: avoid;
+      padding: 0.15rem 0;
+    }}
+    .toc a {{
+      text-decoration: none;
+      color: var(--ep-dark);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }}
+    .toc a:hover {{ color: var(--ep-green); }}
+    .toc-count {{ color: var(--ep-gray); font-size: 0.8rem; }}
+    .code-section {{
+      margin-bottom: 2rem;
+      border-top: 1px solid var(--ep-border);
+      padding-top: 0.5rem;
+    }}
+    .code-header {{
+      display: flex;
+      align-items: baseline;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }}
+    .code-header h2 {{
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      color: var(--ep-dark);
+      margin: 0.5rem 0 0.2rem 0;
+    }}
+    .color-dot {{
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }}
+    .badge {{
+      display: inline-block;
+      background: var(--ep-green);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 10px;
+      white-space: nowrap;
+    }}
+    .desc {{
+      color: var(--ep-gray);
+      font-style: italic;
+      margin: 0.2rem 0 0.8rem 0;
+    }}
+    .snippet {{
+      background: var(--ep-light-gray);
+      border-left: 3px solid var(--ep-green);
+      padding: 0.6rem 1rem;
+      margin-bottom: 0.6rem;
+      border-radius: 0 4px 4px 0;
+    }}
+    .snippet-text {{
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin: 0;
+      max-height: 20rem;
+      overflow-y: auto;
+    }}
+    .snippet-memo {{
+      font-size: 0.8rem;
+      color: var(--ep-green);
+      font-style: italic;
+      margin-top: 0.3rem;
+    }}
+    .snippet-source {{
+      font-size: 0.8rem;
+      color: var(--ep-gray);
+      margin-top: 0.3rem;
+      font-family: var(--font-mono);
+    }}
+    .footer {{
+      text-align: center;
+      color: var(--ep-gray);
+      font-size: 0.8rem;
+      margin-top: 3rem;
+      border-top: 1px solid var(--ep-border);
+      padding-top: 1rem;
+    }}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>{safe_title}</h1>
+      <span class="brand">Expected Parrot</span>
+    </header>
+    <p class="stats">{payload['code_count']} codes &middot; {payload['snippet_count']} annotations &middot; {payload['document_count']} documents</p>
+    <div class="toc">
+{"".join(toc_items)}
+    </div>
+{"".join(code_sections)}
+    <div class="footer">Generated {payload.get('generated_at', '')} by bewley &middot; Expected Parrot</div>
+  </div>
+</body>
+</html>
+"""
+
+
 
 
 def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
@@ -2980,6 +3825,74 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add.add_argument("path", help="Path to the UTF-8 text file to add.")
 
+    add_audio = sub.add_parser(
+        "add-audio",
+        help="Transcribe an audio file with OpenAI and add the transcript to the corpus.",
+        description=(
+            "Transcribe an audio file with OpenAI, write the transcript into the corpus,\n"
+            "track it as a Bewley document, and store explicit linkage metadata back to\n"
+            "the source audio file.\n\n"
+            "By default the transcript is written to corpus/<audio-stem>.txt.\n"
+            "If you use the diarization model with --response-format diarized_json,\n"
+            "the transcript text is rendered as timestamped speaker turns to make the\n"
+            "connection between transcript and recording inspectable.\n\n"
+            "Requires OPENAI_API_KEY in the environment.\n\n"
+            "Example:\n"
+            "  bewley add-audio interviews/alice.m4a --output corpus/alice.txt\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    add_audio.add_argument("audio_path", help="Path to the source audio file.")
+    add_audio.add_argument("--output", help="Transcript path to create inside the project. Default: corpus/<audio-stem>.txt")
+    add_audio.add_argument("--model", default="gpt-4o-transcribe", help="OpenAI transcription model.")
+    add_audio.add_argument(
+        "--response-format",
+        default="json",
+        choices=["json", "verbose_json", "diarized_json"],
+        help="Requested OpenAI transcription response format.",
+    )
+    add_audio.add_argument("--language", help="Optional language hint like 'en'.")
+    add_audio.add_argument("--prompt", help="Optional transcription prompt.")
+
+    add_video = sub.add_parser(
+        "add-video",
+        help="Extract audio from a video, transcribe it, and add the transcript to the corpus.",
+        description=(
+            "Extract audio from a video file with ffmpeg, split it into transcription-safe\n"
+            "chunks when needed, transcribe each chunk with OpenAI, merge the results into\n"
+            "one transcript, and track the transcript as a Bewley document.\n\n"
+            "Chunk metadata and the original video file are stored so the transcript can be\n"
+            "traced back to the source media.\n\n"
+            "Requires ffmpeg, ffprobe, and OPENAI_API_KEY.\n\n"
+            "Example:\n"
+            "  bewley add-video interviews/alice.mp4 --output corpus/alice.txt\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    add_video.add_argument("video_path", help="Path to the source video file.")
+    add_video.add_argument("--output", help="Transcript path to create inside the project. Default: corpus/<video-stem>.txt")
+    add_video.add_argument("--model", default="gpt-4o-transcribe", help="OpenAI transcription model.")
+    add_video.add_argument(
+        "--response-format",
+        default="verbose_json",
+        choices=["json", "verbose_json", "diarized_json"],
+        help="Requested OpenAI transcription response format.",
+    )
+    add_video.add_argument("--language", help="Optional language hint like 'en'.")
+    add_video.add_argument("--prompt", help="Optional transcription prompt.")
+    add_video.add_argument(
+        "--audio-bitrate-kbps",
+        type=int,
+        default=DEFAULT_EXTRACT_AUDIO_BITRATE_KBPS,
+        help="Bitrate for extracted audio chunks. Lower values allow longer chunks.",
+    )
+    add_video.add_argument(
+        "--chunk-overlap-seconds",
+        type=float,
+        default=DEFAULT_VIDEO_CHUNK_OVERLAP_SECONDS,
+        help="Overlap between adjacent logical chunks to avoid losing speech at boundaries.",
+    )
+
     update = sub.add_parser(
         "update",
         help="Update an existing document with a new revision from the file on disk.",
@@ -3040,6 +3953,34 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     show_doc.add_argument("document_ref", help="Document identifier: UUID, path, or path prefix.")
+
+    show_audio = show_sub.add_parser(
+        "audio",
+        help="Show the audio source linked to a transcript document.",
+        description=(
+            "Display the stored audio/transcription provenance for a document created\n"
+            "from audio, including the original audio path, stored object path, model,\n"
+            "response format, and any diarized segments with timestamps.\n\n"
+            "Example:\n"
+            "  bewley show audio corpus/alice.txt"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    show_audio.add_argument("document_ref", help="Document identifier: UUID, path, or path prefix.")
+
+    show_video = show_sub.add_parser(
+        "video",
+        help="Show the video source and chunk metadata linked to a transcript document.",
+        description=(
+            "Display the stored video/transcription provenance for a document created\n"
+            "from video, including the original video path, stored object path, chunk\n"
+            "boundaries, and any returned timestamped segments.\n\n"
+            "Example:\n"
+            "  bewley show video corpus/alice.txt"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    show_video.add_argument("document_ref", help="Document identifier: UUID, path, or path prefix.")
 
     show_snippets = show_sub.add_parser(
         "snippets",
@@ -3499,6 +4440,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export_html.add_argument("--output", default="bewley-codes.html", help="Output file path (default: bewley-codes.html).")
     export_html.add_argument("--title", help="Page title for the HTML output.")
+    export_html.add_argument("--static", action="store_true", help="Generate a pure HTML/CSS page with no JavaScript. Useful for hosting on platforms that sandbox JS.")
+    export_html.add_argument("--embed", action="store_true", help="Generate an embeddable HTML fragment (a scoped <div>) instead of a full page. Designed for inclusion in pandoc reports.")
 
     export_document_html = export_sub.add_parser(
         "document-html",
@@ -3699,10 +4642,93 @@ def _human_list_documents(result: list[dict]) -> None:
 def _human_show_document(result: dict) -> None:
     print(f"document_id\t{result['document_id']}")
     print(f"path\t{result['path']}")
+    if result.get("audio_source"):
+        audio = result["audio_source"]
+        print("audio_source")
+        _human_rows(
+            [audio],
+            [
+                "original_audio_filename",
+                "original_audio_path",
+                "media_type",
+                "transcription_model",
+                "transcription_response_format",
+                "transcription_language",
+                "transcript_style",
+                "segment_count",
+            ],
+        )
+    if result.get("video_source"):
+        video = result["video_source"]
+        print("video_source")
+        _human_rows(
+            [video],
+            [
+                "original_video_filename",
+                "original_video_path",
+                "media_type",
+                "duration",
+                "transcription_model",
+                "transcription_response_format",
+                "transcription_language",
+                "transcript_style",
+                "chunk_count",
+            ],
+        )
     print("revisions")
     _human_rows(result["revisions"], ["revision_id", "created_at", "byte_length", "line_count", "is_current"])
     print("annotations")
     _human_rows(result["annotations"], ["annotation_id", "canonical_name", "scope_type", "start_line", "end_line", "anchor_status", "is_active"])
+
+
+def _human_show_audio(result: dict) -> None:
+    _human_kv(
+        result,
+        [
+            "document_id",
+            "path",
+            "original_audio_filename",
+            "original_audio_path",
+            "stored_audio_path",
+            "stored_audio_sha256",
+            "media_type",
+            "transcription_model",
+            "transcription_response_format",
+            "transcription_language",
+            "transcript_style",
+            "segment_count",
+        ],
+    )
+    print("segments")
+    _human_rows(result["segments"], ["start", "end", "speaker", "text"])
+
+
+def _human_show_video(result: dict) -> None:
+    _human_kv(
+        result,
+        [
+            "document_id",
+            "path",
+            "original_video_filename",
+            "original_video_path",
+            "stored_video_path",
+            "stored_video_sha256",
+            "media_type",
+            "duration",
+            "transcription_model",
+            "transcription_response_format",
+            "transcription_language",
+            "transcript_style",
+            "chunk_count",
+        ],
+    )
+    print("chunks")
+    _human_rows(
+        result["chunks"],
+        ["chunk_index", "extract_start", "extract_end", "logical_start", "logical_end", "byte_length"],
+    )
+    print("segments")
+    _human_rows(result["segments"], ["start", "end", "speaker", "text"])
 
 
 def _human_code_list(result: list[dict]) -> None:
@@ -3817,6 +4843,14 @@ def cmd_list_documents(project: Project) -> list[dict]:
 def cmd_show_document(project: Project, ref: str) -> dict:
     with project.connect() as conn:
         doc = project.resolve_document(conn, ref)
+        audio_row = conn.execute(
+            "SELECT * FROM document_audio_sources WHERE document_id = ?",
+            (doc["document_id"],),
+        ).fetchone()
+        video_row = conn.execute(
+            "SELECT * FROM document_video_sources WHERE document_id = ?",
+            (doc["document_id"],),
+        ).fetchone()
         revisions = conn.execute(
             """
             SELECT revision_id, created_at, byte_length, line_count, is_current
@@ -3839,6 +4873,35 @@ def cmd_show_document(project: Project, ref: str) -> dict:
     return {
         "document_id": doc["document_id"],
         "path": doc["current_path"],
+        "audio_source": (
+            {
+                "original_audio_filename": audio_row["original_audio_filename"],
+                "original_audio_path": audio_row["original_audio_path"],
+                "media_type": audio_row["media_type"],
+                "transcription_model": audio_row["transcription_model"],
+                "transcription_response_format": audio_row["transcription_response_format"],
+                "transcription_language": audio_row["transcription_language"],
+                "transcript_style": audio_row["transcript_style"],
+                "segment_count": audio_row["segment_count"],
+            }
+            if audio_row
+            else None
+        ),
+        "video_source": (
+            {
+                "original_video_filename": video_row["original_video_filename"],
+                "original_video_path": video_row["original_video_path"],
+                "media_type": video_row["media_type"],
+                "duration": format_timestamp(video_row["duration_seconds"]),
+                "transcription_model": video_row["transcription_model"],
+                "transcription_response_format": video_row["transcription_response_format"],
+                "transcription_language": video_row["transcription_language"],
+                "transcript_style": video_row["transcript_style"],
+                "chunk_count": video_row["chunk_count"],
+            }
+            if video_row
+            else None
+        ),
         "revisions": [
             {"revision_id": r["revision_id"], "created_at": r["created_at"], "byte_length": r["byte_length"], "line_count": r["line_count"], "is_current": r["is_current"]}
             for r in revisions
@@ -3846,6 +4909,100 @@ def cmd_show_document(project: Project, ref: str) -> dict:
         "annotations": [
             {"annotation_id": a["annotation_id"], "canonical_name": a["canonical_name"], "scope_type": a["scope_type"], "start_line": a["start_line"], "end_line": a["end_line"], "anchor_status": a["anchor_status"], "is_active": a["is_active"]}
             for a in annotations
+        ],
+    }
+
+
+def cmd_show_audio(project: Project, ref: str) -> dict:
+    with project.connect() as conn:
+        doc = project.resolve_document(conn, ref)
+        row = conn.execute(
+            "SELECT * FROM document_audio_sources WHERE document_id = ?",
+            (doc["document_id"],),
+        ).fetchone()
+    if row is None:
+        raise BewleyError(f"document has no linked audio source: {ref}")
+    metadata = json.loads(row["metadata_json"])
+    segments = metadata.get("segments") or []
+    return {
+        "document_id": doc["document_id"],
+        "path": doc["current_path"],
+        "original_audio_filename": row["original_audio_filename"],
+        "original_audio_path": row["original_audio_path"],
+        "stored_audio_path": str(project.audio_objects_dir / row["audio_sha256"]),
+        "stored_audio_sha256": row["audio_sha256"],
+        "media_type": row["media_type"],
+        "transcription_model": row["transcription_model"],
+        "transcription_response_format": row["transcription_response_format"],
+        "transcription_language": row["transcription_language"],
+        "transcript_style": row["transcript_style"],
+        "segment_count": row["segment_count"],
+        "segments": [
+            {
+                "start": format_timestamp(segment.get("start")),
+                "end": format_timestamp(segment.get("end")),
+                "speaker": segment.get("speaker") or "",
+                "text": str(segment.get("text") or "").strip(),
+            }
+            for segment in segments
+        ],
+    }
+
+
+def cmd_show_video(project: Project, ref: str) -> dict:
+    with project.connect() as conn:
+        doc = project.resolve_document(conn, ref)
+        row = conn.execute(
+            "SELECT * FROM document_video_sources WHERE document_id = ?",
+            (doc["document_id"],),
+        ).fetchone()
+        chunk_rows = conn.execute(
+            """
+            SELECT chunk_index, extract_start_seconds, extract_end_seconds, logical_start_seconds,
+                   logical_end_seconds, byte_length
+            FROM document_video_chunks
+            WHERE document_id = ?
+            ORDER BY chunk_index
+            """,
+            (doc["document_id"],),
+        ).fetchall()
+    if row is None:
+        raise BewleyError(f"document has no linked video source: {ref}")
+    metadata = json.loads(row["metadata_json"])
+    segments = metadata.get("segments") or []
+    return {
+        "document_id": doc["document_id"],
+        "path": doc["current_path"],
+        "original_video_filename": row["original_video_filename"],
+        "original_video_path": row["original_video_path"],
+        "stored_video_path": str(project.video_objects_dir / row["video_sha256"]),
+        "stored_video_sha256": row["video_sha256"],
+        "media_type": row["media_type"],
+        "duration": format_timestamp(row["duration_seconds"]),
+        "transcription_model": row["transcription_model"],
+        "transcription_response_format": row["transcription_response_format"],
+        "transcription_language": row["transcription_language"],
+        "transcript_style": row["transcript_style"],
+        "chunk_count": row["chunk_count"],
+        "chunks": [
+            {
+                "chunk_index": chunk["chunk_index"],
+                "extract_start": format_timestamp(chunk["extract_start_seconds"]),
+                "extract_end": format_timestamp(chunk["extract_end_seconds"]),
+                "logical_start": format_timestamp(chunk["logical_start_seconds"]),
+                "logical_end": format_timestamp(chunk["logical_end_seconds"]),
+                "byte_length": chunk["byte_length"],
+            }
+            for chunk in chunk_rows
+        ],
+        "segments": [
+            {
+                "start": format_timestamp(segment.get("start")),
+                "end": format_timestamp(segment.get("end")),
+                "speaker": segment.get("speaker") or "",
+                "text": str(segment.get("text") or "").strip(),
+            }
+            for segment in segments
         ],
     }
 
@@ -4104,7 +5261,8 @@ def code_explorer_payload(project: Project) -> dict[str, Any]:
             """
         ).fetchall()
         # Collect document texts for in-context snippet rendering
-        doc_paths_needed = {row["current_path"] for row in annotations if row["scope_type"] == "span"}
+        # Include span annotations (for context lines) and document-scope annotations (for full text display)
+        doc_paths_needed = {row["current_path"] for row in annotations}
         doc_texts: dict[str, list[str]] = {}
         for dpath in doc_paths_needed:
             doc_row = conn.execute(
@@ -4319,14 +5477,18 @@ def cmd_export_quotes(project: Project, code_ref: str | None, query_expr: str | 
     return [quote_export_item(row, context_lines, text_by_document) for row in rows]
 
 
-def cmd_export_html(project: Project, output_path: str, title: str | None) -> dict:
+def cmd_export_html(project: Project, output_path: str, title: str | None, *, static: bool = False) -> dict:
     payload = code_explorer_payload(project)
     document_count = payload["document_count"]
     resolved_title = title or f"Qualitative coding explorer · {project.root.name} · {payload['code_count']} codes / {document_count} docs"
     target = Path(output_path)
     if not target.is_absolute():
         target = project.root / target
-    atomic_write_text(target, build_code_explorer_html(payload, resolved_title))
+    if static:
+        html_content = build_static_code_explorer_html(payload, resolved_title)
+    else:
+        html_content = build_code_explorer_html(payload, resolved_title)
+    atomic_write_text(target, html_content)
     return {"output_path": str(target)}
 
 
@@ -4398,6 +5560,30 @@ def main(argv: list[str] | None = None) -> int:
             event = project.add_document(args.path)
             _output_id({"document_id": event["payload"]["document_id"]})
             return 0
+        if args.command == "add-audio":
+            result = project.add_audio_document(
+                args.audio_path,
+                args.output,
+                model=args.model,
+                language=args.language,
+                prompt=args.prompt,
+                response_format=args.response_format,
+            )
+            _output_id({"document_id": result["document_id"]})
+            return 0
+        if args.command == "add-video":
+            result = project.add_video_document(
+                args.video_path,
+                args.output,
+                model=args.model,
+                language=args.language,
+                prompt=args.prompt,
+                response_format=args.response_format,
+                audio_bitrate_kbps=args.audio_bitrate_kbps,
+                chunk_overlap_seconds=args.chunk_overlap_seconds,
+            )
+            _output_id({"document_id": result["document_id"]})
+            return 0
         if args.command == "update":
             event = project.update_document(args.path)
             if event is None:
@@ -4410,6 +5596,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "show" and args.show_what == "document":
             _output(cmd_show_document(project, args.document_ref), _human_show_document)
+            return 0
+        if args.command == "show" and args.show_what == "audio":
+            _output(cmd_show_audio(project, args.document_ref), _human_show_audio)
+            return 0
+        if args.command == "show" and args.show_what == "video":
+            _output(cmd_show_video(project, args.document_ref), _human_show_video)
             return 0
         if args.command == "show" and args.show_what == "snippets":
             _output(cmd_show_snippets(project, args.code), _human_show_snippets)
@@ -4532,7 +5724,7 @@ def main(argv: list[str] | None = None) -> int:
                 _json_output(result)
             return 0
         if args.command == "export" and args.export_what == "html":
-            result = cmd_export_html(project, args.output, args.title)
+            result = cmd_export_html(project, args.output, args.title, static=args.static)
             _output(result, lambda r: print(r["output_path"]))
             return 0
         if args.command == "export" and args.export_what == "document-html":

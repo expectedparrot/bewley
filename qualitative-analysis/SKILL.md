@@ -135,12 +135,78 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 
 1. **Initialize**: `bewley init`
 2. **Add documents**: `bewley add <path>` for each transcript/text file
-3. **Create codes**: `bewley code create <name>` for each analytic label
-4. **Annotate**: `bewley annotate apply <code> <doc> --lines S:E` to code spans
-5. **Write memos**: `bewley memo add --code <ref> 'Analytical note...'`
-6. **Query and review**: `bewley query '<expr>'` and `bewley show snippets --code <ref>`
-7. **Build hierarchy**: `bewley code set-parent` and `bewley code link`
-8. **Export**: `bewley export snippets`, `bewley export theory`, etc.
+3. **Summarize corpus**: Read all documents, write `qualitative-analysis/corpus_summary.md`
+4. **Generate candidate codes**: Run `python qualitative-analysis/generate_candidate_codes.py`
+5. **Refine codes**: Review `candidate_codes.csv`, deduplicate, then `bewley code create` for each
+6. **Annotate**: `bewley annotate apply <code> <doc> --lines S:E` to code spans
+7. **Write memos**: `bewley memo add --code <ref> 'Analytical note...'`
+8. **Query and review**: `bewley query '<expr>'` and `bewley show snippets --code <ref>`
+9. **Build hierarchy**: `bewley code set-parent` and `bewley code link`
+10. **Export**: `bewley export snippets`, `bewley export theory`, etc.
+
+## Open coding with EDSL
+
+Bewley includes a script for generating candidate qualitative codes using EDSL (Expected Parrot's domain-specific language for LLM surveys). This automates the initial open coding pass.
+
+### Prerequisites
+
+```bash
+pip install git+https://github.com/expectedparrot/bewley.git
+pip install edsl
+```
+
+### Step 1: Create the corpus summary (agent task)
+
+Before generating codes, the agent should read all documents and write a corpus summary:
+
+1. Run `bewley list documents` to get all document paths.
+2. Read each document from the `corpus/` directory.
+3. Write `qualitative-analysis/corpus_summary.md` with:
+   - What kind of texts the corpus contains (interviews, field notes, etc.)
+   - Approximate size and scope (number of documents, topics covered)
+   - Initial impressions of recurring themes or notable features
+   - Any contextual information about the research setting
+
+This summary provides shared context so the LLM can generate codes that are coherent across the whole corpus, not just locally relevant to each document.
+
+### Step 2: Generate candidate codes
+
+```bash
+python qualitative-analysis/generate_candidate_codes.py
+```
+
+Options:
+- `--project-dir DIR` — path to the bewley project (default: current directory)
+- `--summary FILE` — path to corpus summary (default: `qualitative-analysis/corpus_summary.md`)
+- `--output FILE` — output CSV (default: `qualitative-analysis/candidate_codes.csv`)
+- `--model MODEL` — EDSL model name (e.g., `claude-3-5-sonnet-20241022`)
+
+The script:
+1. Reads the corpus summary and all documents
+2. Creates an EDSL `ScenarioList` with one `Scenario` per document containing:
+   - `document_id` — the bewley document ID
+   - `document_path` — path in the corpus
+   - `document_text` — full document text
+   - `corpus_summary` — the summary from step 1
+3. Runs a `Survey` with two questions:
+   - `candidate_codes` (QuestionList) — asks for code names
+   - `code_descriptions` (QuestionFreeText, piped) — asks for a description of each code
+4. Saves results to `candidate_codes.csv` with columns:
+   `code_name`, `description`, `source_document_id`, `source_document_path`
+
+### Step 3: Refine and apply codes
+
+After reviewing `candidate_codes.csv`:
+
+1. **Deduplicate**: Merge near-synonyms (e.g., `trust_building` and `building_trust`)
+2. **Create codes in bewley**:
+   ```bash
+   bewley code create trust_building --description "Instances where participants describe developing trust"
+   ```
+3. **Organize hierarchy**: Group related codes under parents
+   ```bash
+   bewley code set-parent trust_building interpersonal_dynamics
+   ```
 
 ## Output conventions
 
