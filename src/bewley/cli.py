@@ -4233,7 +4233,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  links         List code relationships\n"
             "  unlink        Remove a code relationship\n"
             "  set-core      Designate a code as the core category\n"
-            "  show-core     Show the current core category"
+            "  show-core     Show the current core category\n"
+            "  coverage      Report respondent coverage for a code and its descendants"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -4457,6 +4458,26 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+
+    code_coverage_p = code_sub.add_parser(
+        "coverage",
+        help="Report how many respondents a code (and its descendants) covers.",
+        description=(
+            "Count the number of distinct documents with at least one active annotation\n"
+            "for a code. For higher-order themes, also reports inclusive coverage across\n"
+            "all descendant codes.\n\n"
+            "Output fields:\n"
+            "  code              — canonical name\n"
+            "  total_respondents — total documents in the corpus\n"
+            "  direct            — docs annotated with exactly this code\n"
+            "  inclusive         — docs annotated with this code or any descendant\n"
+            "  descendants       — list of descendant code names (if any)\n\n"
+            "Example:\n"
+            "  bewley code coverage continuity-risk"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    code_coverage_p.add_argument("code_ref", help="Code to inspect (name or UUID).")
 
     # --- Annotation management ---
 
@@ -4971,6 +4992,15 @@ def _human_code_show(result: dict) -> None:
             print(f"  {lk['link_id'][:8]}\t{lk['source_name']} --{lk['relationship']}--> {lk['target_name']}")
 
 
+def _human_code_coverage(result: dict) -> None:
+    print(f"code\t{result['code']}")
+    print(f"total_respondents\t{result['total_respondents']}")
+    print(f"direct\t{result['direct']} of {result['total_respondents']}")
+    print(f"inclusive\t{result['inclusive']} of {result['total_respondents']}")
+    if result["descendants"]:
+        print(f"descendants\t{', '.join(result['descendants'])}")
+
+
 def _human_code_links(result: list[dict]) -> None:
     if not result:
         print("no links")
@@ -5283,6 +5313,56 @@ def cmd_code_show(project: Project, ref: str) -> dict:
     if link_items:
         result["links"] = link_items
     return result
+
+
+def cmd_code_coverage(project: Project, code_ref: str) -> dict:
+    """Report respondent coverage for a code and all its descendants."""
+    with project.connect() as conn:
+        code = project.resolve_code(conn, code_ref)
+        total_docs = conn.execute(
+            "SELECT COUNT(*) FROM documents WHERE archived_at IS NULL"
+        ).fetchone()[0]
+
+        def get_descendants(cid: str) -> list[str]:
+            children = conn.execute(
+                "SELECT code_id FROM codes WHERE parent_code_id = ? AND status = 'active'",
+                (cid,),
+            ).fetchall()
+            result = [cid]
+            for child in children:
+                result.extend(get_descendants(child["code_id"]))
+            return result
+
+        code_ids = get_descendants(code["code_id"])
+        placeholders = ",".join("?" * len(code_ids))
+
+        direct_docs = conn.execute(
+            "SELECT COUNT(DISTINCT document_id) FROM annotations "
+            "WHERE code_id = ? AND is_active = 1",
+            (code["code_id"],),
+        ).fetchone()[0]
+
+        inclusive_docs = conn.execute(
+            f"SELECT COUNT(DISTINCT document_id) FROM annotations "
+            f"WHERE code_id IN ({placeholders}) AND is_active = 1",
+            code_ids,
+        ).fetchone()[0]
+
+        desc_names = []
+        for cid in code_ids:
+            if cid == code["code_id"]:
+                continue
+            row = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (cid,)).fetchone()
+            if row:
+                desc_names.append(row["canonical_name"])
+
+    return {
+        "code": code["canonical_name"],
+        "total_respondents": total_docs,
+        "direct": direct_docs,
+        "inclusive": inclusive_docs,
+        "descendants": desc_names,
+    }
 
 
 def cmd_code_links(project: Project, code_ref: str | None = None) -> list[dict]:
@@ -5889,6 +5969,9 @@ def main(argv: list[str] | None = None) -> int:
                         print("no core category set")
                     else:
                         _json_output(None)
+                return 0
+            if args.code_cmd == "coverage":
+                _output(cmd_code_coverage(project, args.code_ref), _human_code_coverage)
                 return 0
         if args.command == "annotate":
             if args.annotate_cmd == "apply":
