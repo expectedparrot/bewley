@@ -103,6 +103,7 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 | `bewley export quotes (--code <ref> \| --query '<expr>' \| --all) --format jsonl\|text [--context-lines N]` | Export quotes filtered by code or query, or `--all` to dump every active span annotation in the project. |
 | `bewley export html [--output F] [--title T]` | All codes and annotations as standalone HTML. |
 | `bewley export document-html <ref> [--output F] [--title T]` | Single document with inline highlights as HTML. |
+| `bewley export plots [--output-dir DIR]` | Accessible SVGs for code prevalence, document coding density, and document-level code co-occurrence, plus the underlying JSON. |
 | `bewley export theory [--format json\|mermaid] [--output F]` | Code hierarchy + links as JSON or Mermaid diagram. |
 | `bewley export narrative [--output F]` | Integrative narrative summary. |
 

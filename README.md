@@ -226,6 +226,7 @@ Output: coded excerpts the agent can review with the user before scaling to all 
 bewley query "support AND NOT pricing"
 bewley export quotes --code support --format jsonl > writeup/tables/support_quotes.jsonl
 bewley export html --output writeup/bewley_browser.html
+bewley export plots --output-dir writeup/plots
 ```
 
 Output: a quote table and browsable HTML evidence file for report drafting.

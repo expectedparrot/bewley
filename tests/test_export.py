@@ -89,3 +89,25 @@ class TestExportHtml:
         assert "Alice Annotated" in html_content
         assert "friction" in html_content
         assert "anno-segment" in html_content
+
+
+class TestExportPlots:
+    def test_writes_three_accessible_svg_plots_and_manifest(self, project: BewleyProject) -> None:
+        project.cli_ok("code", "create", "trust")
+        project.cli_ok("code", "create", "friction")
+        project.cli_ok("annotate", "apply", "trust", "corpus/interview_alice.txt", "--lines", "5:5")
+        project.cli_ok("annotate", "apply", "friction", "corpus/interview_alice.txt", "--lines", "15:17")
+
+        stdout = project.cli_ok("export", "plots", "--output-dir", "report/plots")
+
+        paths = [project.root / line for line in stdout.splitlines() if line]
+        assert len(paths) == 3
+        for path in paths:
+            assert path.exists()
+            svg = path.read_text(encoding="utf-8")
+            assert "<svg" in svg
+            assert "<title" in svg
+            assert "<desc" in svg
+        manifest = json.loads((project.root / "report/plots/plots.json").read_text())
+        assert {row["canonical_name"] for row in manifest["codes"]} == {"friction", "trust"}
+        assert any(row["documents"] == 1 for row in manifest["cooccurrence"])

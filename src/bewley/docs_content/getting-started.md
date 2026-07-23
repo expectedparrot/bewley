@@ -142,6 +142,7 @@ bewley export theory --format mermaid --output theory.mmd     # Mermaid diagram 
 bewley export narrative --output narrative.md                  # per-code inventory
 bewley export html --output analysis.html                      # code+quote explorer
 bewley export document-html <doc_ref> --output doc.html        # per-document annotated view
+bewley export plots --output-dir plots                         # SVG diagnostics + JSON data
 
 # Interactive theory graph with filters and clickable quote panel:
 bewley codegen theory-explorer        # writes qualitative-analysis/render_theory_explorer.py

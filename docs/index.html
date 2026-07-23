@@ -17,7 +17,7 @@
     p,ul,ol,table,pre,.callout,figure{max-width:var(--measure)}a{color:var(--green)}code{padding:.14em .35em;background:#f0f3f0;border-radius:4px;font:88% var(--mono)}pre{position:relative;overflow:auto;margin:18px 0 26px;padding:20px 58px 20px 22px;color:#d8e3db;background:var(--code);border-radius:8px;font:13px/1.55 var(--mono)}pre code{padding:0;color:inherit;background:none}.copy{position:absolute;top:10px;right:10px;padding:5px 8px;color:#d8ebe0;background:#34453b;border:0;border-radius:5px;font:11px var(--sans);cursor:pointer}.copy:hover{background:var(--green)}
     .chapter{font-size:.55em;vertical-align:.35em}.callout{margin:24px 0;padding:18px 22px;background:linear-gradient(135deg,#f9fbf9,var(--light));border-left:4px solid var(--green);border-radius:0 8px 8px 0}.callout.warn{background:#fff7e9;border-color:var(--amber)}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:var(--measure)}.card{padding:18px;background:#fff;border:1px solid var(--rule);border-radius:8px;box-shadow:0 2px 7px rgba(0,0,0,.035)}.card h3{margin-top:0;color:var(--dark);font-size:19px}table{width:100%;margin:20px 0 28px;border-collapse:collapse;font-size:14px}th,td{padding:11px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}th{color:#fff;background:var(--green)}tbody tr:nth-child(even){background:#f7f9f7}
-    figure{margin:30px 0 36px;padding:20px;border:1px solid var(--rule);border-radius:8px}figcaption{margin-top:12px;color:var(--muted);font-size:13px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.step{position:relative;padding:14px 8px;text-align:center;background:var(--light);border:1px solid #afd0ba;border-radius:7px;font-size:12px;font-weight:700}.step:not(:last-child):after{position:absolute;top:50%;right:-8px;z-index:2;color:var(--green);content:"›";font-size:22px;transform:translateY(-53%)}footer{margin-top:85px;padding-top:28px;color:var(--muted);border-top:3px solid var(--green);font-size:13px}
+    figure{margin:30px 0 36px;padding:20px;border:1px solid var(--rule);border-radius:8px}figure img{display:block;width:100%;height:auto}figcaption{margin-top:12px;color:var(--muted);font-size:13px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.step{position:relative;padding:14px 8px;text-align:center;background:var(--light);border:1px solid #afd0ba;border-radius:7px;font-size:12px;font-weight:700}.step:not(:last-child):after{position:absolute;top:50%;right:-8px;z-index:2;color:var(--green);content:"›";font-size:22px;transform:translateY(-53%)}footer{margin-top:85px;padding-top:28px;color:var(--muted);border-top:3px solid var(--green);font-size:13px}
     @media(max-width:960px){nav{position:static;width:auto;padding-bottom:22px}.nav-toggle{display:block}nav .part,nav>a:not(.brand),nav .small{display:none}nav.open .part{display:block}nav.open>a:not(.brand){display:inline-block}nav.open .small{display:block}nav .book{margin-bottom:14px}main{margin-left:0}article{padding:28px 24px 80px}.brand{max-width:270px}}@media(max-width:650px){.grid,.flow{grid-template-columns:1fr}.step:not(:last-child):after{display:none}h2{font-size:28px}table{display:block;overflow-x:auto}pre{padding-right:44px}}@media print{nav,#progress,.copy,.nav-toggle{display:none!important}main{margin:0}article{max-width:none;padding:0}h2{break-before:page}pre{white-space:pre-wrap;color:#000;background:#eee}}
   </style>
 </head>
@@ -155,7 +155,22 @@ bewley memo add --document corpus/interview-07.txt \
 bewley export html --output coded-corpus.html
 bewley export theory --format json --output theory.json
 bewley export theory --format mermaid --output theory.mmd
+bewley export plots --output-dir plots
 bewley export narrative --output narrative.md</code></pre>
+    <h3>Descriptive plots, not findings</h3>
+    <p>Plots help audit the shape of the coding work: which codes dominate, which documents received disproportionate attention, and which codes appear in the same documents. They are diagnostics for returning to the evidence—not statistical tests.</p>
+    <figure>
+      <img src="plots/code-prevalence.svg" alt="Horizontal bars comparing annotation and document counts for seven codes in the Adams letters example.">
+      <figcaption><strong>Code prevalence.</strong> Dark bars count annotations; the thin light bars count distinct documents. A large gap can reveal repeated coding within a small number of sources.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/document-density.svg" alt="Horizontal bars showing annotation and distinct-code counts by Adams letter.">
+      <figcaption><strong>Coding density.</strong> Uneven density is a prompt to check sampling, document length, and analyst attention—not evidence that one document is intrinsically more important.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/code-cooccurrence.svg" alt="Matrix showing the number of Adams letters in which each pair of codes appears.">
+      <figcaption><strong>Code co-occurrence.</strong> Cells count documents containing both codes. Co-occurrence suggests comparisons to inspect; it does not establish a relationship or causal mechanism.</figcaption>
+    </figure>
     <p>Before reporting a finding, inspect the export and confirm that its excerpts are non-empty, correctly scoped, and representative of the pattern. Treat a generated narrative as an inventory to interpret, not as a substitute for reading the evidence.</p>
   </section>
 
@@ -180,7 +195,7 @@ bewley undo &lt;event_id&gt;</code></pre>
       <tr><td>Attach and inspect evidence</td><td><code>annotate apply|show|remove|resolve</code>, <code>show snippets</code></td></tr>
       <tr><td>Compare cases</td><td><code>query</code>, <code>code coverage</code></td></tr>
       <tr><td>Record interpretation</td><td><code>memo add|list|show|edit</code></td></tr>
-      <tr><td>Publish artifacts</td><td><code>export quotes|html|theory|narrative</code></td></tr>
+      <tr><td>Publish artifacts</td><td><code>export quotes|html|plots|theory|narrative</code></td></tr>
       <tr><td>Inspect methodology</td><td><code>docs show getting-started|workflow|commands|grounded-theory</code></td></tr>
     </tbody></table>
   </section>

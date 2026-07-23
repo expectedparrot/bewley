@@ -88,6 +88,7 @@ Bewley infers the current phase from what's on disk — no metadata to drift. Ru
    bewley export theory --format json --output theory.json
    bewley export narrative --output narrative.md
    bewley export html --output analysis.html --title "My Analysis"
+   bewley export plots --output-dir plots
    ```
 5. Interactive theory explorer (force-directed D3 graph with filters and a click-to-see-quotes panel):
    ```bash

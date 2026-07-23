@@ -19,8 +19,34 @@ from bewley.project import (
     snippet_export_item,
     snippets_for_code,
 )
+from bewley.plots import export_plots as write_plots
 
-app = typer.Typer(help="Export coded data as snippets, quotes, HTML, theory diagrams, or narratives.")
+app = typer.Typer(help="Export coded data as snippets, quotes, plots, HTML, theory diagrams, or narratives.")
+
+
+@app.command("plots")
+def export_plots(
+    output_dir: str = typer.Option("bewley-plots", "--output-dir", "-o", help="Directory for SVG plots and JSON data."),
+    human: bool = HumanOption,
+) -> None:
+    """Export code prevalence, document density, and co-occurrence plots."""
+    json_flag = should_emit_json(human)
+    command = "export plots"
+    project = get_project(command, json_flag)
+    target = Path(output_dir)
+    if not target.is_absolute():
+        target = project.root / target
+    try:
+        result = write_plots(project, target)
+    except (BewleyError, OSError) as exc:
+        error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
+        fail(command, error, json_flag)
+        return
+    if json_flag:
+        finish(command, result)
+    else:
+        for path in result["plots"].values():
+            print(path)
 
 
 @app.command("snippets")
