@@ -1,0 +1,88 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+import typer
+
+from ..project import BewleyError, Project, cmd_status
+from .common import HumanOption, QuietOption, fail, finish, get_project, should_emit_json
+
+app = typer.Typer(help="Project management.")
+
+
+@app.command("init")
+def init_command(
+    human: bool = HumanOption,
+    quiet: bool = QuietOption,
+) -> None:
+    """Create a new bewley project in the current directory."""
+    command = "init"
+    json_flag = should_emit_json(human)
+    try:
+        project = Project(Path.cwd())
+        project.init_project()
+    except BewleyError as e:
+        fail(command, e, json_flag)
+    if json_flag:
+        finish(command, {"status": "initialized"}, next_steps=["bewley add <file>"])
+    elif not quiet:
+        typer.echo("initialized")
+
+
+@app.command("status")
+def status_command(human: bool = HumanOption) -> None:
+    """Show project summary counts."""
+    command = "status"
+    json_flag = should_emit_json(human)
+    try:
+        project = get_project(command, json_flag)
+        result = cmd_status(project)
+    except BewleyError as e:
+        fail(command, e, json_flag)
+    if json_flag:
+        finish(command, result)
+    else:
+        for key in ("documents", "revisions", "codes", "active_annotations", "conflicted_annotations"):
+            typer.echo(f"{key}\t{result[key]}")
+
+
+@app.command("fsck")
+def fsck_command(human: bool = HumanOption) -> None:
+    """Verify project integrity: events, objects, and index consistency."""
+    command = "fsck"
+    json_flag = should_emit_json(human)
+    try:
+        project = get_project(command, json_flag)
+        problems = project.fsck()
+    except BewleyError as e:
+        fail(command, e, json_flag)
+    if problems:
+        if json_flag:
+            finish(command, {"status": "error", "problems": problems})
+        else:
+            for problem in problems:
+                typer.echo(problem, err=True)
+        raise typer.Exit(code=1)
+    if json_flag:
+        finish(command, {"status": "ok"})
+    else:
+        typer.echo("ok")
+
+
+@app.command("rebuild-index")
+def rebuild_index_command(human: bool = HumanOption) -> None:
+    """Rebuild the SQLite index from the append-only event log."""
+    import datetime as dt
+    command = "rebuild-index"
+    json_flag = should_emit_json(human)
+    try:
+        project = get_project(command, json_flag)
+        project.rebuild_index()
+        project.append_event("index_rebuilt", {"timestamp": dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")})
+    except BewleyError as e:
+        fail(command, e, json_flag)
+    if json_flag:
+        finish(command, {"status": "rebuilt"})
+    else:
+        typer.echo("rebuilt")

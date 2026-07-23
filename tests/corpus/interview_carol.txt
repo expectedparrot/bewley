@@ -1,0 +1,45 @@
+Interviewer: Carol, thank you for speaking with us. What's your role?
+
+Carol: I'm a project manager. I oversee a team of twelve and we use the
+platform for all our client reporting.
+
+Interviewer: How did you come to adopt it?
+
+Carol: It was a top-down decision. Leadership chose it based on the
+enterprise features — SSO, audit logging, that sort of thing. We didn't
+have much say in the matter.
+
+Interviewer: How did your team react?
+
+Carol: Resistance, mostly. People were comfortable with the old system.
+The transition was rocky. We lost about two weeks of productivity during
+the switchover because the data migration tool didn't handle our custom
+fields correctly.
+
+Interviewer: That sounds difficult. How did you manage it?
+
+Carol: A lot of manual work. I personally re-entered about 200 records
+that got corrupted in the migration. It was not a good experience.
+
+Interviewer: Has it improved since then?
+
+Carol: Dramatically, actually. Once everything was set up properly, the
+workflow improvements were significant. Our reporting time dropped by
+about 40%. The automated dashboards alone justified the switch.
+
+Interviewer: What about reliability?
+
+Carol: Rock solid in my experience. We've had maybe one unplanned outage
+in eight months. And their status page is honest — they don't try to
+hide incidents, which I appreciate.
+
+Interviewer: Any features you wish existed?
+
+Carol: Better bulk operations. When I need to update 50 records at once,
+I have to do them one by one or use the API. For a project manager who
+doesn't code, that's a real limitation.
+
+Interviewer: Would you choose it again if starting fresh?
+
+Carol: Knowing what I know now, yes. But I'd budget more time for the
+migration and I'd push for better training resources upfront.
