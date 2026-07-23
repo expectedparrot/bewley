@@ -33,12 +33,13 @@ Bewley infers the current phase from what's on disk — no metadata to drift. Ru
    - Type of texts in the corpus
    - Number and scope of documents
    - Initial impressions of recurring themes
-3. `bewley open-coding jobs --output jobs.ep`
-4. `ep run jobs.ep --model <model-name> --output results.ep`
-5. `bewley open-coding ingest results.ep --jobs jobs.ep`
-6. Review `candidate_codes.csv` — merge near-synonyms, remove noise, and inspect any unresolved quotes
-7. **Pause and show user the candidate codes before proceeding**
-8. `bewley code create <name> --description '<description>'` for each keeper
+3. Configure EDSL once: `ep auth login`, then verify with `ep auth status` and `ep check`. Keep `.env` out of version control.
+4. `bewley open-coding jobs --output jobs.ep`
+5. `ep run jobs.ep --model <model-name> --output results.ep`
+6. `bewley open-coding ingest results.ep --jobs jobs.ep`
+7. Review `candidate_codes.csv` — merge near-synonyms, remove noise, and inspect any unresolved quotes
+8. **Pause and show user the candidate codes before proceeding**
+9. `bewley code create <name> --description '<description>'` for each keeper
 
 ### Phase 4: Annotation
 

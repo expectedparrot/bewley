@@ -94,6 +94,17 @@ bewley status</code></pre>
     <p>Read the pilot set before formal coding. Note recurring language, surprising cases, the unit of analysis, and the research question the codes must help answer.</p>
     <h3>Optional agent-run open coding</h3>
     <p>Bewley packages current document revisions as EDSL Jobs; the <code>ep</code> CLI executes them, and Bewley audits the Results before producing candidates for review.</p>
+    <h4>Configure EDSL once per workspace</h4>
+    <p>Use the EDSL CLI to authenticate and check connectivity. Login stores the Expected Parrot key for the working directory; keep the resulting <code>.env</code> private and out of version control.</p>
+    <pre><code>ep auth login
+ep auth status
+ep check
+
+# Optional: inspect or manage named environments
+ep profiles list
+ep profiles current
+ep profiles --help</code></pre>
+    <p>See EDSL’s <a href="https://docs.expectedparrot.com/en/latest/api_keys">Managing Keys</a> guide for Expected Parrot and model-provider keys.</p>
     <pre><code>bewley open-coding jobs --output jobs.ep --pilot 5
 ep run jobs.ep --model &lt;model-name&gt; --output results.ep
 bewley open-coding ingest results.ep --jobs jobs.ep</code></pre>

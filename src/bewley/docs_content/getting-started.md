@@ -77,6 +77,17 @@ Read all documents and write a `corpus_summary.md` covering:
 
 ### 4. Generate candidate codes
 
+First configure EDSL in the project directory:
+
+```bash
+ep auth login       # stores authentication for the workspace
+ep auth status
+ep check            # verifies URL and API-key connectivity
+```
+
+Keep `.env` private and out of version control. For named environments, inspect
+`ep profiles --help`; see the [EDSL Managing Keys guide](https://docs.expectedparrot.com/en/latest/api_keys).
+
 ```bash
 bewley open-coding jobs --output jobs.ep
 ep run jobs.ep --model <model-name> --output results.ep
