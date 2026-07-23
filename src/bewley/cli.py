@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import typer
+import click
+from typer import _click as typer_click
 
 # Re-export Project for backwards compatibility (tests import from bewley.cli)
 from bewley.project import Project as Project  # noqa: F401
 
 from bewley.commands.annotations import app as annotate_app
+from bewley.commands.agent import app as agent_app, capabilities_command
 from bewley.commands.codegen import app as codegen_app
 from bewley.commands.codes import app as code_app
 from bewley.commands.docs import app as docs_app
@@ -69,6 +72,10 @@ app.add_typer(docs_app, name="docs")
 # Codegen
 app.add_typer(codegen_app, name="codegen")
 
+# Stable agent contract and workflow inspection.
+app.command("capabilities")(capabilities_command)
+app.add_typer(agent_app, name="agent")
+
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point compatible with both console_scripts and test code that passes argv."""
@@ -96,12 +103,32 @@ def main(argv: list[str] | None = None) -> int:
         old_argv = None
 
     try:
+        from bewley.commands.common import fail_unexpected, should_emit_json
+        from bewley.project import BewleyError
+
         try:
-            app(standalone_mode=True)
-            return 0
-        except SystemExit as exc:
-            return int(exc.code) if exc.code is not None else 0
-        except Exception:
+            result = app(args=argv, prog_name="bewley", standalone_mode=False)
+            return int(result) if isinstance(result, int) else 0
+        except (click.exceptions.Exit, typer_click.exceptions.Exit) as exc:
+            return int(exc.exit_code)
+        except (click.ClickException, typer_click.ClickException) as exc:
+            from bewley.commands.common import fail
+
+            try:
+                fail(
+                    "",
+                    BewleyError(
+                        exc.format_message(),
+                        code="CLI_USAGE",
+                        context={"exit_code": exc.exit_code},
+                        hint="Run the command with --help to inspect its arguments.",
+                    ),
+                    should_emit_json(False),
+                )
+            except typer.Exit as exit_exc:
+                return int(exit_exc.exit_code)
+        except Exception as exc:
+            fail_unexpected(exc, should_emit_json(False))
             return 1
     finally:
         if old_argv is not None:

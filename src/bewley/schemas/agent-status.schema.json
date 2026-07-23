@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/expectedparrot/bewley/main/src/bewley/schemas/agent-status.schema.json",
+  "title": "Bewley agent status",
+  "type": "object",
+  "required": ["schema_version", "phase", "project_exists", "ready", "counts", "checklist", "primary_doc", "next_actions", "blockers"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "phase": {"type": "string"},
+    "project_exists": {"type": "boolean"},
+    "ready": {"type": "boolean"},
+    "counts": {"type": "object"},
+    "checklist": {"type": "array", "items": {"type": "string"}},
+    "primary_doc": {"type": "string"},
+    "next_actions": {"type": "array", "items": {"$ref": "action.schema.json"}},
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "message": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

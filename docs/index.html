@@ -29,7 +29,7 @@
   <button class="nav-toggle" type="button" aria-expanded="false">Show tutorial contents</button>
   <div class="part">Foundations</div><a href="#orientation">1. Orientation</a><a href="#model">2. Data model</a><a href="#install">3. Installation</a>
   <div class="part">Worked workflow</div><a href="#project">4. Start a project</a><a href="#code">5. Code evidence</a><a href="#refine">6. Refine the codebook</a><a href="#memo">7. Compare and memo</a><a href="#export">8. Export results</a>
-  <div class="part">Practice</div><a href="#integrity">9. Integrity and recovery</a><a href="#reference">10. Command map</a>
+  <div class="part">Practice</div><a href="#integrity">9. Integrity and recovery</a><a href="#reference">10. Command map</a><a href="#agents">11. Agent interface</a>
   <div class="small">A self-contained, local-first tutorial for the Bewley CLI.</div>
 </nav>
 <main><article>
@@ -176,6 +176,25 @@ bewley undo &lt;event_id&gt;</code></pre>
       <tr><td>Publish artifacts</td><td><code>export quotes|html|theory|narrative</code></td></tr>
       <tr><td>Inspect methodology</td><td><code>docs show getting-started|workflow|commands|grounded-theory</code></td></tr>
     </tbody></table>
+  </section>
+
+  <section id="agents">
+    <h2><span class="chapter">11</span> Agent-facing JSON contract</h2>
+    <p>Bewley is designed to be driven by agents. Every command emits exactly one versioned JSON envelope by default. Branch on <code>ok</code>; do not infer success from the shape of <code>data</code>.</p>
+    <pre><code>{
+  "schema_version": "1.0",
+  "ok": true,
+  "command": ["bewley", "status"],
+  "data": {"documents": 20, "codes": 7},
+  "warnings": [],
+  "next_actions": []
+}</code></pre>
+    <p>Failures replace <code>data</code> with a structured <code>error</code> and exit nonzero. Suggested actions use argv arrays and declare whether they mutate state, require network access, or require user approval.</p>
+    <pre><code>bewley capabilities
+bewley agent status
+bewley agent schema envelope
+bewley agent schema action</code></pre>
+    <div class="callout"><strong>Human output is opt-in.</strong> Use <code>--human</code> or <code>-H</code> only for terminal presentation. Agents should consume the default envelope.</div>
   </section>
 
   <footer>

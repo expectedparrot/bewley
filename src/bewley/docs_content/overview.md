@@ -30,11 +30,19 @@ Bewley is a local-first CLI for qualitative coding of text corpora — interview
 
 ## Output format
 
-By default, bewley outputs JSON. Use `--human`/`-H` for human-readable text.
+By default, every Bewley command writes exactly one versioned JSON envelope to
+stdout. Use `--human`/`-H` for human-readable text.
 
-- Listing commands return JSON arrays
-- Mutation commands return a JSON object with the created entity's ID
-- Errors go to stderr; exit code is 0 on success, non-zero on failure
+- Success: `{"schema_version":"1.0","ok":true,"command":[...],"data":...,"warnings":[],"next_actions":[]}`
+- Failure: `{"schema_version":"1.0","ok":false,"command":[...],"error":{"code":"...","message":"...","details":{}},"warnings":[],"next_actions":[]}`
+- `command` is the actual invoked argv array.
+- `next_actions` contain argv arrays plus mutation, network, and approval metadata.
+- Exit code is zero on success and nonzero on failure.
+
+Agents should branch on `ok`, never infer success from `data`, and inspect an
+action's safety fields before executing it. Run `bewley capabilities`,
+`bewley agent status`, and `bewley agent schema envelope` to discover the
+interface and bundled versioned schemas.
 
 ## Key constraints
 

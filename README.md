@@ -5,6 +5,32 @@ bewley is a local-first qualitative analysis workspace for coding interview tran
 
 Read the [HTML tutorial](docs/index.html). Bewley is released under the [MIT License](LICENSE).
 
+## Agent interface
+
+Bewley is agent-first. Every command emits exactly one versioned JSON envelope
+to stdout by default:
+
+```json
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "command": ["bewley", "status"],
+  "data": {},
+  "warnings": [],
+  "next_actions": []
+}
+```
+
+Failures set `ok` to `false`, return one structured `error` object, and exit
+nonzero. Agents should branch on `ok`, use the actual argv array in `command`
+for provenance, and execute only reviewed `next_actions`. Each action declares
+whether it mutates state, uses the network, or requires user approval.
+
+Run `bewley capabilities`, `bewley agent status`, or
+`bewley agent schema envelope` to inspect the contract. Versioned JSON Schemas
+ship with the package. Human-readable output is an explicit opt-in through
+`--human`/`-H`.
+
 ## When to use this
 <!-- id: bewley/when-to-use -->
 

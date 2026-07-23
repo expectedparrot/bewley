@@ -6,7 +6,7 @@ from typing import Optional
 import typer
 
 from ..project import BewleyError, Project, cmd_status
-from .common import HumanOption, QuietOption, fail, finish, get_project, should_emit_json
+from .common import HumanOption, QuietOption, action, fail, finish, get_project, should_emit_json
 
 app = typer.Typer(help="Project management.")
 
@@ -25,7 +25,18 @@ def init_command(
     except BewleyError as e:
         fail(command, e, json_flag)
     if json_flag:
-        finish(command, {"status": "initialized"}, next_steps=["bewley add <file>"])
+        finish(
+            command,
+            {"status": "initialized"},
+            next_actions=[
+                action(
+                    "add-document",
+                    "Add the first source document.",
+                    ["bewley", "add", "corpus/<filename>"],
+                    mutates_state=True,
+                )
+            ],
+        )
     elif not quiet:
         typer.echo("initialized")
 
@@ -59,7 +70,16 @@ def fsck_command(human: bool = HumanOption) -> None:
         fail(command, e, json_flag)
     if problems:
         if json_flag:
-            finish(command, {"status": "error", "problems": problems})
+            fail(
+                command,
+                BewleyError(
+                    "Project integrity check failed.",
+                    code="INTEGRITY_ERROR",
+                    context={"problems": problems},
+                    hint="Inspect the reported problems before rebuilding derived state.",
+                ),
+                json_flag,
+            )
         else:
             for problem in problems:
                 typer.echo(problem, err=True)

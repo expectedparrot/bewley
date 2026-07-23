@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bewley"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-first qualitative coding CLI"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,6 +21,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "click>=8.1",
     "typer>=0.12",
     "rich>=13.7",
     "pyyaml>=6.0"
@@ -42,4 +43,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-bewley = ["docs_content/*.md"]
+bewley = ["docs_content/*.md", "schemas/*.json"]

@@ -8,6 +8,9 @@
 > cd /absolute/path/to/data/qualitative-coding && bewley list documents
 > ```
 
+All commands emit one JSON envelope by default. `--human`/`-H` is an explicit
+presentation mode and should not be used by agents parsing results.
+
 ## Contents
 
 - [Project management](#project-management)
@@ -28,6 +31,9 @@
 | `bewley status` | Print JSON counts: documents, revisions, codes, active_annotations, conflicted_annotations. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |
 | `bewley rebuild-index` | Rebuild the SQLite index from the event log. |
+| `bewley capabilities` | Describe the versioned agent interface and bundled schemas. |
+| `bewley agent status` | Return phase-aware, executable next actions with safety metadata. |
+| `bewley agent schema <name>` | Return the `envelope`, `action`, or `agent-status` schema. |
 
 ## Document management
 

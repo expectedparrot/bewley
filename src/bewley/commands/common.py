@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import sys
-from pathlib import Path
 from typing import Any
 
 import typer
@@ -21,40 +21,134 @@ def should_emit_json(human: bool) -> bool:
     return os.getenv("BEWLEY_HUMAN_OUTPUT", "").lower() != "true"
 
 
-def _json_envelope(command: str, data: Any, warnings: list[str] | None = None, next_steps: list[str | dict] | None = None) -> dict:
-    return {
+def command_argv() -> list[str]:
+    """Return the actual invocation as stable, machine-readable provenance."""
+    return ["bewley", *sys.argv[1:]]
+
+
+def action(
+    action_id: str,
+    purpose: str,
+    command: list[str],
+    *,
+    mutates_state: bool,
+    requires_network: bool = False,
+    requires_user_approval: bool = False,
+    reason: str = "",
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "id": action_id,
+        "purpose": purpose,
         "command": command,
-        "status": "ok",
+        "mutates_state": mutates_state,
+        "requires_network": requires_network,
+        "requires_user_approval": requires_user_approval,
+    }
+    if reason:
+        result["reason"] = reason
+    return result
+
+
+def _normalize_action(value: str | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(value, dict) and all(
+        key in value
+        for key in (
+            "id",
+            "purpose",
+            "command",
+            "mutates_state",
+            "requires_network",
+            "requires_user_approval",
+        )
+    ):
+        return value
+    if isinstance(value, dict):
+        label = str(value.get("label") or value.get("purpose") or "Run next command")
+        raw_command = value.get("command", [])
+    else:
+        label = "Run next command"
+        raw_command = value
+    argv = shlex.split(raw_command) if isinstance(raw_command, str) else [str(item) for item in raw_command]
+    action_id = "-".join(argv[1:3]) if len(argv) > 1 else "next"
+    return action(action_id or "next", label, argv, mutates_state=False)
+
+
+def _json_envelope(
+    data: Any,
+    warnings: list[str] | None = None,
+    next_actions: list[str | dict[str, Any]] | None = None,
+) -> dict:
+    return {
+        "schema_version": "1.0",
+        "ok": True,
+        "command": command_argv(),
         "data": data,
         "warnings": warnings or [],
-        "errors": [],
-        "next_steps": next_steps or [],
+        "next_actions": [_normalize_action(item) for item in (next_actions or [])],
     }
 
 
-def _error_envelope(command: str, err: BewleyError) -> dict:
+def _error_envelope(err: BewleyError) -> dict:
+    details = dict(err.context)
+    if err.hint:
+        details["hint"] = err.hint
     return {
-        "command": command,
-        "status": "error",
-        "data": {},
+        "schema_version": "1.0",
+        "ok": False,
+        "command": command_argv(),
+        "error": {
+            "code": err.code,
+            "message": err.message,
+            "details": details,
+        },
         "warnings": [],
-        "errors": [{"code": err.code if hasattr(err, "code") else "ERROR", "message": str(err), "context": {}, "hint": ""}],
-        "next_steps": [],
+        "next_actions": [],
     }
 
 
-def finish(command: str, data: Any, warnings: list[str] | None = None, next_steps: list | None = None) -> None:
-    payload = _json_envelope(command, data, warnings=warnings, next_steps=next_steps)
+def finish(
+    command: str,
+    data: Any,
+    warnings: list[str] | None = None,
+    next_steps: list | None = None,
+    next_actions: list | None = None,
+) -> None:
+    """Emit one canonical success envelope.
+
+    ``command`` and ``next_steps`` remain accepted during the CLI migration;
+    provenance always comes from the real argv and output always uses
+    ``next_actions``.
+    """
+    del command
+    payload = _json_envelope(
+        data,
+        warnings=warnings,
+        next_actions=next_actions if next_actions is not None else next_steps,
+    )
     print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
 
 
 def fail(command: str, err: BewleyError, json_flag: bool) -> None:
+    del command
     if json_flag:
-        payload = _error_envelope(command, err)
+        payload = _error_envelope(err)
         print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
     else:
         print(f"error: {err}", file=sys.stderr)
     raise typer.Exit(code=1)
+
+
+def fail_unexpected(exc: Exception, json_flag: bool = True) -> None:
+    err = BewleyError(
+        "Unexpected internal error.",
+        code="INTERNAL_ERROR",
+        context={"exception_type": type(exc).__name__, "message": str(exc)},
+        hint="Rerun with the same command and report this envelope if the error persists.",
+    )
+    if json_flag:
+        print(json.dumps(_error_envelope(err), indent=2, ensure_ascii=False, default=str))
+    else:
+        print(f"error: {err.message} ({type(exc).__name__}: {exc})", file=sys.stderr)
 
 
 def get_project(command: str = "", json_flag: bool = True) -> Project:
