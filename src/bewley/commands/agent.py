@@ -46,7 +46,7 @@ def agent_status() -> None:
         raw = item["command"].split()
         mutates_state = (
             raw[:1] == ["python"]
-            or (raw[:1] == ["bewley"] and raw[1:2] in (["init"], ["add"], ["codegen"], ["export"]))
+            or (raw[:1] == ["bewley"] and raw[1:2] in (["init"], ["add"], ["codegen"], ["export"], ["open-coding"]))
         )
         next_actions.append(
             action(
@@ -76,6 +76,8 @@ def capabilities_data() -> dict[str, Any]:
         "commands": {
             "agent_status": ["bewley", "agent", "status"],
             "schema": ["bewley", "agent", "schema", "<name>"],
+            "open_coding_jobs": ["bewley", "open-coding", "jobs", "--output", "jobs.ep"],
+            "open_coding_ingest": ["bewley", "open-coding", "ingest", "results.ep", "--jobs", "jobs.ep"],
         },
         "safety": {
             "next_actions_are_argv_arrays": True,

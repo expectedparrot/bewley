@@ -92,6 +92,12 @@ bewley add corpus/interview-02.txt
 bewley list documents
 bewley status</code></pre>
     <p>Read the pilot set before formal coding. Note recurring language, surprising cases, the unit of analysis, and the research question the codes must help answer.</p>
+    <h3>Optional agent-run open coding</h3>
+    <p>Bewley packages current document revisions as EDSL Jobs; the <code>ep</code> CLI executes them, and Bewley audits the Results before producing candidates for review.</p>
+    <pre><code>bewley open-coding jobs --output jobs.ep --pilot 5
+ep run jobs.ep --model &lt;model-name&gt; --output results.ep
+bewley open-coding ingest results.ep --jobs jobs.ep</code></pre>
+    <div class="callout"><strong>Review remains explicit.</strong> Ingestion writes <code>qualitative-analysis/candidate_codes.csv</code>; it does not create codes or annotations.</div>
   </section>
 
   <section id="code">
@@ -169,6 +175,7 @@ bewley undo &lt;event_id&gt;</code></pre>
     <h2><span class="chapter">10</span> Command map</h2>
     <table><thead><tr><th>Need</th><th>Command family</th></tr></thead><tbody>
       <tr><td>Import or revise sources</td><td><code>add</code>, <code>update</code>, <code>list documents</code></td></tr>
+      <tr><td>Run agent-assisted open coding</td><td><code>open-coding jobs</code>, <code>ep run</code>, <code>open-coding ingest</code></td></tr>
       <tr><td>Build the codebook</td><td><code>code create|rename|merge|split|set-parent|link</code></td></tr>
       <tr><td>Attach and inspect evidence</td><td><code>annotate apply|show|remove|resolve</code>, <code>show snippets</code></td></tr>
       <tr><td>Compare cases</td><td><code>query</code>, <code>code coverage</code></td></tr>

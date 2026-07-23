@@ -78,11 +78,12 @@ Read all documents and write a `corpus_summary.md` covering:
 ### 4. Generate candidate codes
 
 ```bash
-bewley codegen open-coding             # writes qualitative-analysis/run_open_coding.py
-python qualitative-analysis/run_open_coding.py
+bewley open-coding jobs --output jobs.ep
+ep run jobs.ep --model <model-name> --output results.ep
+bewley open-coding ingest results.ep --jobs jobs.ep
 ```
 
-The generated script asks an LLM (via EDSL) to suggest open codes for each document and returns verbatim quotes to anchor each code. Review `qualitative-analysis/candidate_codes.csv` before continuing.
+Bewley packages the prompt and immutable document revisions; the `ep` CLI executes them, and Bewley audits and ingests the Results. Review `qualitative-analysis/candidate_codes.csv` before continuing.
 
 ### 5. Resolve quotes to byte ranges
 

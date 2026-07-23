@@ -24,6 +24,7 @@ from bewley.commands.documents import (
 from bewley.commands.export import app as export_app
 from bewley.commands.history import history_command, undo_command
 from bewley.commands.memos import app as memo_app
+from bewley.commands.open_coding import app as open_coding_app
 from bewley.commands.project import fsck_command, init_command, rebuild_index_command, status_command
 from bewley.commands.query import query_command
 
@@ -71,6 +72,7 @@ app.add_typer(docs_app, name="docs")
 
 # Codegen
 app.add_typer(codegen_app, name="codegen")
+app.add_typer(open_coding_app, name="open-coding")
 
 # Stable agent contract and workflow inspection.
 app.command("capabilities")(capabilities_command)

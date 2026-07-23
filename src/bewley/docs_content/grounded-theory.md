@@ -36,7 +36,7 @@ bewley annotate apply trust_building corpus/interview-01.txt --lines 14:22
 bewley annotate apply trust_building corpus/interview-01.txt --lines 14:22 --memo "Explicit mention of earning trust over time"
 ```
 
-The EDSL script (`scripts/generate_candidate_codes.py`) can automate an initial open coding pass across the corpus. Treat its output (`candidate_codes.csv`) as a starting point to review and refine, not as final codes.
+The Jobs workflow can automate an initial pass: package with `bewley open-coding jobs`, execute with `ep run`, then audit and convert the Results with `bewley open-coding ingest`. Treat `candidate_codes.csv` as a starting point to review and refine, not as final codes.
 
 ## Constant comparison
 
@@ -259,7 +259,7 @@ pandoc report.md -o report.html --css=report.css --standalone
 
 | Phase | Key bewley commands |
 |---|---|
-| Open coding | `code create`, `annotate apply --lines`, `generate_candidate_codes.py` |
+| Open coding | `open-coding jobs`, `open-coding ingest`, `code create`, `annotate apply --lines` |
 | Constant comparison | `show snippets`, `code merge`, `code split`, `code rename` |
 | Axial coding | `code link`, `code set-parent`, `export theory --format mermaid` |
 | Selective coding | `code set-core`, `export narrative` |

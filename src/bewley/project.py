@@ -4110,8 +4110,9 @@ _PHASE_CHECKLISTS: dict[str, list[str]] = {
     ],
     _PHASE_OPEN_CODING: [
         "Read all documents and write qualitative-analysis/corpus_summary.md.",
-        "Run `bewley codegen open-coding` to generate the EDSL open-coding script.",
-        "Run the generated script: `python qualitative-analysis/run_open_coding.py`.",
+        "Run `bewley open-coding jobs --output jobs.ep` to package the corpus.",
+        "Run `ep run jobs.ep --model <model> --output results.ep`.",
+        "Run `bewley open-coding ingest results.ep --jobs jobs.ep`.",
         "Review candidate_codes.csv, then `bewley code create <name>` for each keeper.",
     ],
     _PHASE_ANNOTATING: [
@@ -4160,7 +4161,7 @@ def _next_steps_for_phase(phase: str) -> list[dict]:
         return [{"label": "Add first document", "command": "bewley add corpus/<filename>"}]
     if phase == _PHASE_OPEN_CODING:
         return [
-            {"label": "Generate EDSL open-coding script", "command": "bewley codegen open-coding"},
+            {"label": "Package EDSL open-coding jobs", "command": "bewley open-coding jobs --output jobs.ep"},
             {"label": "See getting-started docs", "command": "bewley docs show getting-started"},
         ]
     if phase == _PHASE_ANNOTATING:
@@ -5076,5 +5077,4 @@ def _build_theory_explorer_script(project: "Project", project_dir: Path, output_
         "",
     ]
     return "\n".join(header_lines) + _THEORY_EXPLORER_SCRIPT_BODY
-
 

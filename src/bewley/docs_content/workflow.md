@@ -33,10 +33,10 @@ Bewley infers the current phase from what's on disk — no metadata to drift. Ru
    - Type of texts in the corpus
    - Number and scope of documents
    - Initial impressions of recurring themes
-3. `bewley codegen open-coding` then `python qualitative-analysis/run_open_coding.py`
-4. Review `candidate_codes.csv` — merge near-synonyms, remove noise
-5. `bewley codegen resolve-quotes` then `python qualitative-analysis/run_resolve_quotes.py`
-6. Review unresolved quotes; the fuzzy fallback absorbs trivial LLM drift, so remaining failures usually mean genuine paraphrase — hand-fix those rows. If >10% fail, the open-coding prompt needs a stricter verbatim instruction.
+3. `bewley open-coding jobs --output jobs.ep`
+4. `ep run jobs.ep --model <model-name> --output results.ep`
+5. `bewley open-coding ingest results.ep --jobs jobs.ep`
+6. Review `candidate_codes.csv` — merge near-synonyms, remove noise, and inspect any unresolved quotes
 7. **Pause and show user the candidate codes before proceeding**
 8. `bewley code create <name> --description '<description>'` for each keeper
 

@@ -106,7 +106,15 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 | `bewley export theory [--format json\|mermaid] [--output F]` | Code hierarchy + links as JSON or Mermaid diagram. |
 | `bewley export narrative [--output F]` | Integrative narrative summary. |
 
-## Codegen
+## Open coding
+
+| Command | Purpose |
+|---|---|
+| `bewley open-coding jobs [--output jobs.ep] [--summary F] [--pilot N]` | Package current document revisions and the open-coding prompt as EDSL Jobs. |
+| `ep run jobs.ep --model M --output results.ep` | Execute the package using the EDSL `ep` CLI. |
+| `bewley open-coding ingest results.ep [--jobs jobs.ep] [--output F]` | Audit coverage and revisions, resolve exact quotes, and write a reviewable candidate-code CSV. |
+
+## Codegen (legacy and visualization)
 
 `bewley codegen` emits standalone Python scripts that perform LLM-assisted or
 rendering steps outside the core CLI. Generated scripts hardcode project paths
@@ -114,7 +122,7 @@ and depend only on the Python stdlib (plus `edsl` for the open-coding one).
 
 | Command | Purpose |
 |---|---|
-| `bewley codegen open-coding [--output F] [--summary F] [--csv-output F] [--model M]` | Emit an EDSL script that asks an LLM to suggest codes + verbatim quote anchors for every document. Produces `candidate_codes.csv`. |
+| `bewley codegen open-coding [--output F] [--summary F] [--csv-output F] [--model M]` | Legacy script workflow. Prefer `bewley open-coding jobs`. |
 | `bewley codegen resolve-quotes [--input F] [--output-csv F] [--output F]` | Emit a script that maps candidate quotes to exact byte ranges in their source documents, with a fuzzy fallback cascade (exact → strip surrounding punctuation → case-insensitive) to absorb minor LLM drift. |
 | `bewley codegen apply-resolved [--input F] [--output F]` | Emit a script that batch-creates codes and applies annotations from a resolved CSV. Idempotent (existing codes are reused). Supports `--dry-run` to preview commands before executing. |
 | `bewley codegen theory-explorer [--output F] [--html-output F] [--title T]` | Emit a script that renders an interactive D3 theory explorer HTML — force-directed graph, category/document/count filters, click a node for quotes and links. Regenerate when codes or annotations change. |
