@@ -1,6 +1,10 @@
 # bewley — qualitative coding CLI for interview transcripts and text corpora
 <!-- id: bewley/bewley -->
 
+<p align="center">
+  <img src="docs/assets/bewley-package.png" width="760" alt="Bewley: an Expected Parrot perched on a stack of papers, framed by an E and brackets">
+</p>
+
 bewley is a local-first qualitative analysis workspace for coding interview transcripts, documents, audio transcripts, and other text corpora. The agent helps the user define a codebook, import source material, annotate spans, query coded evidence, and export snippets, quotes, diagrams, narratives, or HTML reports from the append-only project state.
 
 Read the [HTML tutorial](docs/index.html). Bewley is released under the [MIT License](LICENSE).
