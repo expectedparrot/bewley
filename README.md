@@ -5,6 +5,53 @@
   <img src="docs/assets/bewley-package.png" width="760" alt="Bewley: an Expected Parrot perched on a stack of papers, framed by an E and brackets">
 </p>
 
+## Copy and paste into Codex or Claude Code
+
+```text
+Set up Bewley and help me conduct an auditable qualitative analysis in this
+repository.
+
+Install the current Bewley and EDSL `main` branches from GitHub. If `uv` is not
+installed, first run `python -m pip install --upgrade uv`. Then install both
+CLIs as a managed tool:
+
+uv tool install --upgrade --force \
+  --with-executables-from "edsl @ git+https://github.com/expectedparrot/edsl.git@main" \
+  "bewley @ git+https://github.com/expectedparrot/bewley.git@main"
+
+Verify that the expected command-line tools are available:
+
+uv tool dir --bin
+command -v bewley
+command -v ep
+bewley --help
+ep --help
+
+Confirm that `command -v` resolves both commands inside the directory reported
+by `uv tool dir --bin`. If either command resolves to an older installation,
+do not use it: run `uv tool update-shell`, verify again, or invoke the commands
+by their absolute paths in the uv tool bin directory.
+
+Let the EDSL CLI manage repository-local authentication. Run `ep auth status`.
+If authentication is missing, run `ep auth login` and follow its login flow;
+do not log in again when the existing `.env` or EDSL profile is already
+configured. Never display, copy, or commit API keys. Then run
+`ep profiles current` to inspect the redacted configuration and `ep check` to
+verify connectivity before any paid model execution.
+
+Once setup succeeds, run:
+
+bewley agent status
+
+Treat Bewley's JSON envelope as the source of truth. Follow its
+`next_actions`, checking each action's mutation, network, and approval
+implications against my authorization. After each action, rerun
+`bewley agent status` and continue until the analysis is complete or my input
+or approval is required. Start with a small pilot corpus, preserve exact source
+provenance, show me candidate codes before creating or applying them, and ask
+before selecting a paid model or running packaged EDSL jobs.
+```
+
 bewley is a local-first qualitative analysis workspace for coding interview transcripts, documents, audio transcripts, and other text corpora. The agent helps the user define a codebook, import source material, annotate spans, query coded evidence, and export snippets, quotes, diagrams, narratives, or HTML reports from the append-only project state.
 
 Read the [HTML tutorial](docs/index.html). Bewley is released under the [MIT License](LICENSE).
