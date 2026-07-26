@@ -8,11 +8,11 @@ Bewley is a local-first CLI tool for qualitative coding of interview data and UT
 
 - **Typer-based CLI** split across `src/bewley/`. `cli.py` is a thin entry point that assembles `typer.Typer` subapps from `commands/*.py`. Core domain logic (project store, event log, workflow inference, agent brief) lives in `project.py`.
 - **Entry point**: `bewley.cli:main` (registered in `pyproject.toml` as the `bewley` console script).
-- **Dependencies**: `typer` and `rich` only, on top of Python 3.11+ stdlib (`sqlite3`, `tomllib`, `json`, `hashlib`).
+- **Dependencies**: `typer`, `rich`, `edsl`, and `pyyaml`, on top of Python 3.11+ stdlib (`sqlite3`, `tomllib`, `json`, `hashlib`).
 - **Event-sourced**: Every mutation appends a JSON event to `.bewley/events/`. The SQLite database (`bewley.sqlite`) is a projection that can be rebuilt from events at any time.
 - **Content-addressed storage**: Document revisions stored by SHA-256 in `.bewley/objects/documents/`.
 
-## Agent-facing contract (follows `packages/CLI_GUIDE.md`)
+## Agent-facing contract (follows the EP agent-first CLI standard; see AGENTS.md)
 
 - **JSON by default**; `--human` / `-H` or `BEWLEY_HUMAN_OUTPUT=true` switches to rich text. Every command emits the standard envelope (`command`, `status`, `data`, `warnings`, `errors`, `next_steps`) via `commands/common.py` (`finish`, `fail`, `should_emit_json`).
 - **`bewley docs list | show <topic> | search <query>`** exposes the embedded help topics in `src/bewley/docs_content/` (overview, getting-started, workflow, commands, grounded-theory).
@@ -31,7 +31,9 @@ bewley annotate apply / remove / show / resolve
 bewley query / export (snippets | quotes | html | document-html)
 bewley history / undo
 bewley memo add / list / show / edit / delete
-bewley codegen <phase>                          # generate EDSL scripts
+bewley open-coding jobs / ingest / apply        # EDSL jobs -> external ep run -> review -> apply
+bewley version / guide / next / capabilities    # build info and workflow discovery
+bewley codegen theory-explorer                  # generate the local theory-explorer renderer
 ```
 
 ## Build & test
@@ -41,7 +43,7 @@ pip install -e .                                # install editable
 PYTHONPATH=src python -m pytest tests/          # run full test suite
 ```
 
-Tests use `pytest` with fixtures in `conftest.py`. `test_new_commands.py` covers `docs`, `agent-start`, and `codegen`. The older `test_smoke.py` still exercises the full init→add→annotate→query→fsck flow.
+Tests use `pytest` with fixtures in `conftest.py`. `test_new_commands.py` covers `docs` and `open-coding apply`; `test_contract_sync.py` enforces docs↔CLI parity; `test_subprocess_contract.py` black-box-tests the envelope. The older `test_smoke.py` still exercises the full init→add→annotate→query→fsck flow.
 
 ## Project layout
 
@@ -53,8 +55,8 @@ src/bewley/
   project.py             # store, event log, workflow, agent brief
   docs.py                # doc registry + load/search
   commands/              # one typer subapp per command group
-    agent_start.py docs.py documents.py codes.py annotations.py
-    query.py export.py history.py memos.py codegen.py project.py common.py
+    agent.py docs.py documents.py codes.py annotations.py
+    query.py export.py history.py memos.py codegen.py open_coding.py project.py common.py
   docs_content/*.md      # bundled via package-data
 tests/                   # pytest suite
 qualitative-analysis/    # example working project

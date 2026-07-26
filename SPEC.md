@@ -1,5 +1,14 @@
 # Bewley Specification
 
+> **Historical design document (v1 draft; marked historical 2026-07-26).**
+> The implementation has moved past this spec in both directions — for
+> example, code hierarchy is implemented despite §8.3 deferring it, the event
+> list in §11.2 no longer matches the code, and open-coding, memos, media
+> transcription, code links, and the agent interface are not described here.
+> The authoritative sources are `bewley --help`, `bewley guide`,
+> `bewley capabilities`, and `src/bewley/docs_content/`. Ideas worth building
+> from this document belong in the issue tracker, not here.
+
 ## 1. Purpose
 
 `bewley` is a local-first command-line application for coding qualitative interview data and other UTF-8 text corpora.
