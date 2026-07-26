@@ -337,69 +337,7 @@ class ExprParser:
         return Term(token)
 
 
-class Project:
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.meta = root / PROJECT_DIR
-
-    @classmethod
-    def discover(cls) -> "Project":
-        return cls(find_project_root())
-
-    @property
-    def db_path(self) -> Path:
-        return self.root / DB_PATH
-
-    @property
-    def config_path(self) -> Path:
-        return self.root / CONFIG_PATH
-
-    @property
-    def head_path(self) -> Path:
-        return self.root / HEAD_PATH
-
-    @property
-    def events_dir(self) -> Path:
-        return self.root / EVENTS_DIR
-
-    @property
-    def objects_dir(self) -> Path:
-        return self.root / OBJECTS_DIR
-
-    @property
-    def audio_objects_dir(self) -> Path:
-        return self.root / AUDIO_OBJECTS_DIR
-
-    @property
-    def video_objects_dir(self) -> Path:
-        return self.root / VIDEO_OBJECTS_DIR
-
-    @property
-    def lock_path(self) -> Path:
-        return self.root / LOCK_PATH
-
-    def config(self) -> dict[str, Any]:
-        return load_toml(self.config_path)
-
-    def actor(self) -> dict[str, str]:
-        cfg = self.config()
-        actor = cfg.get("actor", {})
-        return {
-            "name": actor.get("name") or os.environ.get("USER", "unknown"),
-            "email": actor.get("email") or "",
-        }
-
-    def connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
-
-    def ensure_db(self) -> None:
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as conn:
-            conn.executescript(
-                """
+_SCHEMA_SQL = """
                 CREATE TABLE IF NOT EXISTS documents (
                   document_id TEXT PRIMARY KEY,
                   current_path TEXT NOT NULL,
@@ -533,11 +471,78 @@ class Project:
                   updated_at TEXT NOT NULL
                 );
                 """
-            )
-            try:
-                conn.execute("ALTER TABLE codes ADD COLUMN parent_code_id TEXT")
-            except sqlite3.OperationalError:
-                pass
+
+
+class Project:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.meta = root / PROJECT_DIR
+
+    @classmethod
+    def discover(cls) -> "Project":
+        return cls(find_project_root())
+
+    @property
+    def db_path(self) -> Path:
+        return self.root / DB_PATH
+
+    @property
+    def config_path(self) -> Path:
+        return self.root / CONFIG_PATH
+
+    @property
+    def head_path(self) -> Path:
+        return self.root / HEAD_PATH
+
+    @property
+    def events_dir(self) -> Path:
+        return self.root / EVENTS_DIR
+
+    @property
+    def objects_dir(self) -> Path:
+        return self.root / OBJECTS_DIR
+
+    @property
+    def audio_objects_dir(self) -> Path:
+        return self.root / AUDIO_OBJECTS_DIR
+
+    @property
+    def video_objects_dir(self) -> Path:
+        return self.root / VIDEO_OBJECTS_DIR
+
+    @property
+    def lock_path(self) -> Path:
+        return self.root / LOCK_PATH
+
+    def config(self) -> dict[str, Any]:
+        return load_toml(self.config_path)
+
+    def actor(self) -> dict[str, str]:
+        cfg = self.config()
+        actor = cfg.get("actor", {})
+        return {
+            "name": actor.get("name") or os.environ.get("USER", "unknown"),
+            "email": actor.get("email") or "",
+        }
+
+    def connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    def ensure_db(self) -> None:
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as conn:
+            self._apply_schema(conn)
+
+    def _apply_schema(self, conn: sqlite3.Connection) -> None:
+        """Apply the single authoritative schema (idempotent)."""
+        conn.executescript(_SCHEMA_SQL)
+        try:
+            conn.execute("ALTER TABLE codes ADD COLUMN parent_code_id TEXT")
+        except sqlite3.OperationalError:
+            pass
 
     def init_project(self) -> None:
         if self.meta.exists():
@@ -649,143 +654,7 @@ class Project:
         atomic_write_text(self.root / PROJECT_DIR / "logs" / "rebuild.log", f"{utcnow()} rebuilt index\n")
 
     def _init_connection(self, conn: sqlite3.Connection) -> None:
-        conn.executescript(
-            """
-            CREATE TABLE documents (
-              document_id TEXT PRIMARY KEY,
-              current_path TEXT NOT NULL,
-              created_at TEXT NOT NULL,
-              archived_at TEXT
-            );
-            CREATE TABLE document_revisions (
-              revision_id TEXT PRIMARY KEY,
-              document_id TEXT NOT NULL,
-              content_sha256 TEXT NOT NULL,
-              byte_length INTEGER NOT NULL,
-              line_count INTEGER NOT NULL,
-              created_at TEXT NOT NULL,
-              source_path TEXT NOT NULL,
-              parent_revision_id TEXT,
-              is_current INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE TABLE document_audio_sources (
-              document_id TEXT PRIMARY KEY,
-              audio_sha256 TEXT NOT NULL,
-              original_audio_path TEXT NOT NULL,
-              original_audio_filename TEXT NOT NULL,
-              media_type TEXT NOT NULL,
-              transcription_model TEXT NOT NULL,
-              transcription_response_format TEXT NOT NULL,
-              transcription_language TEXT,
-              transcript_style TEXT NOT NULL,
-              segment_count INTEGER NOT NULL DEFAULT 0,
-              metadata_json TEXT NOT NULL,
-              created_at TEXT NOT NULL
-            );
-            CREATE TABLE document_video_sources (
-              document_id TEXT PRIMARY KEY,
-              video_sha256 TEXT NOT NULL,
-              original_video_path TEXT NOT NULL,
-              original_video_filename TEXT NOT NULL,
-              media_type TEXT NOT NULL,
-              duration_seconds REAL NOT NULL,
-              transcription_model TEXT NOT NULL,
-              transcription_response_format TEXT NOT NULL,
-              transcription_language TEXT,
-              transcript_style TEXT NOT NULL,
-              chunk_count INTEGER NOT NULL DEFAULT 0,
-              metadata_json TEXT NOT NULL,
-              created_at TEXT NOT NULL
-            );
-            CREATE TABLE document_video_chunks (
-              document_id TEXT NOT NULL,
-              chunk_index INTEGER NOT NULL,
-              extract_start_seconds REAL NOT NULL,
-              extract_end_seconds REAL NOT NULL,
-              logical_start_seconds REAL NOT NULL,
-              logical_end_seconds REAL NOT NULL,
-              chunk_audio_sha256 TEXT NOT NULL,
-              byte_length INTEGER NOT NULL,
-              media_type TEXT NOT NULL,
-              metadata_json TEXT NOT NULL,
-              PRIMARY KEY (document_id, chunk_index)
-            );
-            CREATE TABLE codes (
-              code_id TEXT PRIMARY KEY,
-              canonical_name TEXT NOT NULL UNIQUE,
-              description TEXT,
-              color TEXT,
-              status TEXT NOT NULL,
-              created_at TEXT NOT NULL,
-              parent_code_id TEXT
-            );
-            CREATE TABLE code_aliases (
-              alias_name TEXT PRIMARY KEY,
-              code_id TEXT NOT NULL,
-              created_at TEXT NOT NULL
-            );
-            CREATE TABLE annotations (
-              annotation_id TEXT PRIMARY KEY,
-              code_id TEXT NOT NULL,
-              document_id TEXT NOT NULL,
-              document_revision_id TEXT NOT NULL,
-              scope_type TEXT NOT NULL,
-              start_byte INTEGER,
-              end_byte INTEGER,
-              start_line INTEGER,
-              end_line INTEGER,
-              exact_text TEXT,
-              prefix_context TEXT,
-              suffix_context TEXT,
-              anchor_status TEXT NOT NULL,
-              created_by_event_id TEXT NOT NULL,
-              superseded_by_event_id TEXT,
-              memo TEXT,
-              created_at TEXT NOT NULL,
-              is_active INTEGER NOT NULL DEFAULT 1
-            );
-            CREATE TABLE events (
-              event_id TEXT PRIMARY KEY,
-              sequence_number INTEGER NOT NULL UNIQUE,
-              event_type TEXT NOT NULL,
-              timestamp TEXT NOT NULL,
-              actor TEXT NOT NULL
-            );
-            CREATE INDEX idx_annotations_code_id ON annotations (code_id);
-            CREATE INDEX idx_annotations_document_id ON annotations (document_id);
-            CREATE INDEX idx_annotations_revision_id ON annotations (document_revision_id);
-            CREATE INDEX idx_annotations_anchor_status ON annotations (anchor_status);
-            CREATE INDEX idx_aliases_code_id ON code_aliases (code_id);
-            CREATE INDEX idx_revisions_document_current ON document_revisions (document_id, is_current);
-            CREATE TABLE memos (
-              memo_id TEXT PRIMARY KEY,
-              target_type TEXT NOT NULL,
-              target_id TEXT,
-              title TEXT,
-              content_sha256 TEXT NOT NULL,
-              created_at TEXT NOT NULL,
-              updated_at TEXT NOT NULL,
-              is_active INTEGER NOT NULL DEFAULT 1
-            );
-            CREATE INDEX idx_memos_target ON memos (target_type, target_id);
-            CREATE TABLE code_links (
-              link_id TEXT PRIMARY KEY,
-              source_code_id TEXT NOT NULL,
-              target_code_id TEXT NOT NULL,
-              relationship TEXT NOT NULL,
-              memo TEXT,
-              created_at TEXT NOT NULL,
-              is_active INTEGER NOT NULL DEFAULT 1
-            );
-            CREATE INDEX idx_code_links_source ON code_links (source_code_id);
-            CREATE INDEX idx_code_links_target ON code_links (target_code_id);
-            CREATE TABLE project_settings (
-              key TEXT PRIMARY KEY,
-              value TEXT NOT NULL,
-              updated_at TEXT NOT NULL
-            );
-            """
-        )
+        self._apply_schema(conn)
 
     def apply_event(self, conn: sqlite3.Connection, event: dict[str, Any]) -> None:
         payload = event["payload"]
@@ -1419,8 +1288,8 @@ class Project:
             raise BewleyError("prompt is not supported with diarized_json transcripts")
         command = [
             "curl", "--silent", "--show-error", "--fail-with-body",
+            "--config", "-",
             "https://api.openai.com/v1/audio/transcriptions",
-            "-H", f"Authorization: Bearer {api_key}",
             "-F", f"file=@{audio_path}",
             "-F", f"model={model}",
             "-F", f"response_format={response_format}",
@@ -1429,7 +1298,10 @@ class Project:
             command.extend(["-F", f"language={language}"])
         if prompt:
             command.extend(["-F", f"prompt={prompt}"])
-        completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        # The Authorization header travels via stdin (--config -), never on the
+        # argv, so the key is not visible in the process table.
+        header_config = f'header = "Authorization: Bearer {api_key}"\n'
+        completed = subprocess.run(command, check=True, capture_output=True, text=True, input=header_config)
         try:
             payload = json.loads(completed.stdout)
         except json.JSONDecodeError as exc:

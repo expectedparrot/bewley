@@ -43,6 +43,12 @@ def add_command(
         typer.echo(doc_id)
 
 
+_TRANSCRIPTION_WARNING = (
+    "Transcription sends the media file to the OpenAI API and incurs provider "
+    "charges billed to the OPENAI_API_KEY account."
+)
+
+
 @app.command("add-audio")
 def add_audio_command(
     audio_path: str = typer.Argument(..., help="Path to the source audio file."),
@@ -65,7 +71,11 @@ def add_audio_command(
     except BewleyError as e:
         fail(command, e, json_flag)
     if json_flag:
-        finish(command, {"document_id": result["document_id"], "transcript_path": result["transcript_path"]})
+        finish(
+            command,
+            {"document_id": result["document_id"], "transcript_path": result["transcript_path"]},
+            warnings=[_TRANSCRIPTION_WARNING],
+        )
     else:
         typer.echo(result["document_id"])
 
@@ -95,7 +105,11 @@ def add_video_command(
     except BewleyError as e:
         fail(command, e, json_flag)
     if json_flag:
-        finish(command, {"document_id": result["document_id"], "transcript_path": result["transcript_path"]})
+        finish(
+            command,
+            {"document_id": result["document_id"], "transcript_path": result["transcript_path"]},
+            warnings=[_TRANSCRIPTION_WARNING],
+        )
     else:
         typer.echo(result["document_id"])
 
