@@ -9,7 +9,13 @@ from typer import _click as typer_click
 from bewley.project import Project as Project  # noqa: F401
 
 from bewley.commands.annotations import app as annotate_app
-from bewley.commands.agent import app as agent_app, capabilities_command
+from bewley.commands.agent import (
+    app as agent_app,
+    capabilities_command,
+    guide_command,
+    next_command,
+    version_command,
+)
 from bewley.commands.codegen import app as codegen_app
 from bewley.commands.codes import app as code_app
 from bewley.commands.docs import app as docs_app
@@ -76,6 +82,9 @@ app.add_typer(open_coding_app, name="open-coding")
 
 # Stable agent contract and workflow inspection.
 app.command("capabilities")(capabilities_command)
+app.command("version")(version_command)
+app.command("guide")(guide_command)
+app.command("next")(next_command)
 app.add_typer(agent_app, name="agent")
 
 
