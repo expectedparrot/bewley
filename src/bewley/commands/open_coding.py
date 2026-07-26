@@ -112,6 +112,52 @@ def _resolve_quote(text: str, quote: str) -> tuple[str, Optional[int], Optional[
     return "exact", start, start + len(quote.encode("utf-8"))
 
 
+
+
+def _failed_document_ids(
+    project: Any, Jobs: Any, Results: Any,
+    results_source: Path, jobs_source: Path | None,
+) -> set[str]:
+    """Document IDs whose (scenario, model) pairs lack a valid answer.
+
+    Includes scenarios the originating Jobs expected but that never returned,
+    when the Jobs package is supplied as the denominator.
+    """
+    results = Results.git.load(results_source)
+    expected: set[tuple[str, str]] = set()
+    if jobs_source is not None:
+        jobs = Jobs.git.load(jobs_source)
+        expected = {_scenario_key(_scenario_dict(item)) for item in jobs.scenarios}
+    seen_pairs: set[tuple[tuple[str, str], str]] = set()
+    valid_pairs: set[tuple[tuple[str, str], str]] = set()
+    with project.connect() as conn:
+        for result in results:
+            scenario = _scenario_dict(result["scenario"])
+            key = _scenario_key(scenario)
+            model_name = str(_result_value(result, "model", "model") or "")
+            pair = (key, model_name)
+            seen_pairs.add(pair)
+            if _result_value(result, "exceptions", QUESTION_NAME):
+                continue
+            try:
+                _parse_answer(_result_value(result, "answer", QUESTION_NAME))
+                document = project.resolve_document(conn, key[0])
+                revision = project.current_revision(conn, document["document_id"])
+                if revision["revision_id"] != scenario.get("revision_id"):
+                    continue
+            except (ValueError, TypeError, KeyError, BewleyError):
+                continue
+            valid_pairs.add(pair)
+    failed = {key[0] for key, _ in (seen_pairs - valid_pairs)}
+    if expected:
+        models_seen = {model for _, model in seen_pairs} or {""}
+        for key in expected:
+            for model in models_seen:
+                if (key, model) not in seen_pairs:
+                    failed.add(key[0])
+    return failed
+
+
 @app.command("jobs")
 def jobs_command(
     output: Path = typer.Option(Path("jobs.ep"), "--output", "-o"),
@@ -127,6 +173,14 @@ def jobs_command(
     max_tokens: int = typer.Option(
         DEFAULT_MAX_TOKENS, "--max-tokens", min=1,
         help="Completion budget stored in models.ep; provider defaults truncate long JSON answers.",
+    ),
+    from_failures: Optional[Path] = typer.Option(
+        None, "--from-failures",
+        help="Repackage only scenarios lacking a valid answer in this Results file.",
+    ),
+    jobs_denominator: Optional[Path] = typer.Option(
+        None, "--jobs",
+        help="With --from-failures: the originating Jobs, so never-returned scenarios are included.",
     ),
     force: bool = typer.Option(False, "--force", help="Replace an existing Jobs package."),
     human: bool = HumanOption,
@@ -163,6 +217,24 @@ def jobs_command(
                     ),
                     "corpus_summary": corpus_summary,
                 }))
+        failed_documents: Optional[int] = None
+        if from_failures is not None:
+            failures_source = _path(project.root, from_failures)
+            if not failures_source.exists():
+                raise BewleyError(f"{failures_source} does not exist", code="NOT_FOUND")
+            denominator = _path(project.root, jobs_denominator) if jobs_denominator else None
+            if denominator is not None and not denominator.exists():
+                raise BewleyError(f"{denominator} does not exist", code="NOT_FOUND")
+            _, _, _, _, Results, _, _ = _edsl()
+            failed_ids = _failed_document_ids(project, Jobs, Results, failures_source, denominator)
+            scenarios = [item for item in scenarios if dict(item).get("document_id") in failed_ids]
+            failed_documents = len(scenarios)
+            if not scenarios:
+                raise BewleyError(
+                    "No failed scenarios to re-run; every document already has a valid answer.",
+                    code="INVALID_INPUT",
+                    context={"from_failures": str(failures_source)},
+                )
         if pilot is not None:
             scenarios = scenarios[:pilot]
         if not scenarios:
@@ -194,6 +266,8 @@ def jobs_command(
             "scenario_count": len(scenarios),
             "expected_model_calls": len(scenarios),
             "pilot": pilot is not None,
+            "from_failures": str(from_failures) if from_failures is not None else None,
+            "failed_documents": failed_documents,
             "saved": saved,
             "expected_results": str(expected),
             "models": {
@@ -230,24 +304,33 @@ def jobs_command(
 
 @app.command("ingest")
 def ingest_command(
-    results_path: Path = typer.Argument(..., help="Results .ep file produced by `ep run`."),
+    results_paths: list[Path] = typer.Argument(
+        ..., help="Results .ep files in run order; later files supply retries.",
+    ),
     jobs_path: Optional[Path] = typer.Option(None, "--jobs", help="Originating Jobs package for coverage audit."),
     output: Path = typer.Option(Path("qualitative-analysis/candidate_codes.csv"), "--output", "-o"),
     allow_partial: bool = typer.Option(False, "--allow-partial"),
     force: bool = typer.Option(False, "--force"),
     human: bool = HumanOption,
 ) -> None:
-    """Audit Results and write exact-quote candidate codes for human review."""
+    """Audit Results (merging retries by stable identity) and write candidates.
+
+    Rows merge by (scenario, model): the first valid answer wins and is
+    attributed to its source file, later valid answers from retry files are
+    counted as superseded (a warning, not a failure), and a pair is a failure
+    only when no file supplies a valid answer for it.
+    """
     json_flag = should_emit_json(human)
     command = "open-coding ingest"
     project = get_project(command, json_flag)
-    source = _path(project.root, results_path)
+    sources = [_path(project.root, item) for item in results_paths]
     jobs_source = _path(project.root, jobs_path) if jobs_path else None
     target = _path(project.root, output)
     try:
         Jobs, _, _, _, Results, _, _ = _edsl()
-        if not source.exists():
-            raise BewleyError(f"{source} does not exist", code="NOT_FOUND")
+        for source in sources:
+            if not source.exists():
+                raise BewleyError(f"{source} does not exist", code="NOT_FOUND")
         if target.exists() and not force:
             raise BewleyError(f"{target} already exists", code="ALREADY_EXISTS", hint="Use --force to replace it.")
         expected: set[tuple[str, str]] = set()
@@ -256,94 +339,143 @@ def ingest_command(
                 raise BewleyError(f"{jobs_source} does not exist", code="NOT_FOUND")
             jobs = Jobs.git.load(jobs_source)
             expected = {_scenario_key(_scenario_dict(item)) for item in jobs.scenarios}
-        results = Results.git.load(source)
-        rows: list[dict[str, Any]] = []
-        returned_pairs: list[tuple[tuple[str, str], str]] = []
+
+        Pair = tuple[tuple[str, str], str]
+        order: list[Pair] = []
+        rows_by_pair: dict[Pair, list[tuple[int, Any, dict[str, Any]]]] = {}
         models: set[str] = set()
-        failures: list[dict[str, Any]] = []
-        unresolved_details: list[dict[str, Any]] = []
-        stale = unresolved = 0
-        with project.connect() as conn:
-            for index, result in enumerate(results):
+        total_rows = 0
+        for file_index, source in enumerate(sources):
+            for result in Results.git.load(source):
+                total_rows += 1
                 scenario = _scenario_dict(result["scenario"])
                 key = _scenario_key(scenario)
                 model_name = str(_result_value(result, "model", "model") or "")
                 if model_name:
                     models.add(model_name)
-                returned_pairs.append((key, model_name))
-                exception = _result_value(result, "exceptions", QUESTION_NAME)
-                raw = _result_value(result, "answer", QUESTION_NAME)
-                try:
-                    if exception:
-                        raise ValueError("model exception")
-                    entries = _parse_answer(raw)
-                    document = project.resolve_document(conn, str(scenario.get("document_id")))
-                    revision = project.current_revision(conn, document["document_id"])
-                    if revision["revision_id"] != scenario.get("revision_id") or revision["content_sha256"] != scenario.get("content_sha256"):
-                        stale += 1
-                        raise ValueError("document revision no longer matches the packaged scenario")
-                    text = safe_decode((project.objects_dir / revision["content_sha256"]).read_bytes())
-                    for entry_index, entry in enumerate(entries):
-                        status, start, end = _resolve_quote(text, entry["quote"])
-                        candidate_id = hashlib.sha256(
-                            f"{key[0]}:{key[1]}:{entry_index}:{entry['code']}:{entry['quote']}".encode()
-                        ).hexdigest()[:16]
-                        if status != "exact":
-                            unresolved += 1
-                            unresolved_details.append({
-                                "candidate_id": candidate_id,
-                                "code_name": entry["code"].strip(),
-                                "resolve_status": status,
-                                "document_path": scenario.get("document_path", ""),
-                                "quote_prefix": entry["quote"][:120],
-                            })
-                        rows.append({
+                pair: Pair = (key, model_name)
+                if pair not in rows_by_pair:
+                    order.append(pair)
+                    rows_by_pair[pair] = []
+                rows_by_pair[pair].append((file_index, result, scenario))
+
+        rows: list[dict[str, Any]] = []
+        failures: list[dict[str, Any]] = []
+        unresolved_details: list[dict[str, Any]] = []
+        stale = unresolved = duplicates = superseded = 0
+        source_counts = {str(source): 0 for source in sources}
+        with project.connect() as conn:
+            for pair in order:
+                key, model_name = pair
+                valids: list[tuple[int, list[dict[str, Any]], dict[str, Any]]] = []
+                last_error: str | None = None
+                for file_index, result, scenario in rows_by_pair[pair]:
+                    exception = _result_value(result, "exceptions", QUESTION_NAME)
+                    raw = _result_value(result, "answer", QUESTION_NAME)
+                    try:
+                        if exception:
+                            raise ValueError("model exception")
+                        entries = _parse_answer(raw)
+                        document = project.resolve_document(conn, str(scenario.get("document_id")))
+                        revision = project.current_revision(conn, document["document_id"])
+                        if revision["revision_id"] != scenario.get("revision_id") or revision["content_sha256"] != scenario.get("content_sha256"):
+                            stale += 1
+                            raise ValueError("document revision no longer matches the packaged scenario")
+                        valids.append((file_index, entries, scenario))
+                    except (ValueError, TypeError, KeyError, BewleyError) as exc:
+                        last_error = str(exc)
+                if not valids:
+                    failures.append({"document_id": key[0], "model": model_name, "error": last_error})
+                    continue
+                retained_index, entries, scenario = valids[0]
+                for other_index, _, _ in valids[1:]:
+                    if other_index == retained_index:
+                        # A genuine duplicate inside one results file.
+                        duplicates += 1
+                    else:
+                        # A retry re-answered an already-valid pair; expected.
+                        superseded += 1
+                source_label = str(sources[retained_index])
+                source_counts[source_label] += 1
+                document = project.resolve_document(conn, str(scenario.get("document_id")))
+                current = project.current_revision(conn, document["document_id"])
+                text = safe_decode((project.objects_dir / current["content_sha256"]).read_bytes())
+                for entry_index, entry in enumerate(entries):
+                    status, start_byte, end_byte = _resolve_quote(text, entry["quote"])
+                    candidate_id = hashlib.sha256(
+                        f"{key[0]}:{key[1]}:{entry_index}:{entry['code']}:{entry['quote']}".encode()
+                    ).hexdigest()[:16]
+                    if status != "exact":
+                        unresolved += 1
+                        unresolved_details.append({
                             "candidate_id": candidate_id,
                             "code_name": entry["code"].strip(),
-                            "description": entry["description"].strip(),
-                            "quote": entry["quote"],
-                            "source_document_id": key[0],
-                            "source_document_path": scenario.get("document_path", ""),
-                            "source_revision_id": key[1],
-                            "byte_start": "" if start is None else start,
-                            "byte_end": "" if end is None else end,
                             "resolve_status": status,
+                            "document_path": scenario.get("document_path", ""),
+                            "quote_prefix": entry["quote"][:120],
                         })
-                except (ValueError, TypeError, KeyError, BewleyError) as exc:
-                    failures.append({"index": index, "document_id": key[0], "error": str(exc)})
+                    rows.append({
+                        "candidate_id": candidate_id,
+                        "code_name": entry["code"].strip(),
+                        "description": entry["description"].strip(),
+                        "quote": entry["quote"],
+                        "source_document_id": key[0],
+                        "source_document_path": scenario.get("document_path", ""),
+                        "source_revision_id": key[1],
+                        "byte_start": "" if start_byte is None else start_byte,
+                        "byte_end": "" if end_byte is None else end_byte,
+                        "resolve_status": status,
+                        "source_results": source_label,
+                    })
         # Row identity includes the model, so a multi-model run audits as
         # scenarios × models instead of reporting every scenario as duplicated.
         model_names = models or {""}
         expected_pairs = {(key, name) for key in expected for name in model_names} if expected else set()
-        missing = expected_pairs - set(returned_pairs) if expected else set()
-        duplicates = len(returned_pairs) - len(set(returned_pairs))
+        missing = expected_pairs - set(order) if expected else set()
         incomplete = bool(failures or missing or duplicates)
         if incomplete and not allow_partial:
             raise BewleyError(
                 "Results failed validation; no candidate CSV was written.",
                 code="INCOMPLETE_RESULTS",
-                context={"failures": failures[:10], "missing_scenarios": len(missing), "duplicate_scenarios": duplicates},
-                hint="Correct/rerun the results, or use --allow-partial to ingest valid rows.",
+                context={
+                    "failures": failures[:10],
+                    "missing_answers": len(missing),
+                    "duplicate_answers": duplicates,
+                },
+                hint=(
+                    "Rebuild a retry package with `bewley open-coding jobs --from-failures "
+                    f"{sources[0]}` and pass both results files to ingest, or use --allow-partial."
+                ),
             )
         target.parent.mkdir(parents=True, exist_ok=True)
         fieldnames = [
             "candidate_id", "code_name", "description", "quote", "source_document_id",
-            "source_document_path", "source_revision_id", "byte_start", "byte_end", "resolve_status",
+            "source_document_path", "source_revision_id", "byte_start", "byte_end",
+            "resolve_status", "source_results",
         ]
         with target.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+        warnings_list = []
+        if superseded:
+            warnings_list.append(
+                f"{superseded} already-valid answer(s) were re-run in retry files; the first valid answer was retained."
+            )
         data = {
             "object_type": "CandidateCodes",
             "output": str(target),
+            "results": [str(source) for source in sources],
+            "result_count": total_rows,
             "candidate_count": len(rows),
-            "scenario_count": len(returned_pairs),
+            "scenario_count": len(order),
             "models": sorted(models),
+            "retained_by_source": source_counts,
             "expected_scenarios": len(expected) if expected else None,
             "expected_answers": len(expected_pairs) if expected else None,
             "missing_answers": len(missing) if expected else None,
             "duplicate_scenarios": duplicates,
+            "superseded_answers": superseded,
             "failed_scenarios": len(failures),
             "stale_scenarios": stale,
             "unresolved_quotes": unresolved,
@@ -355,7 +487,7 @@ def ingest_command(
         fail(command, err, json_flag)
         return
     if json_flag:
-        finish(command, data)
+        finish(command, data, warnings=warnings_list or None)
     else:
         print(f"Wrote {len(rows)} candidates to: {target}")
 

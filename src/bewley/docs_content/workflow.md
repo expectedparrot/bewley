@@ -37,6 +37,10 @@ Bewley infers the current phase from what's on disk — no metadata to drift. Ru
 4. `bewley open-coding jobs --output jobs.ep --model <model-name>`
 5. `ep run jobs.ep --model_list models.ep --output results.ep` (external; requires approval)
 6. `bewley open-coding ingest results.ep --jobs jobs.ep`
+   - If the audit reports failures, rebuild a retry package with
+     `bewley open-coding jobs --from-failures results.ep --jobs jobs.ep --output retry.jobs.ep`,
+     run it externally, then ingest both files together:
+     `bewley open-coding ingest results.ep retry-results.ep --jobs jobs.ep`
 7. Review `candidate_codes.csv` — merge near-synonyms, remove noise, and inspect any unresolved quotes
 8. **Pause and show user the candidate codes before proceeding**
 9. `bewley code create <name> --description '<description>'` for each keeper

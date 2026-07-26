@@ -67,14 +67,19 @@ def test_new_annotations_with_merged_name_land_on_target(project: BewleyProject)
     proj = Project(project.root)
     with proj.connect() as conn:
         target = proj.resolve_code(conn, "code_a")
-        orphaned = conn.execute(
-            "SELECT COUNT(*) FROM annotations a JOIN codes c ON c.code_id = a.code_id "
-            "WHERE c.status = 'merged' AND a.is_active = 1 AND a.created_at > c.created_at",
+        merged = proj.resolve_code(conn, "code_b")
+        direct_on_target = conn.execute(
+            "SELECT COUNT(*) FROM annotations WHERE code_id = ? AND is_active = 1",
+            (target["code_id"],),
         ).fetchone()[0]
-        newest = conn.execute(
-            "SELECT code_id FROM annotations WHERE is_active = 1 ORDER BY created_at DESC, annotation_id DESC LIMIT 1"
-        ).fetchone()
-    assert newest["code_id"] == target["code_id"]
+        direct_on_merged = conn.execute(
+            "SELECT COUNT(*) FROM annotations WHERE code_id = ? AND is_active = 1",
+            (merged["code_id"],),
+        ).fetchone()[0]
+    # The pre-merge annotation stays on the source for provenance; the new
+    # annotation applied under the merged name landed on the target.
+    assert direct_on_target == 2
+    assert direct_on_merged == 1
 
 
 def test_coverage_counts_absorbed_documents(project: BewleyProject) -> None:

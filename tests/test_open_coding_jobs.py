@@ -120,6 +120,92 @@ def test_incomplete_results_fail_closed_and_allow_partial_recovers(project: Bewl
     assert (project.root / "candidates.csv").exists()
 
 
+def _broken_result(scenario_data: dict, model_name: str = "test"):
+    from edsl import Agent, Model, Scenario
+    from edsl.results import Result
+
+    return Result(
+        agent=Agent(),
+        scenario=Scenario(scenario_data),
+        model=Model(model_name),
+        iteration=0,
+        answer={"open_coding": "this is not a JSON array"},
+    )
+
+
+def test_retry_flow_repackages_failures_and_merges_with_attribution(project: BewleyProject) -> None:
+    from edsl import Jobs, Results, Survey
+
+    _json(project, "open-coding", "jobs", "--output", "coding.jobs.ep", "--pilot", "2")
+    jobs = Jobs.git.load(project.root / "coding.jobs.ep")
+    first, second = (dict(item) for item in jobs.scenarios)
+    quote_first = first["document_text"].splitlines()[0]
+    quote_second = second["document_text"].splitlines()[0]
+
+    # First run: one valid answer, one unparseable answer.
+    Results(survey=Survey([]), data=[
+        _result_for(first, quote_first),
+        _broken_result(second),
+    ]).git.save(project.root / "run1.results.ep")
+
+    # A retry package contains only the failed document.
+    retry = _json(
+        project, "open-coding", "jobs",
+        "--output", "retry.jobs.ep",
+        "--from-failures", "run1.results.ep", "--jobs", "coding.jobs.ep",
+    )
+    assert retry["scenario_count"] == 1
+    assert retry["failed_documents"] == 1
+    retry_jobs = Jobs.git.load(project.root / "retry.jobs.ep")
+    assert dict(retry_jobs.scenarios[0])["document_id"] == second["document_id"]
+
+    # Retry run answers the failed scenario; merged ingest is complete and
+    # attributes each retained row to its source file.
+    Results(survey=Survey([]), data=[_result_for(second, quote_second)]).git.save(
+        project.root / "run2.results.ep"
+    )
+    data = _json(
+        project, "open-coding", "ingest", "run1.results.ep", "run2.results.ep",
+        "--jobs", "coding.jobs.ep", "--output", "candidates.csv",
+    )
+    assert data["partial"] is False
+    assert data["failed_scenarios"] == 0
+    assert data["candidate_count"] == 2
+    assert data["superseded_answers"] == 0
+    retained = data["retained_by_source"]
+    assert retained[str(project.root / "run1.results.ep")] == 1
+    assert retained[str(project.root / "run2.results.ep")] == 1
+    with (project.root / "candidates.csv").open(encoding="utf-8") as handle:
+        by_doc = {row["source_document_id"]: row["source_results"] for row in csv.DictReader(handle)}
+    assert by_doc[first["document_id"]].endswith("run1.results.ep")
+    assert by_doc[second["document_id"]].endswith("run2.results.ep")
+
+
+def test_retry_rerunning_valid_scenarios_is_superseded_not_duplicate(project: BewleyProject) -> None:
+    from edsl import Jobs, Results, Survey
+
+    _json(project, "open-coding", "jobs", "--output", "coding.jobs.ep", "--pilot", "1")
+    jobs = Jobs.git.load(project.root / "coding.jobs.ep")
+    scenario_data = dict(jobs.scenarios[0])
+    quote = scenario_data["document_text"].splitlines()[0]
+    Results(survey=Survey([]), data=[_result_for(scenario_data, quote)]).git.save(
+        project.root / "run1.results.ep"
+    )
+    Results(survey=Survey([]), data=[_result_for(scenario_data, quote)]).git.save(
+        project.root / "run2.results.ep"
+    )
+
+    data = _json(
+        project, "open-coding", "ingest", "run1.results.ep", "run2.results.ep",
+        "--jobs", "coding.jobs.ep", "--output", "candidates.csv",
+    )
+    assert data["partial"] is False
+    assert data["duplicate_scenarios"] == 0
+    assert data["superseded_answers"] == 1
+    assert data["retained_by_source"][str(project.root / "run1.results.ep")] == 1
+    assert data["retained_by_source"][str(project.root / "run2.results.ep")] == 0
+
+
 def test_multi_model_results_are_not_duplicates(project: BewleyProject) -> None:
     from edsl import Jobs, Results, Survey
 
