@@ -214,16 +214,18 @@ bewley undo &lt;event_id&gt;</code></pre>
 
   <section id="agents">
     <h2><span class="chapter">11</span> Agent-facing JSON contract</h2>
-    <p>Bewley is designed to be driven by agents. Every command emits exactly one versioned JSON envelope by default. Branch on <code>ok</code>; do not infer success from the shape of <code>data</code>.</p>
+    <p>Bewley is designed to be driven by agents. Every command emits exactly one versioned JSON envelope by default. Branch on <code>status</code>; do not infer success from the shape of <code>data</code>.</p>
     <pre><code>{
-  "schema_version": "1.0",
-  "ok": true,
-  "command": ["bewley", "status"],
+  "schema_version": "2.0",
+  "status": "ok",
+  "command": "bewley status",
+  "argv": ["bewley", "status"],
   "data": {"documents": 20, "codes": 7},
   "warnings": [],
-  "next_actions": []
+  "errors": [],
+  "next_steps": []
 }</code></pre>
-    <p>Failures replace <code>data</code> with a structured <code>error</code> and exit nonzero. Suggested actions use argv arrays and declare whether they mutate state, require network access, or require user approval.</p>
+    <p>Failures set <code>status</code> to <code>"error"</code>, populate <code>errors</code> with structured objects, and exit nonzero. Suggested actions use argv arrays and declare whether they mutate state, require network access, or require user approval.</p>
     <pre><code>bewley capabilities
 bewley agent status
 bewley agent schema envelope

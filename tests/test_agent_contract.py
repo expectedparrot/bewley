@@ -11,42 +11,48 @@ def envelope(project: BewleyProject, *args: str) -> tuple[int, dict, str]:
     code, stdout, stderr = project.cli(*args, human=False)
     payload = json.loads(stdout)
     assert stdout.count("\n{") == 0, "stdout must contain exactly one JSON document"
-    assert payload["schema_version"] == "1.0"
-    assert payload["command"] == ["bewley", *args]
+    assert payload["schema_version"] == "2.0"
+    assert payload["argv"] == ["bewley", *args]
+    assert isinstance(payload["command"], str) and payload["command"].startswith("bewley")
     assert isinstance(payload["warnings"], list)
-    assert isinstance(payload["next_actions"], list)
+    assert isinstance(payload["errors"], list)
+    assert isinstance(payload["next_steps"], list)
     return code, payload, stderr
 
 
-def test_success_envelope_uses_boolean_and_real_argv(empty_project: BewleyProject) -> None:
+def test_success_envelope_uses_status_and_real_argv(empty_project: BewleyProject) -> None:
     code, payload, stderr = envelope(empty_project, "status")
     assert code == 0
     assert stderr == ""
-    assert payload["ok"] is True
+    assert payload["status"] == "ok"
+    assert payload["command"] == "bewley status"
     assert "data" in payload
-    assert "error" not in payload
+    assert payload["errors"] == []
 
 
 def test_domain_error_is_one_envelope(empty_project: BewleyProject) -> None:
     code, payload, _ = envelope(empty_project, "show", "document", "missing.txt")
     assert code != 0
-    assert payload["ok"] is False
-    assert set(payload["error"]) == {"code", "message", "details"}
-    assert "data" not in payload
+    assert payload["status"] == "error"
+    assert payload["command"] == "bewley show document"
+    assert len(payload["errors"]) == 1
+    error = payload["errors"][0]
+    assert {"code", "message", "context"} <= set(error)
+    assert payload["data"] == {}
 
 
 def test_cli_usage_error_is_enveloped(empty_project: BewleyProject) -> None:
     code, payload, _ = envelope(empty_project, "not-a-command")
     assert code == 1
-    assert payload["ok"] is False
-    assert payload["error"]["code"] == "CLI_USAGE"
+    assert payload["status"] == "error"
+    assert payload["errors"][0]["code"] == "CLI_USAGE"
 
 
 def test_init_returns_structured_mutating_action(tmp_path: Path) -> None:
     project = BewleyProject(tmp_path)
     code, payload, _ = envelope(project, "init")
     assert code == 0
-    action = payload["next_actions"][0]
+    action = payload["next_steps"][0]
     assert action["command"] == ["bewley", "add", "corpus/<filename>"]
     assert action["mutates_state"] is True
     assert action["requires_network"] is False
@@ -56,7 +62,6 @@ def test_init_returns_structured_mutating_action(tmp_path: Path) -> None:
 def test_capabilities_lists_versioned_schemas(empty_project: BewleyProject) -> None:
     code, payload, _ = envelope(empty_project, "capabilities")
     assert code == 0
-    assert payload["data"]["schema_version"] == "1.0"
     assert payload["data"]["schemas"] == [
         "action.schema.json",
         "agent-status.schema.json",
@@ -69,6 +74,9 @@ def test_agent_schema_returns_envelope_schema(empty_project: BewleyProject) -> N
     assert code == 0
     schema = payload["data"]["schema"]
     assert schema["title"] == "Bewley CLI envelope"
+    success_shape = schema["oneOf"][0]["properties"]
+    assert success_shape["schema_version"]["const"] == "2.0"
+    assert "status" in success_shape and "next_steps" in success_shape
 
 
 def test_agent_status_returns_executable_actions(empty_project: BewleyProject) -> None:
@@ -91,6 +99,6 @@ def test_main_unexpected_error_is_not_silent(monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert code == 1
-    assert payload["ok"] is False
-    assert payload["error"]["code"] == "INTERNAL_ERROR"
-    assert payload["error"]["details"]["exception_type"] == "RuntimeError"
+    assert payload["status"] == "error"
+    assert payload["errors"][0]["code"] == "INTERNAL_ERROR"
+    assert payload["errors"][0]["context"]["exception_type"] == "RuntimeError"

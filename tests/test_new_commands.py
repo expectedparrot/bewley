@@ -16,7 +16,7 @@ def _json_ok(proj: BewleyProject, *args: str) -> dict:
     code, stdout, stderr = proj.cli(*args, human=False)
     assert code == 0, f"Command failed (exit {code}):\n{stderr}\n{stdout}"
     envelope = json.loads(stdout)
-    assert envelope["ok"] is True, f"ok != true: {envelope}"
+    assert envelope["status"] in {"ok", "warning"}, f"status not ok: {envelope}"
     return envelope["data"]
 
 
@@ -25,7 +25,7 @@ def _json_err(proj: BewleyProject, *args: str) -> dict:
     code, stdout, stderr = proj.cli(*args, human=False)
     assert code != 0
     envelope = json.loads(stdout)
-    assert envelope["ok"] is False
+    assert envelope["status"] == "error"
     return envelope
 
 

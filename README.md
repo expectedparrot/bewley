@@ -44,7 +44,7 @@ Once setup succeeds, run:
 bewley agent status
 
 Treat Bewley's JSON envelope as the source of truth. Follow its
-`next_actions`, checking each action's mutation, network, and approval
+`next_steps`, checking each action's mutation, network, and approval
 implications against my authorization. After each action, rerun
 `bewley agent status` and continue until the analysis is complete or my input
 or approval is required. Start with a small pilot corpus, preserve exact source
@@ -63,19 +63,21 @@ to stdout by default:
 
 ```json
 {
-  "schema_version": "1.0",
-  "ok": true,
-  "command": ["bewley", "status"],
+  "schema_version": "2.0",
+  "status": "ok",
+  "command": "bewley status",
+  "argv": ["bewley", "status"],
   "data": {},
   "warnings": [],
-  "next_actions": []
+  "errors": [],
+  "next_steps": []
 }
 ```
 
-Failures set `ok` to `false`, return one structured `error` object, and exit
-nonzero. Agents should branch on `ok`, use the actual argv array in `command`
-for provenance, and execute only reviewed `next_actions`. Each action declares
-whether it mutates state, uses the network, or requires user approval.
+Failures set `status` to `"error"`, return structured `errors`, and exit
+nonzero. Agents should branch on `status`, use the `argv` array for exact
+provenance, and execute only reviewed `next_steps`. Each suggested action
+declares whether it mutates state, uses the network, or requires user approval.
 
 Run `bewley capabilities`, `bewley agent status`, or
 `bewley agent schema envelope` to inspect the contract. Versioned JSON Schemas

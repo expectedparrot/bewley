@@ -5,36 +5,45 @@
   "oneOf": [
     {
       "type": "object",
-      "required": ["schema_version", "ok", "command", "data", "warnings", "next_actions"],
+      "required": ["schema_version", "status", "command", "argv", "data", "warnings", "errors", "next_steps"],
       "properties": {
-        "schema_version": {"const": "1.0"},
-        "ok": {"const": true},
-        "command": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "schema_version": {"const": "2.0"},
+        "status": {"enum": ["ok", "warning"]},
+        "command": {"type": "string", "minLength": 1},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "data": {},
         "warnings": {"type": "array", "items": {"type": "string"}},
-        "next_actions": {"type": "array", "items": {"$ref": "action.schema.json"}}
+        "errors": {"type": "array", "maxItems": 0},
+        "next_steps": {"type": "array", "items": {"$ref": "action.schema.json"}}
       },
       "additionalProperties": false
     },
     {
       "type": "object",
-      "required": ["schema_version", "ok", "command", "error", "warnings", "next_actions"],
+      "required": ["schema_version", "status", "command", "argv", "data", "warnings", "errors", "next_steps"],
       "properties": {
-        "schema_version": {"const": "1.0"},
-        "ok": {"const": false},
-        "command": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-        "error": {
-          "type": "object",
-          "required": ["code", "message", "details"],
-          "properties": {
-            "code": {"type": "string"},
-            "message": {"type": "string"},
-            "details": {"type": "object"}
-          },
-          "additionalProperties": false
-        },
+        "schema_version": {"const": "2.0"},
+        "status": {"const": "error"},
+        "command": {"type": "string", "minLength": 1},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "data": {"type": "object", "maxProperties": 0},
         "warnings": {"type": "array", "items": {"type": "string"}},
-        "next_actions": {"type": "array", "items": {"$ref": "action.schema.json"}}
+        "errors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["code", "message", "context"],
+            "properties": {
+              "code": {"type": "string"},
+              "message": {"type": "string"},
+              "context": {"type": "object"},
+              "hint": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "next_steps": {"type": "array", "items": {"$ref": "action.schema.json"}}
       },
       "additionalProperties": false
     }

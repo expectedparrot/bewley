@@ -10,7 +10,7 @@ def _json(project: BewleyProject, *args: str) -> dict:
     code, stdout, stderr = project.cli(*args, human=False)
     assert code == 0, stderr or stdout
     envelope = json.loads(stdout)
-    assert envelope["ok"] is True
+    assert envelope["status"] in {"ok", "warning"}
     return envelope["data"]
 
 

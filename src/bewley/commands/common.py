@@ -21,9 +21,26 @@ def should_emit_json(human: bool) -> bool:
     return os.getenv("BEWLEY_HUMAN_OUTPUT", "").lower() != "true"
 
 
+ENVELOPE_SCHEMA_VERSION = "2.0"
+
+_COMMAND_GROUPS = {
+    "list", "show", "code", "annotate", "export", "memo",
+    "docs", "codegen", "open-coding", "agent",
+}
+
+
 def command_argv() -> list[str]:
     """Return the actual invocation as stable, machine-readable provenance."""
     return ["bewley", *sys.argv[1:]]
+
+
+def command_name() -> str:
+    """Return the canonical command path, independent of flags and arguments."""
+    args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
+    if not args:
+        return "bewley"
+    depth = 2 if args[0] in _COMMAND_GROUPS and len(args) > 1 else 1
+    return " ".join(["bewley", *args[:depth]])
 
 
 def action(
@@ -78,31 +95,36 @@ def _json_envelope(
     warnings: list[str] | None = None,
     next_actions: list[str | dict[str, Any]] | None = None,
 ) -> dict:
+    warning_items = warnings or []
     return {
-        "schema_version": "1.0",
-        "ok": True,
-        "command": command_argv(),
+        "schema_version": ENVELOPE_SCHEMA_VERSION,
+        "status": "warning" if warning_items else "ok",
+        "command": command_name(),
+        "argv": command_argv(),
         "data": data,
-        "warnings": warnings or [],
-        "next_actions": [_normalize_action(item) for item in (next_actions or [])],
+        "warnings": warning_items,
+        "errors": [],
+        "next_steps": [_normalize_action(item) for item in (next_actions or [])],
     }
 
 
 def _error_envelope(err: BewleyError) -> dict:
-    details = dict(err.context)
+    error: dict[str, Any] = {
+        "code": err.code,
+        "message": err.message,
+        "context": dict(err.context),
+    }
     if err.hint:
-        details["hint"] = err.hint
+        error["hint"] = err.hint
     return {
-        "schema_version": "1.0",
-        "ok": False,
-        "command": command_argv(),
-        "error": {
-            "code": err.code,
-            "message": err.message,
-            "details": details,
-        },
+        "schema_version": ENVELOPE_SCHEMA_VERSION,
+        "status": "error",
+        "command": command_name(),
+        "argv": command_argv(),
+        "data": {},
         "warnings": [],
-        "next_actions": [],
+        "errors": [error],
+        "next_steps": [],
     }
 
 

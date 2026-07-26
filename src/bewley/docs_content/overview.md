@@ -33,13 +33,13 @@ Bewley is a local-first CLI for qualitative coding of text corpora — interview
 By default, every Bewley command writes exactly one versioned JSON envelope to
 stdout. Use `--human`/`-H` for human-readable text.
 
-- Success: `{"schema_version":"1.0","ok":true,"command":[...],"data":...,"warnings":[],"next_actions":[]}`
-- Failure: `{"schema_version":"1.0","ok":false,"command":[...],"error":{"code":"...","message":"...","details":{}},"warnings":[],"next_actions":[]}`
+- Success: `{"schema_version":"2.0","status":"ok","command":"bewley ...","argv":[...],"data":...,"warnings":[],"errors":[],"next_steps":[]}`
+- Failure: `{"schema_version":"2.0","status":"error","command":"bewley ...","argv":[...],"data":{},"warnings":[],"errors":[{"code":"...","message":"...","context":{}}],"next_steps":[]}`
 - `command` is the actual invoked argv array.
-- `next_actions` contain argv arrays plus mutation, network, and approval metadata.
+- `next_steps` contain argv arrays plus mutation, network, and approval metadata.
 - Exit code is zero on success and nonzero on failure.
 
-Agents should branch on `ok`, never infer success from `data`, and inspect an
+Agents should branch on `status`, never infer success from `data`, and inspect an
 action's safety fields before executing it. Run `bewley capabilities`,
 `bewley agent status`, and `bewley agent schema envelope` to discover the
 interface and bundled versioned schemas.

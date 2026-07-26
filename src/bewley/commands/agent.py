@@ -80,7 +80,7 @@ def capabilities_data() -> dict[str, Any]:
             "open_coding_ingest": ["bewley", "open-coding", "ingest", "results.ep", "--jobs", "jobs.ep"],
         },
         "safety": {
-            "next_actions_are_argv_arrays": True,
+            "next_step_commands_are_argv_arrays": True,
             "mutations_are_declared": True,
             "unexpected_errors_are_enveloped": True,
         },
