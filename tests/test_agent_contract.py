@@ -88,6 +88,26 @@ def test_agent_status_returns_executable_actions(empty_project: BewleyProject) -
     assert isinstance(data["next_actions"][0]["command"], list)
 
 
+def test_ambiguous_references_list_their_matches(empty_project: BewleyProject) -> None:
+    (empty_project.root / "a").mkdir()
+    (empty_project.root / "b").mkdir()
+    (empty_project.root / "a" / "x.txt").write_text("alpha text\n", encoding="utf-8")
+    (empty_project.root / "b" / "x.txt").write_text("beta text\n", encoding="utf-8")
+    empty_project.cli("add", "a/x.txt", human=False)
+    empty_project.cli("add", "b/x.txt", human=False)
+
+    code, payload, _ = envelope(empty_project, "show", "document", "x.txt")
+    assert code != 0
+    error = payload["errors"][0]
+    assert error["code"] == "AMBIGUOUS_DOCUMENT"
+    paths = {match["path"] for match in error["context"]["matches"]}
+    assert paths == {"a/x.txt", "b/x.txt"}
+
+    code, payload, _ = envelope(empty_project, "code", "show", "nope")
+    assert code != 0
+    assert payload["errors"][0]["code"] == "NOT_FOUND"
+
+
 def test_main_unexpected_error_is_not_silent(monkeypatch, capsys) -> None:
     from bewley import cli
 

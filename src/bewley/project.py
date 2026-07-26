@@ -84,7 +84,7 @@ def find_project_root(start: Path | None = None) -> Path:
     for candidate in (current, *current.parents):
         if (candidate / PROJECT_DIR).is_dir():
             return candidate
-    raise BewleyError("not inside a bewley project")
+    raise BewleyError("not inside a bewley project", code="NOT_FOUND", hint="Run `bewley init` in the project directory.")
 
 
 def ensure_utf8_bytes(path: Path) -> bytes:
@@ -132,11 +132,11 @@ def byte_to_line_range(text: str, start_byte: int, end_byte: int) -> tuple[int, 
 
 def lines_to_byte_range(text: str, start_line: int, end_line: int) -> tuple[int, int]:
     if start_line < 1 or end_line < start_line:
-        raise BewleyError("invalid line range")
+        raise BewleyError("invalid line range", code="INVALID_INPUT")
     starts = line_offsets(text)
     last_line = max(1, len(starts) - 1)
     if end_line > last_line:
-        raise BewleyError(f"line range exceeds document length ({last_line} lines)")
+        raise BewleyError(f"line range exceeds document length ({last_line} lines)", code="INVALID_INPUT")
     start_byte = starts[start_line - 1]
     end_byte = starts[end_line]
     return start_byte, end_byte
@@ -273,7 +273,7 @@ class ExprParser:
                 while i < len(text) and text[i] != quote:
                     i += 1
                 if i >= len(text):
-                    raise BewleyError("unterminated quoted token in query")
+                    raise BewleyError("unterminated quoted token in query", code="INVALID_INPUT")
                 tokens.append(text[start:i])
                 i += 1
                 continue
@@ -291,16 +291,16 @@ class ExprParser:
     def consume(self, expected: str | None = None) -> str:
         token = self.current()
         if token is None:
-            raise BewleyError("unexpected end of query")
+            raise BewleyError("unexpected end of query", code="INVALID_INPUT")
         if expected is not None and token != expected:
-            raise BewleyError(f"expected {expected!r}, got {token!r}")
+            raise BewleyError(f"expected {expected!r}, got {token!r}", code="INVALID_INPUT")
         self.index += 1
         return token
 
     def parse(self) -> BoolExpr:
         expr = self.parse_or()
         if self.current() is not None:
-            raise BewleyError(f"unexpected token {self.current()!r}")
+            raise BewleyError(f"unexpected token {self.current()!r}", code="INVALID_INPUT")
         return expr
 
     def parse_or(self) -> BoolExpr:
@@ -332,7 +332,7 @@ class ExprParser:
             self.consume(")")
             return expr
         if token is None:
-            raise BewleyError("unexpected end of query")
+            raise BewleyError("unexpected end of query", code="INVALID_INPUT")
         self.consume()
         return Term(token)
 
@@ -546,7 +546,7 @@ class Project:
 
     def init_project(self) -> None:
         if self.meta.exists():
-            raise BewleyError("project already initialized")
+            raise BewleyError("project already initialized", code="ALREADY_EXISTS")
         for rel in [
             "corpus",
             ".bewley/events",
@@ -1024,10 +1024,24 @@ class Project:
             (document_id,),
         ).fetchone()
         if row is None:
-            raise BewleyError("document has no current revision")
+            raise BewleyError("document has no current revision", code="INTEGRITY_ERROR")
         return row
 
     def resolve_document(self, conn: sqlite3.Connection, ref: str) -> sqlite3.Row:
+        def ambiguous(rows: list[sqlite3.Row]) -> BewleyError:
+            return BewleyError(
+                f"ambiguous document reference: {ref}",
+                code="AMBIGUOUS_DOCUMENT",
+                context={
+                    "ref": ref,
+                    "matches": [
+                        {"document_id": row["document_id"], "path": row["current_path"]}
+                        for row in rows
+                    ],
+                },
+                hint="Refer to the document by its full document_id or exact path.",
+            )
+
         exact = conn.execute(
             "SELECT * FROM documents WHERE document_id = ? OR current_path = ?",
             (ref, ref),
@@ -1035,14 +1049,19 @@ class Project:
         if len(exact) == 1:
             return exact[0]
         if len(exact) > 1:
-            raise BewleyError(f"ambiguous document reference: {ref}")
+            raise ambiguous(exact)
         basename = Path(ref).name
         matches = conn.execute("SELECT * FROM documents WHERE current_path LIKE ?", (f"%{basename}",)).fetchall()
         if len(matches) == 1:
             return matches[0]
         if not matches:
-            raise BewleyError(f"unknown document reference: {ref}")
-        raise BewleyError(f"ambiguous document reference: {ref}")
+            raise BewleyError(
+                f"unknown document reference: {ref}",
+                code="NOT_FOUND",
+                context={"ref": ref},
+                hint="Run `bewley list documents` to see tracked documents.",
+            )
+        raise ambiguous(matches)
 
     def resolve_code(self, conn: sqlite3.Connection, ref: str) -> sqlite3.Row:
         rows = conn.execute(
@@ -1057,11 +1076,26 @@ class Project:
         if len(rows) == 1:
             return rows[0]
         if not rows:
-            raise BewleyError(f"unknown code reference: {ref}")
+            raise BewleyError(
+                f"unknown code reference: {ref}",
+                code="NOT_FOUND",
+                context={"ref": ref},
+                hint="Run `bewley code list` to see defined codes.",
+            )
         seen = {row["code_id"] for row in rows}
         if len(seen) == 1:
             return rows[0]
-        raise BewleyError(f"ambiguous code reference: {ref}")
+        raise BewleyError(
+            f"ambiguous code reference: {ref}",
+            code="AMBIGUOUS_CODE",
+            context={
+                "ref": ref,
+                "matches": sorted(
+                    {(row["code_id"], row["canonical_name"]) for row in rows},
+                ),
+            },
+            hint="Refer to the code by its full code_id or canonical name.",
+        )
 
     def store_revision_object(self, data: bytes) -> str:
         digest = sha256_bytes(data)
@@ -1097,7 +1131,7 @@ class Project:
     def read_memo_content(self, content_sha256: str) -> str:
         memo_path = self.root / PROJECT_DIR / "objects" / "memos" / content_sha256
         if not memo_path.exists():
-            raise BewleyError(f"missing memo object: {content_sha256}")
+            raise BewleyError(f"missing memo object: {content_sha256}", code="INTEGRITY_ERROR")
         return memo_path.read_text(encoding="utf-8")
 
     @staticmethod
@@ -1120,14 +1154,14 @@ class Project:
         except ValueError as exc:
             raise BewleyError("document path must be inside the project root") from exc
         if not path.is_file():
-            raise BewleyError(f"document not found: {path_arg}")
+            raise BewleyError(f"document not found: {path_arg}", code="NOT_FOUND")
         with self.connect() as conn:
             existing = conn.execute(
                 "SELECT document_id FROM documents WHERE current_path = ?",
                 (str(rel),),
             ).fetchone()
             if existing is not None:
-                raise BewleyError(f"path is already tracked: {rel}")
+                raise BewleyError(f"path is already tracked: {rel}", code="ALREADY_EXISTS")
         data = ensure_utf8_bytes(path)
         text = data.decode("utf-8")
         digest = self.store_revision_object(data)
@@ -1278,14 +1312,14 @@ class Project:
     def transcribe_audio_with_openai(self, audio_path: Path, *, model: str, language: str | None, prompt: str | None, response_format: str) -> dict[str, Any]:
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            raise BewleyError("OPENAI_API_KEY is required for media transcription")
+            raise BewleyError("OPENAI_API_KEY is required for media transcription", code="MISSING_DEPENDENCY")
         if not audio_path.is_file():
-            raise BewleyError(f"media file not found: {audio_path}")
+            raise BewleyError(f"media file not found: {audio_path}", code="NOT_FOUND")
         size = audio_path.stat().st_size
         if size > OPENAI_AUDIO_LIMIT_BYTES:
-            raise BewleyError("media file exceeds OpenAI's 25 MB transcription upload limit")
+            raise BewleyError("media file exceeds OpenAI's 25 MB transcription upload limit", code="INVALID_INPUT")
         if response_format == "diarized_json" and prompt:
-            raise BewleyError("prompt is not supported with diarized_json transcripts")
+            raise BewleyError("prompt is not supported with diarized_json transcripts", code="INVALID_INPUT")
         command = [
             "curl", "--silent", "--show-error", "--fail-with-body",
             "--config", "-",
@@ -1313,7 +1347,7 @@ class Project:
     def add_audio_document(self, audio_path_arg: str, transcript_path_arg: str | None, *, model: str, language: str | None, prompt: str | None, response_format: str) -> dict[str, Any]:
         audio_path = (self.root / audio_path_arg).resolve() if not Path(audio_path_arg).is_absolute() else Path(audio_path_arg)
         if not audio_path.is_file():
-            raise BewleyError(f"audio file not found: {audio_path_arg}")
+            raise BewleyError(f"audio file not found: {audio_path_arg}", code="NOT_FOUND")
         transcript_path, resolved_transcript_rel = self.resolve_output_path(transcript_path_arg, audio_path)
         transcription = self.transcribe_audio_with_openai(audio_path, model=model, language=language, prompt=prompt, response_format=response_format)
         transcript_style = "segments" if response_format == "diarized_json" and transcription.get("segments") else "plain"
@@ -1348,7 +1382,7 @@ class Project:
     def add_video_document(self, video_path_arg: str, transcript_path_arg: str | None, *, model: str, language: str | None, prompt: str | None, response_format: str, audio_bitrate_kbps: int, chunk_overlap_seconds: float) -> dict[str, Any]:
         video_path = (self.root / video_path_arg).resolve() if not Path(video_path_arg).is_absolute() else Path(video_path_arg)
         if not video_path.is_file():
-            raise BewleyError(f"video file not found: {video_path_arg}")
+            raise BewleyError(f"video file not found: {video_path_arg}", code="NOT_FOUND")
         transcript_path, resolved_transcript_rel = self.resolve_output_path(transcript_path_arg, video_path)
         chunk_plan = self.build_video_chunk_plan(video_path, max_upload_bytes=OPENAI_MEDIA_TARGET_BYTES, overlap_seconds=chunk_overlap_seconds, audio_bitrate_kbps=audio_bitrate_kbps)
         chunk_results: list[dict[str, Any]] = []
@@ -1443,7 +1477,7 @@ class Project:
     def revision_content(self, conn: sqlite3.Connection, revision_id: str) -> bytes:
         row = conn.execute("SELECT content_sha256 FROM document_revisions WHERE revision_id = ?", (revision_id,)).fetchone()
         if row is None:
-            raise BewleyError(f"unknown revision: {revision_id}")
+            raise BewleyError(f"unknown revision: {revision_id}", code="NOT_FOUND")
         return (self.objects_dir / row["content_sha256"]).read_bytes()
 
     def relocate_annotations(self, document_id: str, old_revision_id: str, new_revision_id: str) -> None:
@@ -1539,14 +1573,14 @@ class Project:
     def add_code(self, name: str, description: str | None = None, color: str | None = None) -> dict[str, Any]:
         with self.connect() as conn:
             if self.code_name_taken(conn, name):
-                raise BewleyError(f"code name already exists: {name}")
+                raise BewleyError(f"code name already exists: {name}", code="ALREADY_EXISTS")
         return self.append_event("code_created", {"code_id": uuid.uuid4().hex, "canonical_name": name, "description": description, "color": color})
 
     def rename_code(self, old_ref: str, new_name: str, new_description: str | None = None) -> dict[str, Any]:
         with self.connect() as conn:
             code = self.resolve_code(conn, old_ref)
             if new_name != code["canonical_name"] and self.code_name_taken(conn, new_name):
-                raise BewleyError(f"code name already exists: {new_name}")
+                raise BewleyError(f"code name already exists: {new_name}", code="ALREADY_EXISTS")
             payload: dict[str, Any] = {"code_id": code["code_id"], "old_name": code["canonical_name"], "new_name": new_name}
             if new_description is not None:
                 payload["old_description"] = code["description"]
@@ -1557,7 +1591,7 @@ class Project:
         with self.connect() as conn:
             code = self.resolve_code(conn, ref)
             if self.code_name_taken(conn, alias_name):
-                raise BewleyError(f"alias name already exists: {alias_name}")
+                raise BewleyError(f"alias name already exists: {alias_name}", code="ALREADY_EXISTS")
         return self.append_event("code_aliased", {"code_id": code["code_id"], "alias_name": alias_name})
 
     def merge_codes(self, sources: list[str], target_ref: str) -> dict[str, Any]:
@@ -1566,7 +1600,7 @@ class Project:
             resolved = [self.resolve_code(conn, src) for src in sources]
         source_ids = [row["code_id"] for row in resolved if row["code_id"] != target["code_id"]]
         if not source_ids:
-            raise BewleyError("merge requires at least one source distinct from target")
+            raise BewleyError("merge requires at least one source distinct from target", code="INVALID_INPUT")
         return self.append_event("code_merged", {"source_code_ids": source_ids, "target_code_id": target["code_id"]})
 
     def split_code(self, source_ref: str, new_name: str, annotation_ids: list[str], description: str | None = None, color: str | None = None) -> dict[str, Any]:
@@ -1575,7 +1609,7 @@ class Project:
         with self.connect() as conn:
             source = self.resolve_code(conn, source_ref)
             if self.code_name_taken(conn, new_name):
-                raise BewleyError(f"code name already exists: {new_name}")
+                raise BewleyError(f"code name already exists: {new_name}", code="ALREADY_EXISTS")
             rows = conn.execute(
                 "SELECT annotation_id FROM annotations WHERE code_id = ? AND is_active = 1 AND annotation_id IN ({})".format(",".join("?" for _ in annotation_ids)),
                 (source["code_id"], *annotation_ids),
