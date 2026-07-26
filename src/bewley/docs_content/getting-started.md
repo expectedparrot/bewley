@@ -39,14 +39,10 @@ sessions/topic_<alias>/study_<name>/
     qualitative-coding/      ← bewley init here
       .bewley/               ← metadata (events, objects, index)
       corpus/                ← text documents
-  qualitative-analysis/      ← scripts and generated data
+  qualitative-analysis/      ← generated data and rendered artifacts
     corpus_summary.md
     candidate_codes.csv
-    candidate_codes_resolved.csv
-    generate_candidate_codes.py
-    resolve_quotes.py
-    render_theory_diagram.py
-    render_collapsible_diagram.py
+    theory_explorer.html
 ```
 
 ## Step-by-step workflow
@@ -89,21 +85,28 @@ Keep `.env` private and out of version control. For named environments, inspect
 `ep profiles --help`; see the [EDSL Managing Keys guide](https://docs.expectedparrot.com/en/latest/api_keys).
 
 ```bash
-bewley open-coding jobs --output jobs.ep
-ep run jobs.ep --model <model-name> --output results.ep
+bewley open-coding jobs --output jobs.ep --model <model-name>
+ep run jobs.ep --model_list models.ep --output results.ep
 bewley open-coding ingest results.ep --jobs jobs.ep
 ```
 
 Bewley packages the prompt and immutable document revisions; the `ep` CLI executes them, and Bewley audits and ingests the Results. Review `qualitative-analysis/candidate_codes.csv` before continuing.
 
-### 5. Resolve quotes to byte ranges
+### 5. Review and apply the candidates
+
+Ingestion already resolved every quote to an exact byte range (rows with more
+than one match, or none, carry a `resolve_status` explaining why). Review
+`candidate_codes.csv`, delete the rows you reject, then:
 
 ```bash
-bewley codegen resolve-quotes          # writes qualitative-analysis/run_resolve_quotes.py
-python qualitative-analysis/run_resolve_quotes.py
+bewley open-coding apply --dry-run   # preview codes and annotations
+bewley open-coding apply             # create them
 ```
 
-The generated script maps each candidate quote to an exact byte range in its source document, using a fuzzy fallback cascade (exact → strip surrounding punctuation → case-insensitive). Quotes that still fail are usually genuine LLM paraphrases (e.g., ellipses between non-contiguous passages) — fix those by hand in `candidate_codes.csv` and re-run. If more than ~10% fail, the original open-coding prompt may need a stricter "verbatim" instruction.
+Only rows whose quotation resolved to exactly one location are applied;
+everything else is itemized in `skipped_details` with a reason, never guessed.
+Quotes that failed to resolve are usually genuine LLM paraphrases — fix those
+by hand in the CSV and re-run, or annotate them manually in the next step.
 
 ### 6. Create codes and apply annotations
 

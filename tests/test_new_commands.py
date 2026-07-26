@@ -94,72 +94,96 @@ class TestDocsCommand:
 # ── codegen open-coding ───────────────────────────────────────────────────────
 
 
-class TestCodegenOpenCoding:
-    def test_generates_script_file(self, project: BewleyProject) -> None:
-        project.cli_ok("codegen", "open-coding", "--output", "scripts/run_open_coding.py")
-        assert (project.root / "scripts" / "run_open_coding.py").exists()
+class TestOpenCodingApply:
+    """The reviewed-candidates path: ingest writes a CSV, apply files codes + spans."""
 
-    def test_generated_script_is_valid_python(self, project: BewleyProject) -> None:
-        project.cli_ok("codegen", "open-coding", "--output", "scripts/run_open_coding.py")
-        script = (project.root / "scripts" / "run_open_coding.py").read_text()
-        # ast.parse raises SyntaxError if invalid Python
-        ast.parse(script)
+    def _write_candidates(self, project, rows):
+        import csv as _csv
+        target = project.root / "qualitative-analysis" / "candidate_codes.csv"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fieldnames = [
+            "candidate_id", "code_name", "description", "quote", "source_document_id",
+            "source_document_path", "source_revision_id", "byte_start", "byte_end", "resolve_status",
+        ]
+        with target.open("w", newline="", encoding="utf-8") as handle:
+            writer = _csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        return target
 
-    def test_generated_script_imports_edsl(self, project: BewleyProject) -> None:
-        project.cli_ok("codegen", "open-coding", "--output", "scripts/run_open_coding.py")
-        script = (project.root / "scripts" / "run_open_coding.py").read_text()
-        assert "edsl" in script
+    def _document_row(self, project):
+        from bewley.project import Project
 
-    def test_generated_script_embeds_document_paths(self, project: BewleyProject) -> None:
-        project.cli_ok("codegen", "open-coding", "--output", "scripts/run_open_coding.py")
-        script = (project.root / "scripts" / "run_open_coding.py").read_text()
-        assert "interview_alice.txt" in script
-        assert "interview_bob.txt" in script
+        proj = Project(project.root)
+        with proj.connect() as conn:
+            document = conn.execute("SELECT document_id FROM documents LIMIT 1").fetchone()
+            revision = proj.current_revision(conn, document["document_id"])
+        return proj, document["document_id"], revision
 
-    def test_generated_script_embeds_project_dir(self, project: BewleyProject) -> None:
-        project.cli_ok("codegen", "open-coding", "--output", "scripts/run_open_coding.py")
-        script = (project.root / "scripts" / "run_open_coding.py").read_text()
-        assert str(project.root) in script
+    def test_dry_run_plans_without_mutating(self, project: BewleyProject) -> None:
+        proj, document_id, revision = self._document_row(project)
+        text = (proj.objects_dir / revision["content_sha256"]).read_bytes().decode("utf-8")
+        quote = text.splitlines()[0]
+        start = 0
+        end = len(quote.encode("utf-8"))
+        self._write_candidates(project, [{
+            "candidate_id": "c1", "code_name": "test_code", "description": "d",
+            "quote": quote, "source_document_id": document_id,
+            "source_document_path": "corpus/x.txt", "source_revision_id": revision["revision_id"],
+            "byte_start": start, "byte_end": end, "resolve_status": "exact",
+        }])
+        data = _json_ok(project, "open-coding", "apply", "--dry-run")
+        assert data["dry_run"] is True
+        assert data["annotations_planned"] == 1
+        assert data["annotations_applied"] == 0
+        assert data["codes_to_create"] == ["test_code"]
+        with proj.connect() as conn:
+            assert conn.execute("SELECT COUNT(*) FROM codes").fetchone()[0] == 0
 
-    def test_output_path_is_configurable(self, project: BewleyProject) -> None:
-        project.cli_ok("codegen", "open-coding", "--output", "analysis/my_coding_job.py")
-        assert (project.root / "analysis" / "my_coding_job.py").exists()
+    def test_apply_creates_codes_and_annotations_and_is_idempotent(self, project: BewleyProject) -> None:
+        proj, document_id, revision = self._document_row(project)
+        text = (proj.objects_dir / revision["content_sha256"]).read_bytes().decode("utf-8")
+        quote = text.splitlines()[0]
+        end = len(quote.encode("utf-8"))
+        self._write_candidates(project, [{
+            "candidate_id": "c1", "code_name": "test_code", "description": "d",
+            "quote": quote, "source_document_id": document_id,
+            "source_document_path": "corpus/x.txt", "source_revision_id": revision["revision_id"],
+            "byte_start": 0, "byte_end": end, "resolve_status": "exact",
+        }])
+        data = _json_ok(project, "open-coding", "apply")
+        assert data["annotations_applied"] == 1
+        assert data["codes_to_create"] == ["test_code"]
+        again = _json_ok(project, "open-coding", "apply")
+        assert again["annotations_applied"] == 0
+        assert again["skipped_details"][0]["reason"] == "already_applied"
 
-    def test_output_creates_parent_dirs(self, project: BewleyProject) -> None:
-        project.cli_ok("codegen", "open-coding", "--output", "deep/nested/dir/script.py")
-        assert (project.root / "deep" / "nested" / "dir" / "script.py").exists()
+    def test_unresolved_and_stale_rows_are_itemized_not_guessed(self, project: BewleyProject) -> None:
+        proj, document_id, revision = self._document_row(project)
+        self._write_candidates(project, [
+            {
+                "candidate_id": "c1", "code_name": "loose_code", "description": "d",
+                "quote": "not in the document", "source_document_id": document_id,
+                "source_document_path": "corpus/x.txt", "source_revision_id": revision["revision_id"],
+                "byte_start": "", "byte_end": "", "resolve_status": "not_found",
+            },
+            {
+                "candidate_id": "c2", "code_name": "stale_code", "description": "d",
+                "quote": "whatever", "source_document_id": document_id,
+                "source_document_path": "corpus/x.txt", "source_revision_id": "not-the-current-revision",
+                "byte_start": 0, "byte_end": 4, "resolve_status": "exact",
+            },
+        ])
+        data = _json_ok(project, "open-coding", "apply")
+        assert data["annotations_applied"] == 0
+        reasons = {item["candidate_id"]: item["reason"] for item in data["skipped_details"]}
+        assert reasons["c1"] == "unresolved_quote:not_found"
+        assert reasons["c2"] == "stale_revision"
 
-    def test_json_envelope_has_script_path(self, project: BewleyProject) -> None:
-        data = _json_ok(project, "codegen", "open-coding", "--output", "scripts/run.py")
-        assert "script_path" in data
-        assert "run.py" in data["script_path"]
+    def test_apply_requires_candidate_file(self, project: BewleyProject) -> None:
+        envelope = _json_err(project, "open-coding", "apply")
+        assert envelope["errors"][0]["code"] == "NOT_FOUND"
 
-    def test_json_envelope_has_run_command(self, project: BewleyProject) -> None:
-        data = _json_ok(project, "codegen", "open-coding", "--output", "scripts/run.py")
-        assert "run_command" in data
-        assert "python" in data["run_command"]
-
-    def test_model_flag_embedded_in_script(self, project: BewleyProject) -> None:
-        project.cli_ok(
-            "codegen", "open-coding",
-            "--output", "scripts/run.py",
-            "--model", "claude-opus-4-7",
-        )
-        script = (project.root / "scripts" / "run.py").read_text()
-        assert "claude-opus-4-7" in script
-
-    def test_codegen_requires_project(self, tmp_path: Path) -> None:
-        """Codegen should fail gracefully when not in a bewley project."""
-        import contextlib, io, os, sys
-        from bewley.cli import main
-
-        old_cwd = Path.cwd()
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        try:
-            os.chdir(tmp_path)
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                code = main(["codegen", "open-coding"])
-        finally:
-            os.chdir(old_cwd)
-        assert code != 0
+    def test_legacy_codegen_open_coding_is_gone(self, project: BewleyProject) -> None:
+        envelope = _json_err(project, "codegen", "open-coding")
+        assert envelope["errors"][0]["code"] == "CLI_USAGE"

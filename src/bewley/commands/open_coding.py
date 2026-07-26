@@ -38,16 +38,19 @@ def _path(project_root: Path, value: Path) -> Path:
     return value if value.is_absolute() else project_root / value
 
 
-def _edsl() -> tuple[Any, Any, Any, Any, Any]:
+DEFAULT_MAX_TOKENS = 4000
+
+
+def _edsl() -> tuple[Any, Any, Any, Any, Any, Any, Any]:
     try:
-        from edsl import Jobs, QuestionFreeText, Results, Scenario, ScenarioList
+        from edsl import Jobs, Model, ModelList, QuestionFreeText, Results, Scenario, ScenarioList
     except ImportError as exc:
         raise BewleyError(
             "EDSL is required for open-coding Jobs and Results.",
             code="MISSING_DEPENDENCY",
             hint="Install Bewley with its declared dependencies and retry.",
         ) from exc
-    return Jobs, QuestionFreeText, Results, Scenario, ScenarioList
+    return Jobs, Model, ModelList, QuestionFreeText, Results, Scenario, ScenarioList
 
 
 def _result_value(result: Any, group: str, key: str) -> Any:
@@ -117,6 +120,14 @@ def jobs_command(
         help="Corpus context embedded in every scenario; optional if absent.",
     ),
     pilot: Optional[int] = typer.Option(None, "--pilot", min=1),
+    model: Optional[str] = typer.Option(
+        None, "--model",
+        help="Also write models.ep for this model so the suggested ep run command is executable verbatim.",
+    ),
+    max_tokens: int = typer.Option(
+        DEFAULT_MAX_TOKENS, "--max-tokens", min=1,
+        help="Completion budget stored in models.ep; provider defaults truncate long JSON answers.",
+    ),
     force: bool = typer.Option(False, "--force", help="Replace an existing Jobs package."),
     human: bool = HumanOption,
 ) -> None:
@@ -130,7 +141,7 @@ def jobs_command(
             raise BewleyError("--output must use the .ep extension", code="VALIDATION_ERROR")
         if target.exists() and not force:
             raise BewleyError(f"{target} already exists", code="ALREADY_EXISTS", hint="Use --force to replace it.")
-        Jobs, QuestionFreeText, _, Scenario, ScenarioList = _edsl()
+        Jobs, Model, ModelList, QuestionFreeText, _, Scenario, ScenarioList = _edsl()
         summary_path = _path(project.root, summary)
         corpus_summary = summary_path.read_text(encoding="utf-8") if summary_path.exists() else ""
         scenarios = []
@@ -162,15 +173,35 @@ def jobs_command(
         if target.exists():
             target.unlink()
         saved = job.git.save(target)
+        Jobs.git.load(target)  # prove the package can be reloaded before reporting success
         expected = target.with_name("results.ep")
+        models_target: Optional[Path] = None
+        if model is not None:
+            models_target = target.with_name("models.ep")
+            if models_target.exists() and not force:
+                raise BewleyError(
+                    f"{models_target} already exists", code="ALREADY_EXISTS", hint="Use --force to replace it.",
+                )
+            if models_target.exists():
+                models_target.unlink()
+            model_list = ModelList([Model(model, max_tokens=max_tokens)])
+            model_list.git.save(models_target)
+            ModelList.git.load(models_target)
         data = {
             "object_type": "Jobs",
             "output": str(target),
             "question": QUESTION_NAME,
             "scenario_count": len(scenarios),
+            "expected_model_calls": len(scenarios),
             "pilot": pilot is not None,
             "saved": saved,
             "expected_results": str(expected),
+            "models": {
+                "output": str(models_target) if models_target else None,
+                "model": model,
+                "max_tokens": max_tokens if model is not None else None,
+            },
+            "inference": "external",
             "answer_contract": {
                 "type": "json_array",
                 "item_required_keys": ["code", "description", "quote"],
@@ -181,10 +212,14 @@ def jobs_command(
         err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
         fail(command, err, json_flag)
         return
+    if model is not None:
+        run_argv = ["ep", "run", str(target), "--model_list", str(models_target), "--output", str(expected)]
+    else:
+        run_argv = ["ep", "run", str(target), "--model", "<model-name>", "--output", str(expected)]
     next_action = action(
-        "run-open-coding-jobs", "Run the packaged jobs with EDSL",
-        ["ep", "run", str(target), "--model", "<model-name>", "--output", str(expected)],
-        mutates_state=True, requires_network=True,
+        "run-open-coding-jobs", "Run the packaged jobs with the external ep CLI",
+        run_argv,
+        mutates_state=True, requires_network=True, requires_user_approval=True,
     )
     if json_flag:
         finish(command, data, next_actions=[next_action])
@@ -210,7 +245,7 @@ def ingest_command(
     jobs_source = _path(project.root, jobs_path) if jobs_path else None
     target = _path(project.root, output)
     try:
-        Jobs, _, Results, _, _ = _edsl()
+        Jobs, _, _, _, Results, _, _ = _edsl()
         if not source.exists():
             raise BewleyError(f"{source} does not exist", code="NOT_FOUND")
         if target.exists() and not force:
@@ -223,14 +258,19 @@ def ingest_command(
             expected = {_scenario_key(_scenario_dict(item)) for item in jobs.scenarios}
         results = Results.git.load(source)
         rows: list[dict[str, Any]] = []
-        returned: list[tuple[str, str]] = []
+        returned_pairs: list[tuple[tuple[str, str], str]] = []
+        models: set[str] = set()
         failures: list[dict[str, Any]] = []
+        unresolved_details: list[dict[str, Any]] = []
         stale = unresolved = 0
         with project.connect() as conn:
             for index, result in enumerate(results):
                 scenario = _scenario_dict(result["scenario"])
                 key = _scenario_key(scenario)
-                returned.append(key)
+                model_name = str(_result_value(result, "model", "model") or "")
+                if model_name:
+                    models.add(model_name)
+                returned_pairs.append((key, model_name))
                 exception = _result_value(result, "exceptions", QUESTION_NAME)
                 raw = _result_value(result, "answer", QUESTION_NAME)
                 try:
@@ -245,11 +285,18 @@ def ingest_command(
                     text = safe_decode((project.objects_dir / revision["content_sha256"]).read_bytes())
                     for entry_index, entry in enumerate(entries):
                         status, start, end = _resolve_quote(text, entry["quote"])
-                        if status != "exact":
-                            unresolved += 1
                         candidate_id = hashlib.sha256(
                             f"{key[0]}:{key[1]}:{entry_index}:{entry['code']}:{entry['quote']}".encode()
                         ).hexdigest()[:16]
+                        if status != "exact":
+                            unresolved += 1
+                            unresolved_details.append({
+                                "candidate_id": candidate_id,
+                                "code_name": entry["code"].strip(),
+                                "resolve_status": status,
+                                "document_path": scenario.get("document_path", ""),
+                                "quote_prefix": entry["quote"][:120],
+                            })
                         rows.append({
                             "candidate_id": candidate_id,
                             "code_name": entry["code"].strip(),
@@ -264,8 +311,12 @@ def ingest_command(
                         })
                 except (ValueError, TypeError, KeyError, BewleyError) as exc:
                     failures.append({"index": index, "document_id": key[0], "error": str(exc)})
-        missing = expected - set(returned) if expected else set()
-        duplicates = len(returned) - len(set(returned))
+        # Row identity includes the model, so a multi-model run audits as
+        # scenarios × models instead of reporting every scenario as duplicated.
+        model_names = models or {""}
+        expected_pairs = {(key, name) for key in expected for name in model_names} if expected else set()
+        missing = expected_pairs - set(returned_pairs) if expected else set()
+        duplicates = len(returned_pairs) - len(set(returned_pairs))
         incomplete = bool(failures or missing or duplicates)
         if incomplete and not allow_partial:
             raise BewleyError(
@@ -287,13 +338,16 @@ def ingest_command(
             "object_type": "CandidateCodes",
             "output": str(target),
             "candidate_count": len(rows),
-            "scenario_count": len(returned),
+            "scenario_count": len(returned_pairs),
+            "models": sorted(models),
             "expected_scenarios": len(expected) if expected else None,
-            "missing_scenarios": len(missing) if expected else None,
+            "expected_answers": len(expected_pairs) if expected else None,
+            "missing_answers": len(missing) if expected else None,
             "duplicate_scenarios": duplicates,
             "failed_scenarios": len(failures),
             "stale_scenarios": stale,
             "unresolved_quotes": unresolved,
+            "unresolved_details": unresolved_details,
             "partial": incomplete,
         }
     except (BewleyError, OSError) as exc:
@@ -304,3 +358,133 @@ def ingest_command(
         finish(command, data)
     else:
         print(f"Wrote {len(rows)} candidates to: {target}")
+
+
+@app.command("apply")
+def apply_command(
+    input_csv: Path = typer.Option(
+        Path("qualitative-analysis/candidate_codes.csv"), "--input", "-i",
+        help="Reviewed candidate CSV produced by `open-coding ingest`.",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Report the plan without creating codes or annotations.",
+    ),
+    human: bool = HumanOption,
+) -> None:
+    """Apply reviewed candidate rows as real codes and exact-span annotations.
+
+    Only rows whose quotation resolved to exactly one location are applied.
+    Everything skipped is itemized with a reason; nothing is guessed. Delete
+    the rows you rejected during review before running this command.
+    """
+    json_flag = should_emit_json(human)
+    command = "open-coding apply"
+    project = get_project(command, json_flag)
+    source = _path(project.root, input_csv)
+    try:
+        if not source.exists():
+            raise BewleyError(f"{source} does not exist", code="NOT_FOUND")
+        with source.open(newline="", encoding="utf-8") as handle:
+            candidates = list(csv.DictReader(handle))
+        skipped_details: list[dict[str, Any]] = []
+        plan: list[dict[str, Any]] = []
+        codes_to_create: dict[str, str] = {}
+        with project.connect() as conn:
+            existing_annotations = {
+                (row["code_id"], row["document_id"], row["start_byte"], row["end_byte"])
+                for row in conn.execute(
+                    "SELECT code_id, document_id, start_byte, end_byte FROM annotations WHERE is_active = 1"
+                )
+            }
+            code_ids = {
+                row["canonical_name"]: row["code_id"]
+                for row in conn.execute("SELECT code_id, canonical_name FROM codes")
+            }
+            for row in candidates:
+                candidate_id = row.get("candidate_id", "")
+                code_name = (row.get("code_name") or "").strip()
+
+                def skip(reason: str) -> None:
+                    skipped_details.append({
+                        "candidate_id": candidate_id,
+                        "code_name": code_name,
+                        "reason": reason,
+                    })
+
+                if not code_name:
+                    skip("missing_code_name")
+                    continue
+                if row.get("resolve_status") != "exact" or not row.get("byte_start") or not row.get("byte_end"):
+                    skip(f"unresolved_quote:{row.get('resolve_status') or 'missing'}")
+                    continue
+                document_ref = row.get("source_document_id", "")
+                try:
+                    document = project.resolve_document(conn, document_ref)
+                    revision = project.current_revision(conn, document["document_id"])
+                except BewleyError:
+                    skip("document_not_found")
+                    continue
+                if revision["revision_id"] != row.get("source_revision_id"):
+                    # Byte offsets were resolved against the ingested revision;
+                    # a newer revision invalidates them rather than being guessed.
+                    skip("stale_revision")
+                    continue
+                start, end = int(row["byte_start"]), int(row["byte_end"])
+                known_code_id = code_ids.get(code_name)
+                if known_code_id is not None and (
+                    known_code_id, document["document_id"], start, end
+                ) in existing_annotations:
+                    skip("already_applied")
+                    continue
+                if code_name not in code_ids:
+                    codes_to_create.setdefault(code_name, (row.get("description") or "").strip())
+                plan.append({
+                    "candidate_id": candidate_id,
+                    "code_name": code_name,
+                    "document_ref": document["document_id"],
+                    "byte_start": start,
+                    "byte_end": end,
+                })
+        applied = 0
+        created_codes: list[str] = []
+        if not dry_run:
+            for code_name, description in codes_to_create.items():
+                project.add_code(code_name, description=description or None)
+                created_codes.append(code_name)
+            for item in plan:
+                project.add_annotation(
+                    item["code_name"], item["document_ref"], "span",
+                    (item["byte_start"], item["byte_end"]), None,
+                )
+                applied += 1
+        data = {
+            "input": str(source),
+            "rows": len(candidates),
+            "dry_run": dry_run,
+            "codes_to_create": sorted(codes_to_create) if dry_run else created_codes,
+            "annotations_planned": len(plan),
+            "annotations_applied": applied,
+            "skipped": len(skipped_details),
+            "skipped_details": skipped_details,
+        }
+    except (BewleyError, OSError) as exc:
+        err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
+        fail(command, err, json_flag)
+        return
+    next_action = action(
+        "review-applied-coding",
+        "Inspect the applied codes and evidence",
+        ["bewley", "show", "snippets", "--code", "<code-name>"],
+        mutates_state=False,
+    ) if not dry_run else action(
+        "apply-for-real",
+        "Apply the reviewed plan",
+        ["bewley", "open-coding", "apply", "--input", str(input_csv)],
+        mutates_state=True,
+    )
+    if json_flag:
+        finish(command, data, next_actions=[next_action])
+    else:
+        verb = "Would apply" if dry_run else "Applied"
+        print(f"{verb} {len(plan)} annotations ({len(skipped_details)} skipped) from {source}")

@@ -164,79 +164,32 @@ bewley export narrative --output narrative.md
 bewley export html --output analysis.html --title "Grounded Theory Analysis"
 ```
 
-### Rich theory diagrams
+### Interactive theory explorer
 
-The built-in Mermaid export (`bewley export theory --format mermaid`) is limited. Use `scripts/render_theory_diagram.py` for richer output:
-
-```bash
-# Export the theory JSON first
-bewley export theory --format json --output theory.json
-
-# Interactive HTML (D3 force-directed graph — zoom, drag, hover for descriptions)
-python scripts/render_theory_diagram.py theory.json --format html -o theory.html
-
-# Static SVG via Graphviz (better for hierarchical/causal layouts, print-friendly)
-python scripts/render_theory_diagram.py theory.json --format svg -o theory.svg
-
-# Raw DOT source (for manual Graphviz tweaking)
-python scripts/render_theory_diagram.py theory.json --format dot -o theory.dot
-
-# Pipe directly from bewley
-bewley export theory --format json | python scripts/render_theory_diagram.py - --format html -o theory.html
-```
-
-The HTML format shows: node size scaled by annotation count, color by category group, labeled relationship edges, core category highlighted with a gold ring, and tooltips with descriptions and memos on hover.
-
-The SVG/Graphviz format shows: hierarchical directed layout with subgraph clusters for parent categories, scaled node sizes, colored relationship edges by type (e.g., red for "causes", green for "enables"), and tooltips embedded in the SVG.
-
-### Collapsible report diagrams
-
-For theories with many codes, the full network diagram is too dense to read. `scripts/render_collapsible_diagram.py` produces an interactive HTML page where themes are collapsed blocks that expand on click to reveal child codes and axial relationships. This is the preferred format for embedding in reports.
+The built-in Mermaid export (`bewley export theory --format mermaid`) is
+limited. For richer output, generate the interactive D3 explorer:
 
 ```bash
-# Basic usage (flat layout, auto-colors)
-python scripts/render_collapsible_diagram.py theory.json \
-    --title "My Grounded Theory" \
-    -o theory_interactive.html
-
-# With narrative flow spec (recommended for reports)
-python scripts/render_collapsible_diagram.py theory.json \
-    --flow flow.yml \
-    --title "The Bargain Betrayed" \
-    -o theory_interactive.html
+bewley codegen theory-explorer
+python qualitative-analysis/render_theory_explorer.py
 ```
 
-The **flow spec** is a YAML file that controls the narrative structure of the diagram -- how themes are grouped into layers (e.g., "formed by", "violated by", "compounded by") and what order they appear. Without it, themes are listed flat. Example flow spec:
+The generated script is standalone (stdlib only) and embeds a snapshot of the
+project's codes, hierarchy, links, and annotations — regenerate it when those
+change. The explorer shows a force-directed graph with node size scaled by
+annotation count, color by category, labeled relationship edges, the core
+category highlighted, and click-through to quotes and links.
 
-```yaml
-title: "The Bargain Betrayed"
-subtitle: "Click any theme to expand. A grounded theory of driver retention."
-core_label: "THE BARGAIN BETRAYED"
-core_description: "Drivers enter an implicit bargain that is systematically violated."
-outcome_code: "dont_waste_your_time"
-layers:
-  - label: "The bargain is formed by"
-    themes: [pay_as_the_hook, job_of_last_resort, flexibility_as_the_bargain]
-    color: "#4CAF50"
-  - label: "The bargain is violated by"
-    themes: [schedule_instability, workload_and_speed, physical_toll]
-    color: "#FF5722"
-  - label: "Compounded by"
-    themes: [just_a_number, management_failure]
-    color: null          # null = assign from palette automatically
-  - label: "Structurally enabled by"
-    themes: [contractor_shield, route_challenges]
-    color: null
-```
-
-**Embedding in a report.** Use an iframe in the report markdown so the interactive diagram is inline. Do NOT use `--embed-resources` with pandoc when the report contains an iframe -- it breaks the reference.
+**Embedding in a report.** Use an iframe in the report markdown so the
+interactive explorer is inline. Do NOT use `--embed-resources` with pandoc
+when the report contains an iframe — it breaks the reference.
 
 ```markdown
-<iframe src="plots/theory_interactive.html"
+<iframe src="qualitative-analysis/theory_explorer.html"
         style="width:100%; height:700px; border:1px solid #ddd; border-radius:8px;"
         loading="lazy"></iframe>
 
-*Figure 1. Interactive theory diagram -- click any theme to expand.*
+*Figure 1. Interactive theory explorer — click any theme to expand.*
 ```
 
 Compile with:
@@ -245,15 +198,8 @@ Compile with:
 pandoc report.md -o report.html --css=report.css --standalone
 ```
 
-**Design rationale.** The collapsible format solves the density problem: readers see the causal flow at a glance (core category -> layers -> outcome) and drill into individual themes for codes and relationships. The Graphviz/D3 renderings remain useful for exploration during analysis, but the collapsible version is better for report consumption.
-
-**When to use which format:**
-
-| Format | Best for |
-|---|---|
-| `render_collapsible_diagram.py` | Report embedding, presentation, reader-facing output |
-| `render_theory_diagram.py --format html` | Analyst exploration (drag, zoom, hover for memos) |
-| `render_theory_diagram.py --format svg` | Print/PDF, static figures |
+For static print figures, `bewley export theory --format json` provides the
+structured theory for any external renderer.
 
 ## Workflow summary
 
@@ -265,4 +211,4 @@ pandoc report.md -o report.html --css=report.css --standalone
 | Selective coding | `code set-core`, `export narrative` |
 | Memo-writing | `memo add --code`, `memo add --document`, `memo add` |
 | Saturation tracking | `code list`, `show snippets`, `memo add --title 'Saturation note'` |
-| Theory export | `export theory --format json`, `render_theory_diagram.py`, `render_collapsible_diagram.py`, `export narrative`, `export html` |
+| Theory export | `export theory --format json`, `codegen theory-explorer`, `export narrative`, `export html` |

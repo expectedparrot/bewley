@@ -2,7 +2,7 @@
 
 ## Project phases
 
-Bewley infers the current phase from what's on disk — no metadata to drift. Run `bewley status` to get the current phase and recommended next steps.
+Bewley infers the current phase from what's on disk — no metadata to drift. Run `bewley next` to get the current phase and the recommended next action (`bewley status` reports counts only).
 
 | Phase | Condition | Primary doc |
 |---|---|---|
@@ -34,8 +34,8 @@ Bewley infers the current phase from what's on disk — no metadata to drift. Ru
    - Number and scope of documents
    - Initial impressions of recurring themes
 3. Configure EDSL once: `ep auth login`, then verify with `ep auth status` and `ep check`. Keep `.env` out of version control.
-4. `bewley open-coding jobs --output jobs.ep`
-5. `ep run jobs.ep --model <model-name> --output results.ep`
+4. `bewley open-coding jobs --output jobs.ep --model <model-name>`
+5. `ep run jobs.ep --model_list models.ep --output results.ep` (external; requires approval)
 6. `bewley open-coding ingest results.ep --jobs jobs.ep`
 7. Review `candidate_codes.csv` — merge near-synonyms, remove noise, and inspect any unresolved quotes
 8. **Pause and show user the candidate codes before proceeding**
@@ -43,11 +43,10 @@ Bewley infers the current phase from what's on disk — no metadata to drift. Ru
 
 ### Phase 4: Annotation
 
-1. Apply annotations from the resolved CSV. For many codes, use the batch codegen:
+1. Apply the reviewed candidates (creates missing codes and exact-span annotations; skipped rows are itemized, never guessed):
    ```bash
-   bewley codegen apply-resolved
-   python qualitative-analysis/run_apply_resolved.py --dry-run   # preview
-   python qualitative-analysis/run_apply_resolved.py             # execute
+   bewley open-coding apply --dry-run   # preview
+   bewley open-coding apply             # execute
    ```
    For ad-hoc one-offs:
    ```bash
