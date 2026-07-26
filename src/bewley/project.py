@@ -543,6 +543,10 @@ class Project:
             conn.execute("ALTER TABLE codes ADD COLUMN parent_code_id TEXT")
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute("ALTER TABLE codes ADD COLUMN merged_into TEXT")
+        except sqlite3.OperationalError:
+            pass
 
     def init_project(self) -> None:
         if self.meta.exists():
@@ -827,7 +831,10 @@ class Project:
             return
         if etype == "code_merged":
             for source_code_id in payload["source_code_ids"]:
-                conn.execute("UPDATE codes SET status = 'merged' WHERE code_id = ?", (source_code_id,))
+                conn.execute(
+                    "UPDATE codes SET status = 'merged', merged_into = ? WHERE code_id = ?",
+                    (payload["target_code_id"], source_code_id),
+                )
                 conn.execute(
                     "UPDATE codes SET parent_code_id = ? WHERE parent_code_id = ?",
                     (payload["target_code_id"], source_code_id),
@@ -1026,6 +1033,42 @@ class Project:
         if row is None:
             raise BewleyError("document has no current revision", code="INTEGRITY_ERROR")
         return row
+
+    def merge_resolution_map(self, conn: sqlite3.Connection) -> dict[str, str]:
+        """Map every code_id to the terminal code it resolves to through merges."""
+        parents = {
+            row["code_id"]: row["merged_into"]
+            for row in conn.execute("SELECT code_id, merged_into FROM codes")
+        }
+
+        def root(code_id: str) -> str:
+            seen: set[str] = set()
+            while parents.get(code_id) and code_id not in seen:
+                seen.add(code_id)
+                code_id = parents[code_id]
+            return code_id
+
+        return {code_id: root(code_id) for code_id in parents}
+
+    def code_family(self, conn: sqlite3.Connection, code_id: str) -> list[str]:
+        """All code_ids that resolve to the same merge target as code_id.
+
+        Merging preserves each annotation's original code for provenance;
+        evidence surfaces use the family so a target absorbs its sources.
+        """
+        resolution = self.merge_resolution_map(conn)
+        root = resolution.get(code_id, code_id)
+        return sorted(cid for cid, target in resolution.items() if target == root) or [code_id]
+
+    def resolve_active_code(self, conn: sqlite3.Connection, ref: str) -> sqlite3.Row:
+        """Resolve a code reference, following merges to the surviving target."""
+        code = self.resolve_code(conn, ref)
+        resolution = self.merge_resolution_map(conn)
+        root_id = resolution.get(code["code_id"], code["code_id"])
+        if root_id == code["code_id"]:
+            return code
+        target = conn.execute("SELECT * FROM codes WHERE code_id = ?", (root_id,)).fetchone()
+        return target if target is not None else code
 
     def resolve_document(self, conn: sqlite3.Connection, ref: str) -> sqlite3.Row:
         def ambiguous(rows: list[sqlite3.Row]) -> BewleyError:
@@ -1629,7 +1672,7 @@ class Project:
 
     def add_annotation(self, code_ref: str, document_ref: str, scope_type: str, byte_range: tuple[int, int] | None, memo: str | None) -> dict[str, Any]:
         with self.connect() as conn:
-            code = self.resolve_code(conn, code_ref)
+            code = self.resolve_active_code(conn, code_ref)
             document = self.resolve_document(conn, document_ref)
             revision = self.current_revision(conn, document["document_id"])
         content = (self.objects_dir / revision["content_sha256"]).read_bytes()
@@ -1691,19 +1734,31 @@ class Project:
         payload["document_id"] = doc["document_id"]
         return self.append_event("annotation_resolved", payload)
 
+    def _effective_code_names(self, conn: sqlite3.Connection) -> dict[str, set[str]]:
+        """Per code_id: its own canonical name plus its merge target's name."""
+        resolution = self.merge_resolution_map(conn)
+        names = {
+            row["code_id"]: row["canonical_name"]
+            for row in conn.execute("SELECT code_id, canonical_name FROM codes")
+        }
+        return {
+            code_id: {name, names.get(resolution.get(code_id, code_id), name)}
+            for code_id, name in names.items()
+        }
+
     def query_documents(self, expr_text: str) -> list[sqlite3.Row]:
         expr = ExprParser(expr_text).parse()
         with self.connect() as conn:
+            effective = self._effective_code_names(conn)
             docs = conn.execute("SELECT * FROM documents ORDER BY current_path").fetchall()
             matches: list[sqlite3.Row] = []
             for doc in docs:
-                names = {
-                    row["canonical_name"]
-                    for row in conn.execute(
-                        "SELECT DISTINCT c.canonical_name FROM annotations a JOIN codes c ON c.code_id = a.code_id WHERE a.document_id = ? AND a.is_active = 1",
-                        (doc["document_id"],),
-                    )
-                }
+                names: set[str] = set()
+                for row in conn.execute(
+                    "SELECT DISTINCT code_id FROM annotations WHERE document_id = ? AND is_active = 1",
+                    (doc["document_id"],),
+                ):
+                    names |= effective.get(row["code_id"], set())
                 if expr.evaluate(names):
                     matches.append(doc)
             return matches
@@ -1724,11 +1779,14 @@ class Project:
             doc_groups: dict[str, list[sqlite3.Row]] = {}
             for row in rows:
                 doc_groups.setdefault(row["document_id"], []).append(row)
+            effective = self._effective_code_names(conn)
             matches: list[sqlite3.Row] = []
             for group in doc_groups.values():
                 for row in group:
                     comparable = [other for other in group if annotation_overlap(row, other)]
-                    names = {item["canonical_name"] for item in comparable}
+                    names: set[str] = set()
+                    for item in comparable:
+                        names |= effective.get(item["code_id"], {item["canonical_name"]})
                     if expr.evaluate(names):
                         matches.append(row)
             return matches
@@ -2227,7 +2285,16 @@ def cmd_code_show(project: Project, ref: str) -> dict:
     with project.connect() as conn:
         code = project.resolve_code(conn, ref)
         aliases = conn.execute("SELECT alias_name FROM code_aliases WHERE code_id = ? ORDER BY alias_name", (code["code_id"],)).fetchall()
-        count = conn.execute("SELECT COUNT(*) FROM annotations WHERE code_id = ? AND is_active = 1", (code["code_id"],)).fetchone()[0]
+        family = project.code_family(conn, code["code_id"])
+        placeholders = ",".join("?" * len(family))
+        count = conn.execute(f"SELECT COUNT(*) FROM annotations WHERE code_id IN ({placeholders}) AND is_active = 1", family).fetchone()[0]
+        absorbs = [
+            row["canonical_name"]
+            for row in conn.execute(
+                f"SELECT canonical_name FROM codes WHERE code_id IN ({placeholders}) AND code_id != ? ORDER BY canonical_name",
+                [*family, code["code_id"]],
+            )
+        ]
         parent_name = None
         if code["parent_code_id"]:
             parent_row = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (code["parent_code_id"],)).fetchone()
@@ -2240,6 +2307,8 @@ def cmd_code_show(project: Project, ref: str) -> dict:
             tgt = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["target_code_id"],)).fetchone()
             link_items.append({"link_id": lk["link_id"], "source_name": src["canonical_name"] if src else lk["source_code_id"][:8], "relationship": lk["relationship"], "target_name": tgt["canonical_name"] if tgt else lk["target_code_id"][:8]})
     result: dict[str, Any] = {"code_id": code["code_id"], "name": code["canonical_name"], "status": code["status"], "active_annotations": count, "aliases": [row["alias_name"] for row in aliases]}
+    if absorbs:
+        result["absorbs"] = absorbs
     if parent_name:
         result["parent"] = parent_name
     if children:
@@ -2260,9 +2329,16 @@ def cmd_code_coverage(project: Project, code_ref: str, breakdown: bool = False) 
                 result.extend(get_descendants(child["code_id"]))
             return result
         code_ids = get_descendants(code["code_id"])
-        placeholders = ",".join("?" * len(code_ids))
-        direct_docs = conn.execute("SELECT COUNT(DISTINCT document_id) FROM annotations WHERE code_id = ? AND is_active = 1", (code["code_id"],)).fetchone()[0]
-        inclusive_docs = conn.execute(f"SELECT COUNT(DISTINCT document_id) FROM annotations WHERE code_id IN ({placeholders}) AND is_active = 1", code_ids).fetchone()[0]
+        expanded: list[str] = []
+        for cid in code_ids:
+            for member in project.code_family(conn, cid):
+                if member not in expanded:
+                    expanded.append(member)
+        direct_family = project.code_family(conn, code["code_id"])
+        direct_placeholders = ",".join("?" * len(direct_family))
+        placeholders = ",".join("?" * len(expanded))
+        direct_docs = conn.execute(f"SELECT COUNT(DISTINCT document_id) FROM annotations WHERE code_id IN ({direct_placeholders}) AND is_active = 1", direct_family).fetchone()[0]
+        inclusive_docs = conn.execute(f"SELECT COUNT(DISTINCT document_id) FROM annotations WHERE code_id IN ({placeholders}) AND is_active = 1", expanded).fetchone()[0]
         desc_names = []
         per_descendant: list[dict] = []
         for cid in code_ids:
@@ -2328,9 +2404,11 @@ def cmd_annotate_show(project: Project, annotation_id: str) -> dict:
 def snippets_for_code(project: Project, code_ref: str) -> list[sqlite3.Row]:
     with project.connect() as conn:
         code = project.resolve_code(conn, code_ref)
+        family = project.code_family(conn, code["code_id"])
+        placeholders = ",".join("?" * len(family))
         return conn.execute(
-            "SELECT a.*, c.canonical_name, d.current_path FROM annotations a JOIN codes c ON c.code_id = a.code_id JOIN documents d ON d.document_id = a.document_id WHERE a.code_id = ? AND a.is_active = 1 ORDER BY d.current_path, COALESCE(a.start_line, 0), a.annotation_id",
-            (code["code_id"],),
+            f"SELECT a.*, c.canonical_name, d.current_path FROM annotations a JOIN codes c ON c.code_id = a.code_id JOIN documents d ON d.document_id = a.document_id WHERE a.code_id IN ({placeholders}) AND a.is_active = 1 ORDER BY d.current_path, COALESCE(a.start_line, 0), a.annotation_id",
+            family,
         ).fetchall()
 
 
