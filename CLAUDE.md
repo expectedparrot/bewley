@@ -30,7 +30,7 @@ bewley code create / list / show / rename / alias / merge / split
 bewley annotate apply / remove / show / resolve
 bewley query / export (snippets | quotes | html | document-html)
 bewley history / undo
-bewley memo create / list / show / edit / delete
+bewley memo add / list / show / edit / delete
 bewley codegen <phase>                          # generate EDSL scripts
 ```
 

@@ -29,6 +29,12 @@ presentation mode and should not be used by agents parsing results.
 |---|---|
 | `bewley init` | Create a new project in the current directory. |
 | `bewley status` | Print JSON counts: documents, revisions, codes, active_annotations, conflicted_annotations. |
+| `bewley version` | Report the installed build plus envelope/agent schema versions. |
+| `bewley guide` | Describe the complete lifecycle and the external ep-run execution boundary. |
+| `bewley next` | Return the single highest-priority next action from artifact state. |
+| `bewley docs list` | List embedded documentation topics. |
+| `bewley docs show <topic>` | Show one embedded documentation topic. |
+| `bewley docs search <query>` | Search across the embedded documentation. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |
 | `bewley rebuild-index` | Rebuild the SQLite index from the event log. |
 | `bewley capabilities` | Describe the versioned agent interface and bundled schemas. |
@@ -40,10 +46,14 @@ presentation mode and should not be used by agents parsing results.
 | Command | Purpose |
 |---|---|
 | `bewley add <path>` | Add a UTF-8 file as a new document. Prints the new `document_id`. |
+| `bewley add-audio <path> [--output F] [--model M]` | Transcribe audio via the OpenAI API (external paid call; envelope carries a cost warning) and add the transcript. |
+| `bewley add-video <path> [--output F] [--model M]` | Extract audio from video, transcribe it (external paid call), and add the transcript. |
 | `bewley update <path>` | Create a new revision of an existing document. Prints `revision_id` or "no-op". |
 | `bewley list documents` | List all documents as JSON (document_id, path, revision_count). |
 | `bewley list codes [--tree]` | List all codes. Alias for `bewley code list`. |
 | `bewley show document <ref>` | Show metadata, revisions, and annotations for a document. |
+| `bewley show audio <ref>` | Show the stored transcription provenance for an audio-derived document. |
+| `bewley show video <ref>` | Show the stored transcription provenance for a video-derived document. |
 
 ## Code management
 
@@ -75,7 +85,7 @@ presentation mode and should not be used by agents parsing results.
 | `bewley annotate resolve <annotation_id> --bytes S:E [--memo M]` | Fix a conflicted annotation after a document revision update. |
 | `bewley show snippets --code <ref>` | Show text content of all annotations for a code. |
 
-> **`annotate apply` requires exactly one scope flag.** You must pass one of `--document`, `--bytes S:E`, or `--lines S:E`. Omitting all three produces `bewley error:` with an empty message and exit code 1. When generating batch annotation scripts, always include the scope flag and check exit codes:
+> **`annotate apply` requires exactly one scope flag.** You must pass one of `--document`, `--bytes S:E`, or `--lines S:E`. Omitting all three produces an `INVALID_INPUT` error envelope and exit code 1. When generating batch annotation scripts, always include the scope flag and check exit codes:
 > ```bash
 > bewley annotate apply my_code doc_id --lines 5:8 || echo "FAILED: my_code on doc_id"
 > ```
