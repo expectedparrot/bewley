@@ -59,6 +59,15 @@ class ExprParser:
                 tokens.append(ch)
                 i += 1
                 continue
+            if ch in "&|":
+                # Accept & / && as AND and | / || as OR.
+                tokens.append("AND" if ch == "&" else "OR")
+                i += 2 if i + 1 < len(text) and text[i + 1] == ch else 1
+                continue
+            if ch == "!":
+                tokens.append("NOT")
+                i += 1
+                continue
             if ch in "\"'":
                 quote = ch
                 i += 1
@@ -71,7 +80,7 @@ class ExprParser:
                 i += 1
                 continue
             start = i
-            while i < len(text) and (not text[i].isspace()) and text[i] not in "()":
+            while i < len(text) and (not text[i].isspace()) and text[i] not in "()&|!":
                 i += 1
             tokens.append(text[start:i])
         return tokens

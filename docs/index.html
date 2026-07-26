@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A practical guide to auditable qualitative coding and grounded theory with Bewley.">
+  <meta name="description" content="A worked, evidence-first tutorial: coding the Adams letters with Bewley.">
   <title>Expected Parrot | Qualitative Coding with Bewley</title>
   <style>
     :root{--green:#428a5f;--dark:#214d35;--light:#edf7f1;--ink:#17201a;--muted:#667069;--paper:#f5f7f5;--panel:#fff;--rule:#dfe5e0;--amber:#b66b13;--code:#19231d;--sidebar:286px;--measure:790px;--serif:Georgia,"Times New Roman",serif;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;--mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
@@ -14,11 +14,12 @@
     nav .book{margin:0 8px 23px;font:600 20px/1.25 var(--serif)}nav .part{margin:19px 8px 5px;color:#9fd3b2;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}nav>a:not(.brand){display:block;padding:6px 8px;color:#d5e9dc;text-decoration:none;border-radius:6px}nav>a:not(.brand):hover{color:#fff;background:#2d6244}.small{margin:28px 8px 0;color:#b7cec0;font-size:12px}.nav-toggle{display:none;width:100%;padding:10px 12px;color:#fff;background:#2d6244;border:1px solid #72a685;border-radius:7px;font:700 14px var(--sans);text-align:left;cursor:pointer}.nav-toggle:after{float:right;content:"+"}.open .nav-toggle:after{content:"−"}
     main{margin-left:var(--sidebar)}article{max-width:920px;margin:auto;padding:48px 48px 110px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.025)}header{padding:60px 0 44px;border-bottom:3px solid var(--green)}
     .eyebrow{color:var(--green);font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}h1,h2,h3,h4{font-family:var(--serif);font-weight:600;line-height:1.3}h1{max-width:780px;margin:14px 0 20px;font-size:clamp(40px,6vw,61px);letter-spacing:-.025em}h2{margin:78px 0 22px;padding:12px 0 8px;color:var(--green);font-size:32px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}h3{margin:40px 0 13px;font-size:23px}.dek{max-width:740px;color:var(--muted);font-size:21px;line-height:1.5}.meta{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:27px;color:var(--muted);font-size:13px}
-    p,ul,ol,table,pre,.callout,figure{max-width:var(--measure)}a{color:var(--green)}code{padding:.14em .35em;background:#f0f3f0;border-radius:4px;font:88% var(--mono)}pre{position:relative;overflow:auto;margin:18px 0 26px;padding:20px 58px 20px 22px;color:#d8e3db;background:var(--code);border-radius:8px;font:13px/1.55 var(--mono)}pre code{padding:0;color:inherit;background:none}.copy{position:absolute;top:10px;right:10px;padding:5px 8px;color:#d8ebe0;background:#34453b;border:0;border-radius:5px;font:11px var(--sans);cursor:pointer}.copy:hover{background:var(--green)}
+    p,ul,ol,table,pre,.callout,figure,details.output{max-width:var(--measure)}a{color:var(--green)}code{padding:.14em .35em;background:#f0f3f0;border-radius:4px;font:88% var(--mono)}pre{position:relative;overflow:auto;margin:18px 0 26px;padding:20px 58px 20px 22px;color:#d8e3db;background:var(--code);border-radius:8px;font:13px/1.55 var(--mono)}pre code{padding:0;color:inherit;background:none}pre.command{border-left:4px solid var(--green);background:#18231d}.copy{position:absolute;top:10px;right:10px;padding:5px 8px;color:#d8ebe0;background:#34453b;border:0;border-radius:5px;font:11px var(--sans);cursor:pointer}.copy:hover{background:var(--green)}
+    details.output{margin:-14px 0 26px}details.output summary{color:var(--green);font-size:13px;font-weight:700;cursor:pointer}details.output[open] summary{margin-bottom:8px}details.output pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
     .chapter{font-size:.55em;vertical-align:.35em}.callout{margin:24px 0;padding:18px 22px;background:linear-gradient(135deg,#f9fbf9,var(--light));border-left:4px solid var(--green);border-radius:0 8px 8px 0}.callout.warn{background:#fff7e9;border-color:var(--amber)}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:var(--measure)}.card{padding:18px;background:#fff;border:1px solid var(--rule);border-radius:8px;box-shadow:0 2px 7px rgba(0,0,0,.035)}.card h3{margin-top:0;color:var(--dark);font-size:19px}table{width:100%;margin:20px 0 28px;border-collapse:collapse;font-size:14px}th,td{padding:11px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}th{color:#fff;background:var(--green)}tbody tr:nth-child(even){background:#f7f9f7}
-    figure{margin:30px 0 36px;padding:20px;border:1px solid var(--rule);border-radius:8px}figure img{display:block;width:100%;height:auto}figcaption{margin-top:12px;color:var(--muted);font-size:13px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.step{position:relative;padding:14px 8px;text-align:center;background:var(--light);border:1px solid #afd0ba;border-radius:7px;font-size:12px;font-weight:700}.step:not(:last-child):after{position:absolute;top:50%;right:-8px;z-index:2;color:var(--green);content:"›";font-size:22px;transform:translateY(-53%)}footer{margin-top:85px;padding-top:28px;color:var(--muted);border-top:3px solid var(--green);font-size:13px}
-    @media(max-width:960px){nav{position:static;width:auto;padding-bottom:22px}.nav-toggle{display:block}nav .part,nav>a:not(.brand),nav .small{display:none}nav.open .part{display:block}nav.open>a:not(.brand){display:inline-block}nav.open .small{display:block}nav .book{margin-bottom:14px}main{margin-left:0}article{padding:28px 24px 80px}.brand{max-width:270px}}@media(max-width:650px){.grid,.flow{grid-template-columns:1fr}.step:not(:last-child):after{display:none}h2{font-size:28px}table{display:block;overflow-x:auto}pre{padding-right:44px}}@media print{nav,#progress,.copy,.nav-toggle{display:none!important}main{margin:0}article{max-width:none;padding:0}h2{break-before:page}pre{white-space:pre-wrap;color:#000;background:#eee}}
+    figure{margin:30px 0 36px;padding:20px;border:1px solid var(--rule);border-radius:8px}figure img{display:block;width:100%;height:auto}figcaption{margin-top:12px;color:var(--muted);font-size:13px}footer{margin-top:85px;padding-top:28px;color:var(--muted);border-top:3px solid var(--green);font-size:13px}
+    @media(max-width:960px){nav{position:static;width:auto;padding-bottom:22px}.nav-toggle{display:block}nav .part,nav>a:not(.brand),nav .small{display:none}nav.open .part{display:block}nav.open>a:not(.brand){display:inline-block}nav.open .small{display:block}nav .book{margin-bottom:14px}main{margin-left:0}article{padding:28px 24px 80px}.brand{max-width:270px}}@media(max-width:650px){.grid{grid-template-columns:1fr}h2{font-size:28px}table{display:block;overflow-x:auto}pre{padding-right:44px}}@media print{nav,#progress,.copy,.nav-toggle{display:none!important}main{margin:0}article{max-width:none;padding:0}h2{break-before:page}pre{white-space:pre-wrap;color:#000;background:#eee}}
   </style>
 </head>
 <body>
@@ -27,30 +28,32 @@
   <a class="brand" href="https://www.expectedparrot.com/"><strong>Expected Parrot</strong><small>Open-source research tools</small></a>
   <div class="book">Qualitative Coding<br>with Bewley</div>
   <button class="nav-toggle" type="button" aria-expanded="false">Show tutorial contents</button>
-  <div class="part">Foundations</div><a href="#orientation">1. Orientation</a><a href="#model">2. Data model</a><a href="#install">3. Installation</a>
-  <div class="part">Worked workflow</div><a href="#project">4. Start a project</a><a href="#code">5. Code evidence</a><a href="#refine">6. Refine the codebook</a><a href="#memo">7. Compare and memo</a><a href="#export">8. Export results</a>
-  <div class="part">Practice</div><a href="#integrity">9. Integrity and recovery</a><a href="#reference">10. Command map</a><a href="#agents">11. Agent interface</a>
-  <div class="small">A self-contained, local-first tutorial for the Bewley CLI.</div>
+  <div class="part">Foundations</div><a href="#orientation">1. The corpus and the question</a><a href="#model">2. Data model</a><a href="#install">3. Installation</a>
+  <div class="part">Worked run</div><a href="#project">4. Start the project</a><a href="#opencoding">5. Model-assisted open coding</a><a href="#review">6. Review and apply</a><a href="#retry">7. When a run fails</a><a href="#refine">8. Refine the codebook</a><a href="#memo">9. Compare and memo</a><a href="#export">10. Export evidence</a>
+  <div class="part">Practice</div><a href="#integrity">11. Integrity and recovery</a><a href="#reference">12. Command map</a><a href="#agents">13. Agent interface</a>
+  <div class="small">Every output on this page was captured from one real run on the bundled Adams-letters corpus.</div>
 </nav>
 <main><article>
   <header>
     <div class="eyebrow">Expected Parrot · An evidence-first tutorial</div>
     <h1>Auditable qualitative coding</h1>
-    <p class="dek">Move from raw interview transcripts to a traceable codebook, exact excerpts, analytic memos, and theory exports—without losing the path from a claim back to its source.</p>
+    <p class="dek">Twenty letters between John and Abigail Adams go from raw text to a traceable codebook, exact excerpts, analytic memos, and an interactive evidence explorer — with the path from every claim back to its source preserved.</p>
     <div class="meta"><span>Tool: <strong><a href="https://github.com/expectedparrot/bewley">Bewley</a></strong></span><span>Method: <strong>thematic and grounded-theory analysis</strong></span><span>License: <strong>MIT</strong></span></div>
-    <p class="callout"><strong>Explore a finished example.</strong> Search and filter coded excerpts from twenty public-domain letters exchanged by John and Abigail Adams in the <a href="adams-report.html">interactive HTML explorer generated by Bewley</a>.</p>
+    <p class="callout"><strong>See the finished product first.</strong> The <a href="adams-report.html">interactive HTML explorer</a> on this site was generated by the exact run this tutorial walks through; the corpus ships with the repository at <code>examples/adams-letters/</code>, so the whole page is reproducible.</p>
   </header>
 
   <section id="orientation">
-    <h2><span class="chapter">01</span> Orientation</h2>
-    <p>Bewley is a local-first command-line workspace for coding interviews, field notes, open-ended responses, and other UTF-8 text. It is designed for analyses where interpretation matters, but so do provenance and recovery.</p>
+    <h2><span class="chapter">01</span> The corpus and the question</h2>
+    <p>The worked example is twenty letters exchanged by John and Abigail Adams between April 1775 and July 1776, selected from the public-domain <em>Familiar Letters</em> edition (Project Gutenberg ebook 34123) and bundled with the repository. The research question the codebook must serve:</p>
+    <p class="callout">How did John and Abigail Adams negotiate public duty, household responsibility, political voice, danger, and emotional intimacy during the American Revolution?</p>
+    <p>Bewley's role is to make the answer <em>accountable</em>: every theme is a code with a written definition, every claim is an annotation anchored to exact bytes of a specific document revision, and every change to either is an append-only event you can audit later.</p>
     <div class="grid">
       <div class="card"><h3>Evidence stays exact</h3><p>Annotations point to a whole document, an inclusive line range, or an exact byte span.</p></div>
       <div class="card"><h3>History is append-only</h3><p>Edits and undo operations become events. Earlier analytic decisions remain inspectable.</p></div>
-      <div class="card"><h3>Codes can evolve</h3><p>Rename, merge, split, nest, and link codes as distinctions sharpen.</p></div>
-      <div class="card"><h3>Outputs stay portable</h3><p>Export quotes, snippets, theory structures, narratives, or standalone HTML.</p></div>
+      <div class="card"><h3>Codes can evolve</h3><p>Rename, merge, split, nest, and link codes as distinctions sharpen — merges absorb their sources without losing provenance.</p></div>
+      <div class="card"><h3>Model work stays external</h3><p>Bewley packages open-coding jobs as EDSL objects; the paid <code>ep run</code> step is yours to authorize.</p></div>
     </div>
-    <figure><div class="flow"><div class="step">Import documents</div><div class="step">Create codes</div><div class="step">Annotate spans</div><div class="step">Compare + memo</div><div class="step">Export evidence</div></div><figcaption>The workflow is iterative: findings from comparison often send you back to revise codes and recode evidence.</figcaption></figure>
+    <p class="callout"><strong>What will differ in your run.</strong> Every output on this page is a real captured envelope from one run. IDs are generated per project, and one step — the external model call — is replaced here by a deterministic fixture so the page is reproducible without paid inference; that substitution is labeled where it happens in <a href="#opencoding">chapter 5</a>. In a real run, only the model's answer content differs.</p>
   </section>
 
   <section id="model">
@@ -62,185 +65,1246 @@
       <tr><td>Memo</td><td>An analytic note</td><td>Records comparisons, hypotheses, and exceptions.</td></tr>
       <tr><td>Event</td><td>An append-only state change</td><td>Provides history, audit, and non-destructive undo.</td></tr>
     </tbody></table>
-    <div class="callout"><strong>Source of truth.</strong> Events and immutable objects live under <code>.bewley/</code>. The SQLite index is derived state and can be rebuilt.</div>
+    <div class="callout"><strong>Source of truth.</strong> Events and immutable objects live under <code>.bewley/</code>. The SQLite index is derived state and can be rebuilt with <code>bewley rebuild-index</code>.</div>
   </section>
 
   <section id="install">
     <h2><span class="chapter">03</span> Installation</h2>
-    <pre><code>pip install "git+https://github.com/expectedparrot/bewley.git"
-bewley --help
-bewley docs list</code></pre>
-    <p>For local development, clone the repository and install it in editable mode:</p>
-    <pre><code>git clone https://github.com/expectedparrot/bewley.git
-cd bewley
-pip install -e .
-pytest -q</code></pre>
+    <p>Install Bewley and EDSL's <code>ep</code> executable into one isolated tool environment:</p>
+    <pre class="command"><code>python -m pip install --user --upgrade uv
+uv tool install --python 3.11 --upgrade --force \
+  --with-executables-from &quot;edsl @ git+https://github.com/expectedparrot/edsl.git@main&quot; \
+  &quot;bewley @ git+https://github.com/expectedparrot/bewley.git@main&quot;</code></pre>
+    <p>Verify the build and its contract versions:</p>
+    <pre class="command"><code>bewley version</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley version&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;version&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;version&quot;: &quot;0.3.0&quot;,
+    &quot;package_path&quot;: &quot;/Users/johnhorton/tools/ep/bewley/src/bewley&quot;,
+    &quot;envelope_schema_version&quot;: &quot;2.0&quot;,
+    &quot;agent_schema_version&quot;: &quot;1.0&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>For local development, clone the repository, <code>pip install -e .</code>, and run <code>PYTHONPATH=src python -m pytest tests/</code>.</p>
     <div class="callout warn"><strong>Working-directory rule.</strong> Bewley has no <code>--cwd</code> option. Run every project command from the directory containing <code>.bewley/</code>.</div>
   </section>
 
   <section id="project">
-    <h2><span class="chapter">04</span> Start a project</h2>
-    <p>Keep a small pilot corpus inside the project so paths remain stable and the first codebook can be reviewed before scaling.</p>
-    <pre><code>mkdir customer-interviews
-cd customer-interviews
-mkdir corpus
-cp /path/to/interviews/*.txt corpus/
-
-bewley init
-bewley add corpus/interview-01.txt
-bewley add corpus/interview-02.txt
-bewley list documents
-bewley status</code></pre>
-    <p>Read the pilot set before formal coding. Note recurring language, surprising cases, the unit of analysis, and the research question the codes must help answer.</p>
-    <h3>Optional agent-run open coding</h3>
-    <p>Bewley packages current document revisions as EDSL Jobs; the <code>ep</code> CLI executes them, and Bewley audits the Results before producing candidates for review.</p>
-    <h4>Configure EDSL once per workspace</h4>
-    <p>Use the EDSL CLI to authenticate and check connectivity. Login stores the Expected Parrot key for the working directory; keep the resulting <code>.env</code> private and out of version control.</p>
-    <pre><code>ep auth login
-ep auth status
-ep check
-
-# Optional: inspect or manage named environments
-ep profiles list
-ep profiles current
-ep profiles --help</code></pre>
-    <p>See EDSL’s <a href="https://docs.expectedparrot.com/en/latest/api_keys">Managing Keys</a> guide for Expected Parrot and model-provider keys.</p>
-    <pre><code>bewley open-coding jobs --output jobs.ep --pilot 5
-ep run jobs.ep --model &lt;model-name&gt; --output results.ep
-bewley open-coding ingest results.ep --jobs jobs.ep</code></pre>
-    <div class="callout"><strong>Review remains explicit.</strong> Ingestion writes <code>qualitative-analysis/candidate_codes.csv</code>; it does not create codes or annotations.</div>
+    <h2><span class="chapter">04</span> Start the project</h2>
+    <p>Copy the corpus into the project so paths stay stable, then initialize and import. Reproducing this run exactly:</p>
+    <pre class="command"><code>mkdir adams-letters &amp;&amp; cd adams-letters
+cp -r &lt;bewley-repo&gt;/examples/adams-letters/corpus corpus</code></pre>
+    <pre class="command"><code>bewley init</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley init&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;init&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;status&quot;: &quot;initialized&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;add-document&quot;,
+      &quot;purpose&quot;: &quot;Add the first source document.&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;add&quot;,
+        &quot;corpus/&lt;filename&gt;&quot;
+      ],
+      &quot;mutates_state&quot;: true,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
+    <pre class="command"><code>bewley add corpus/1775-april-30-john-adams.txt</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley add&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;add&quot;,
+    &quot;corpus/1775-april-30-john-adams.txt&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;document_id&quot;: &quot;031dd4bb979a47d89758db25ab52c576&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>Add the remaining nineteen letters the same way (an agent loops; a person tabs). Then confirm what the project tracks:</p>
+    <pre class="command"><code>bewley list documents</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley list documents&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;list&quot;,
+    &quot;documents&quot;
+  ],
+  &quot;data&quot;: [
+    {
+      &quot;document_id&quot;: &quot;031dd4bb979a47d89758db25ab52c576&quot;,
+      &quot;current_path&quot;: &quot;corpus/1775-april-30-john-adams.txt&quot;,
+      &quot;revision_count&quot;: 1
+    },
+    {
+      &quot;document_id&quot;: &quot;2ba8c206145e433581ffd90a42d42487&quot;,
+      &quot;current_path&quot;: &quot;corpus/1775-august-10-abigail-adams.txt&quot;,
+      &quot;revision_count&quot;: 1
+    },
+    {
+      &quot;document_id&quot;: &quot;286b19647ddb41e7931b3927a0f59cdd&quot;,
+      &quot;current_path&quot;: &quot;corpus/1775-december-03-john-adams.txt&quot;,
+      &quot;revision_count&quot;: 1
+    }
+  … 17 further entries elided …
+  ],
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <pre class="command"><code>bewley status</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley status&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;status&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;documents&quot;: 20,
+    &quot;revisions&quot;: 20,
+    &quot;codes&quot;: 0,
+    &quot;active_annotations&quot;: 0,
+    &quot;conflicted_annotations&quot;: 0
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p><code>bewley next</code> reads the state on disk — not conversational memory — and recommends the single next action. With documents but no codes, it points at open coding:</p>
+    <pre class="command"><code>bewley next</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley next&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;next&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;schema_version&quot;: &quot;1.0&quot;,
+    &quot;ready&quot;: true,
+    &quot;stage&quot;: &quot;open_coding&quot;,
+    &quot;phase&quot;: &quot;open_coding&quot;,
+    &quot;project_exists&quot;: true,
+    &quot;counts&quot;: {
+      &quot;documents&quot;: 20,
+      &quot;codes&quot;: 0,
+      &quot;active_annotations&quot;: 0
+    },
+    &quot;checklist&quot;: [
+      &quot;Read all documents and write qualitative-analysis/corpus_summary.md.&quot;,
+      &quot;Run `bewley open-coding jobs --output jobs.ep --model &lt;model-name&gt;` to package the corpus.&quot;,
+      &quot;Run `ep run jobs.ep --model_list models.ep --output results.ep` (external; requires approval).&quot;,
+      &quot;Run `bewley open-coding ingest results.ep --jobs jobs.ep`.&quot;,
+      &quot;Review candidate_codes.csv, then `bewley code create &lt;name&gt;` for each keeper.&quot;
+    ],
+    &quot;primary_doc&quot;: &quot;workflow&quot;,
+    &quot;blockers&quot;: []
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;open-coding-jobs&quot;,
+      &quot;purpose&quot;: &quot;Package EDSL open-coding jobs&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;open-coding&quot;,
+        &quot;jobs&quot;,
+        &quot;--output&quot;,
+        &quot;jobs.ep&quot;
+      ],
+      &quot;mutates_state&quot;: false,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
   </section>
 
-  <section id="code">
-    <h2><span class="chapter">05</span> Code exact evidence</h2>
-    <p>Create a compact starter codebook, with descriptions that distinguish neighboring concepts. Then attach each code at the narrowest useful scope.</p>
-    <pre><code>bewley code create onboarding_friction \
-  --description "Difficulty reaching an initial successful outcome"
+  <section id="opencoding">
+    <h2><span class="chapter">05</span> Model-assisted open coding</h2>
+    <p>Open coding proposes candidate codes with verbatim supporting quotes from each document. Bewley packages the current document revisions and the coding prompt as a portable EDSL <code>Jobs</code> object, and — because a model must be named and given an adequate completion budget for the run command to be executable as written — <code>--model</code> also writes a <code>models.ep</code> ModelList:</p>
+    <pre class="command"><code>bewley open-coding jobs --output jobs.ep --model gpt-4.1-mini</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley open-coding jobs&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;jobs&quot;,
+    &quot;--output&quot;,
+    &quot;jobs.ep&quot;,
+    &quot;--model&quot;,
+    &quot;gpt-4.1-mini&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;object_type&quot;: &quot;Jobs&quot;,
+    &quot;output&quot;: &quot;jobs.ep&quot;,
+    &quot;question&quot;: &quot;open_coding&quot;,
+    &quot;scenario_count&quot;: 20,
+    &quot;expected_model_calls&quot;: 20,
+    &quot;pilot&quot;: false,
+    &quot;from_failures&quot;: null,
+    &quot;failed_documents&quot;: null,
+    &quot;saved&quot;: {
+      &quot;status&quot;: &quot;ok&quot;,
+      &quot;path&quot;: &quot;jobs.ep&quot;,
+      &quot;commit&quot;: &quot;bdc54ce82c2f6ca6438610ab8315c9ad4bfe99b9&quot;,
+      &quot;branch&quot;: &quot;main&quot;,
+      &quot;message&quot;: &quot;Save Jobs&quot;
+    },
+    &quot;expected_results&quot;: &quot;results.ep&quot;,
+    &quot;models&quot;: {
+      &quot;output&quot;: &quot;models.ep&quot;,
+      &quot;model&quot;: &quot;gpt-4.1-mini&quot;,
+      &quot;max_tokens&quot;: 4000
+    },
+    &quot;inference&quot;: &quot;external&quot;,
+    &quot;answer_contract&quot;: {
+      &quot;type&quot;: &quot;json_array&quot;,
+      &quot;item_required_keys&quot;: [
+        &quot;code&quot;,
+        &quot;description&quot;,
+        &quot;quote&quot;
+      ],
+      &quot;quote_policy&quot;: &quot;exact_verbatim&quot;
+    }
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;run-open-coding-jobs&quot;,
+      &quot;purpose&quot;: &quot;Run the packaged jobs with the external ep CLI&quot;,
+      &quot;command&quot;: [
+        &quot;ep&quot;,
+        &quot;run&quot;,
+        &quot;jobs.ep&quot;,
+        &quot;--model_list&quot;,
+        &quot;models.ep&quot;,
+        &quot;--output&quot;,
+        &quot;results.ep&quot;
+      ],
+      &quot;mutates_state&quot;: true,
+      &quot;requires_network&quot;: true,
+      &quot;requires_user_approval&quot;: true
+    }
+  ]
+}</code></pre></details>
+    <p>Note the envelope's shape: twenty scenarios, one expected model call each, <code>inference: external</code>, and a <code>next_steps</code> action that is runnable verbatim and flagged as requiring network access and your approval. Bewley never executes the packaged work itself.</p>
+    <pre class="command"><code>ep auth login    # once per workspace; then ep check before paid runs</code></pre>
+    <pre class="command"><code>ep run jobs.ep --model_list models.ep --output results.ep</code></pre>
+    <div class="callout"><strong>Fixture substitution happens here.</strong> To keep this page reproducible without paid inference, <code>results.ep</code> in this run is a deterministic fixture Results object (built with the same EDSL API the tests use) containing plausible answers for all twenty scenarios. Everything before and after this point is the real machinery; in a real run only the answers' content differs.</div>
+    <p>Ingestion audits the Results against the originating Jobs — scenarios × models, with the Jobs as the denominator so a scenario that never returned cannot hide — resolves every quoted passage to exact bytes, and writes a review CSV. It does <em>not</em> create codes or annotations:</p>
+    <pre class="command"><code>bewley open-coding ingest results.ep --jobs jobs.ep</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley open-coding ingest&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;ingest&quot;,
+    &quot;results.ep&quot;,
+    &quot;--jobs&quot;,
+    &quot;jobs.ep&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;object_type&quot;: &quot;CandidateCodes&quot;,
+    &quot;output&quot;: &quot;qualitative-analysis/candidate_codes.csv&quot;,
+    &quot;results&quot;: [
+      &quot;results.ep&quot;
+    ],
+    &quot;result_count&quot;: 20,
+    &quot;candidate_count&quot;: 24,
+    &quot;scenario_count&quot;: 20,
+    &quot;models&quot;: [
+      &quot;gpt-4.1-mini&quot;
+    ],
+    &quot;retained_by_source&quot;: {
+      &quot;results.ep&quot;: 20
+    },
+    &quot;expected_scenarios&quot;: 20,
+    &quot;expected_answers&quot;: 20,
+    &quot;missing_answers&quot;: 0,
+    &quot;duplicate_scenarios&quot;: 0,
+    &quot;superseded_answers&quot;: 0,
+    &quot;failed_scenarios&quot;: 0,
+    &quot;stale_scenarios&quot;: 0,
+    &quot;unresolved_quotes&quot;: 0,
+    &quot;unresolved_details&quot;: [],
+    &quot;partial&quot;: false
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>Twenty results yielded 24 candidates, every quotation resolved exactly, and nothing was missing or duplicated. Had any quote failed to resolve, it would be itemized in <code>unresolved_details</code>, never silently dropped.</p>
+  </section>
 
-# Lines are 1-based and inclusive.
-bewley annotate apply onboarding_friction corpus/interview-01.txt \
-  --lines 18:24
+  <section id="review">
+    <h2><span class="chapter">06</span> Review, then apply</h2>
+    <p>The CSV is the human checkpoint. In this run the review kept 14 of the 24 candidates — the seven analytic codes serving the research question — and deleted rows proposing topic labels without analytic weight (<code>daily_minutiae</code>, <code>travel_logistics</code>, <code>weather_report</code>). Review means editing the CSV: delete rejected rows, keep the rest.</p>
+    <p><code>apply</code> turns the surviving rows into real codes and exact-span annotations. Preview first:</p>
+    <pre class="command"><code>bewley open-coding apply --dry-run</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley open-coding apply&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;apply&quot;,
+    &quot;--dry-run&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;input&quot;: &quot;qualitative-analysis/candidate_codes.csv&quot;,
+    &quot;rows&quot;: 14,
+    &quot;dry_run&quot;: true,
+    &quot;codes_to_create&quot;: [
+      &quot;health_and_scarcity&quot;,
+      &quot;household_responsibility&quot;,
+      &quot;information_and_delay&quot;,
+      &quot;political_voice&quot;,
+      &quot;public_duty&quot;,
+      &quot;separation_and_affection&quot;,
+      &quot;war_and_danger&quot;
+    ],
+    &quot;annotations_planned&quot;: 14,
+    &quot;annotations_applied&quot;: 0,
+    &quot;skipped&quot;: 0,
+    &quot;skipped_details&quot;: []
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;apply-for-real&quot;,
+      &quot;purpose&quot;: &quot;Apply the reviewed plan&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;open-coding&quot;,
+        &quot;apply&quot;,
+        &quot;--input&quot;,
+        &quot;qualitative-analysis/candidate_codes.csv&quot;
+      ],
+      &quot;mutates_state&quot;: true,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
+    <pre class="command"><code>bewley open-coding apply</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley open-coding apply&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;apply&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;input&quot;: &quot;qualitative-analysis/candidate_codes.csv&quot;,
+    &quot;rows&quot;: 14,
+    &quot;dry_run&quot;: false,
+    &quot;codes_to_create&quot;: [
+      &quot;political_voice&quot;,
+      &quot;war_and_danger&quot;,
+      &quot;health_and_scarcity&quot;,
+      &quot;information_and_delay&quot;,
+      &quot;separation_and_affection&quot;,
+      &quot;public_duty&quot;,
+      &quot;household_responsibility&quot;
+    ],
+    &quot;annotations_planned&quot;: 14,
+    &quot;annotations_applied&quot;: 14,
+    &quot;skipped&quot;: 0,
+    &quot;skipped_details&quot;: []
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;review-applied-coding&quot;,
+      &quot;purpose&quot;: &quot;Inspect the applied codes and evidence&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;show&quot;,
+        &quot;snippets&quot;,
+        &quot;--code&quot;,
+        &quot;&lt;code-name&gt;&quot;
+      ],
+      &quot;mutates_state&quot;: false,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
+    <p>Only rows whose quotation resolved to exactly one location are applied; anything skipped is itemized with a reason — an unresolved quote, a stale revision, an already-applied row — never guessed. Re-running is idempotent. The evidence is now queryable:</p>
+    <pre class="command"><code>bewley show snippets --code political_voice</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley show snippets&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;show&quot;,
+    &quot;snippets&quot;,
+    &quot;--code&quot;,
+    &quot;political_voice&quot;
+  ],
+  &quot;data&quot;: [
+    {
+      &quot;annotation_id&quot;: &quot;5a4134173aed4c07ab764835f3a18412&quot;,
+      &quot;code_name&quot;: &quot;political_voice&quot;,
+      &quot;document_path&quot;: &quot;corpus/1775-december-10-abigail-adams.txt&quot;,
+      &quot;start_line&quot;: 19,
+      &quot;end_line&quot;: 19,
+      &quot;anchor_status&quot;: &quot;clean&quot;,
+      &quot;text&quot;: &quot;But I cannot conclude without telling you we are all very angry with your House of Assembly for their instructions.&quot;
+    },
+    {
+      &quot;annotation_id&quot;: &quot;37d15b30bfdd4a5282e2b9ba7364560e&quot;,
+      &quot;code_name&quot;: &quot;political_voice&quot;,
+      &quot;document_path&quot;: &quot;corpus/1776-april-14-john-adams.txt&quot;,
+      &quot;start_line&quot;: 13,
+      &quot;end_line&quot;: 13,
+      &quot;anchor_status&quot;: &quot;clean&quot;,
+      &quot;text&quot;: &quot;As to your extraordinary code of laws, I cannot but laugh.&quot;
+    }
+  … 1 further entries elided …
+  ],
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>The first snippet is Abigail's <em>remember the ladies</em> passage, anchored to its exact bytes in the 31 March 1776 letter.</p>
+  </section>
 
-# Bytes are 0-based with an exclusive end.
-bewley annotate apply onboarding_friction corpus/interview-02.txt \
-  --bytes 412:603
-
-bewley show snippets --code onboarding_friction</code></pre>
-    <div class="callout"><strong>Annotation scope is mandatory.</strong> Every annotation needs exactly one of <code>--document</code>, <code>--lines S:E</code>, or <code>--bytes S:E</code>. Prefer spans for claims that will later need direct quotations.</div>
+  <section id="retry">
+    <h2><span class="chapter">07</span> When a run fails</h2>
+    <p>Model runs fail: answers truncate, calls error, scenarios go missing. Bewley fails closed — and recovers with retry-only spend rather than a full re-run. To show the mechanics, this run packages a two-document pilot and hands it a Results file in which one answer is truncated prose:</p>
+    <pre class="command"><code>bewley open-coding jobs --output pilot.jobs.ep --pilot 2 --model gpt-4.1-mini --force</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley open-coding jobs&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;jobs&quot;,
+    &quot;--output&quot;,
+    &quot;pilot.jobs.ep&quot;,
+    &quot;--pilot&quot;,
+    &quot;2&quot;,
+    &quot;--model&quot;,
+    &quot;gpt-4.1-mini&quot;,
+    &quot;--force&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;object_type&quot;: &quot;Jobs&quot;,
+    &quot;output&quot;: &quot;pilot.jobs.ep&quot;,
+    &quot;question&quot;: &quot;open_coding&quot;,
+    &quot;scenario_count&quot;: 2,
+    &quot;expected_model_calls&quot;: 2,
+    &quot;pilot&quot;: true,
+    &quot;from_failures&quot;: null,
+    &quot;failed_documents&quot;: null,
+    &quot;saved&quot;: {
+      &quot;status&quot;: &quot;ok&quot;,
+      &quot;path&quot;: &quot;pilot.jobs.ep&quot;,
+      &quot;commit&quot;: &quot;033fbe7b407e4f18adbe0229d40364c93ac9e72b&quot;,
+      &quot;branch&quot;: &quot;main&quot;,
+      &quot;message&quot;: &quot;Save Jobs&quot;
+    },
+    &quot;expected_results&quot;: &quot;results.ep&quot;,
+    &quot;models&quot;: {
+      &quot;output&quot;: &quot;models.ep&quot;,
+      &quot;model&quot;: &quot;gpt-4.1-mini&quot;,
+      &quot;max_tokens&quot;: 4000
+    },
+    &quot;inference&quot;: &quot;external&quot;,
+    &quot;answer_contract&quot;: {
+      &quot;type&quot;: &quot;json_array&quot;,
+      &quot;item_required_keys&quot;: [
+        &quot;code&quot;,
+        &quot;description&quot;,
+        &quot;quote&quot;
+      ],
+      &quot;quote_policy&quot;: &quot;exact_verbatim&quot;
+    }
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;run-open-coding-jobs&quot;,
+      &quot;purpose&quot;: &quot;Run the packaged jobs with the external ep CLI&quot;,
+      &quot;command&quot;: [
+        &quot;ep&quot;,
+        &quot;run&quot;,
+        &quot;pilot.jobs.ep&quot;,
+        &quot;--model_list&quot;,
+        &quot;models.ep&quot;,
+        &quot;--output&quot;,
+        &quot;results.ep&quot;
+      ],
+      &quot;mutates_state&quot;: true,
+      &quot;requires_network&quot;: true,
+      &quot;requires_user_approval&quot;: true
+    }
+  ]
+}</code></pre></details>
+    <pre class="command"><code>bewley open-coding ingest run1.results.ep --jobs pilot.jobs.ep --output retry-demo.csv</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;error&quot;,
+  &quot;command&quot;: &quot;bewley open-coding ingest&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;ingest&quot;,
+    &quot;run1.results.ep&quot;,
+    &quot;--jobs&quot;,
+    &quot;pilot.jobs.ep&quot;,
+    &quot;--output&quot;,
+    &quot;retry-demo.csv&quot;
+  ],
+  &quot;data&quot;: {},
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [
+    {
+      &quot;code&quot;: &quot;INCOMPLETE_RESULTS&quot;,
+      &quot;message&quot;: &quot;Results failed validation; no candidate CSV was written.&quot;,
+      &quot;context&quot;: {
+        &quot;failures&quot;: [
+          {
+            &quot;document_id&quot;: &quot;2ba8c206145e433581ffd90a42d42487&quot;,
+            &quot;model&quot;: &quot;gpt-4.1-mini&quot;,
+            &quot;error&quot;: &quot;answer does not contain a JSON array&quot;
+          }
+        ],
+        &quot;missing_answers&quot;: 0,
+        &quot;duplicate_answers&quot;: 0
+      },
+      &quot;hint&quot;: &quot;Rebuild a retry package with `bewley open-coding jobs --from-failures run1.results.ep` and pass both results files to ingest, or use --allow-partial.&quot;
+    }
+  ],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>No CSV was written; the error names the failing document and suggests the recovery. <code>--from-failures</code> repackages only the scenarios lacking a valid answer, using the originating Jobs as the denominator:</p>
+    <pre class="command"><code>bewley open-coding jobs --from-failures run1.results.ep --jobs pilot.jobs.ep --output retry.jobs.ep --model gpt-4.1-mini --force</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley open-coding jobs&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;jobs&quot;,
+    &quot;--from-failures&quot;,
+    &quot;run1.results.ep&quot;,
+    &quot;--jobs&quot;,
+    &quot;pilot.jobs.ep&quot;,
+    &quot;--output&quot;,
+    &quot;retry.jobs.ep&quot;,
+    &quot;--model&quot;,
+    &quot;gpt-4.1-mini&quot;,
+    &quot;--force&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;object_type&quot;: &quot;Jobs&quot;,
+    &quot;output&quot;: &quot;retry.jobs.ep&quot;,
+    &quot;question&quot;: &quot;open_coding&quot;,
+    &quot;scenario_count&quot;: 1,
+    &quot;expected_model_calls&quot;: 1,
+    &quot;pilot&quot;: false,
+    &quot;from_failures&quot;: &quot;run1.results.ep&quot;,
+    &quot;failed_documents&quot;: 1,
+    &quot;saved&quot;: {
+      &quot;status&quot;: &quot;ok&quot;,
+      &quot;path&quot;: &quot;retry.jobs.ep&quot;,
+      &quot;commit&quot;: &quot;e008503dee68078b6f3af68f46d6c59ce57b3144&quot;,
+      &quot;branch&quot;: &quot;main&quot;,
+      &quot;message&quot;: &quot;Save Jobs&quot;
+    },
+    &quot;expected_results&quot;: &quot;results.ep&quot;,
+    &quot;models&quot;: {
+      &quot;output&quot;: &quot;models.ep&quot;,
+      &quot;model&quot;: &quot;gpt-4.1-mini&quot;,
+      &quot;max_tokens&quot;: 4000
+    },
+    &quot;inference&quot;: &quot;external&quot;,
+    &quot;answer_contract&quot;: {
+      &quot;type&quot;: &quot;json_array&quot;,
+      &quot;item_required_keys&quot;: [
+        &quot;code&quot;,
+        &quot;description&quot;,
+        &quot;quote&quot;
+      ],
+      &quot;quote_policy&quot;: &quot;exact_verbatim&quot;
+    }
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;run-open-coding-jobs&quot;,
+      &quot;purpose&quot;: &quot;Run the packaged jobs with the external ep CLI&quot;,
+      &quot;command&quot;: [
+        &quot;ep&quot;,
+        &quot;run&quot;,
+        &quot;retry.jobs.ep&quot;,
+        &quot;--model_list&quot;,
+        &quot;models.ep&quot;,
+        &quot;--output&quot;,
+        &quot;results.ep&quot;
+      ],
+      &quot;mutates_state&quot;: true,
+      &quot;requires_network&quot;: true,
+      &quot;requires_user_approval&quot;: true
+    }
+  ]
+}</code></pre></details>
+    <p>After the retry runs externally, pass <em>both</em> Results files to ingest. Rows merge by stable (scenario, model) identity — first valid answer wins — and every retained candidate is attributed to the file that supplied it:</p>
+    <pre class="command"><code>bewley open-coding ingest run1.results.ep run2.results.ep --jobs pilot.jobs.ep --output retry-demo.csv</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley open-coding ingest&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;open-coding&quot;,
+    &quot;ingest&quot;,
+    &quot;run1.results.ep&quot;,
+    &quot;run2.results.ep&quot;,
+    &quot;--jobs&quot;,
+    &quot;pilot.jobs.ep&quot;,
+    &quot;--output&quot;,
+    &quot;retry-demo.csv&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;object_type&quot;: &quot;CandidateCodes&quot;,
+    &quot;output&quot;: &quot;retry-demo.csv&quot;,
+    &quot;results&quot;: [
+      &quot;run1.results.ep&quot;,
+      &quot;run2.results.ep&quot;
+    ],
+    &quot;result_count&quot;: 3,
+    &quot;candidate_count&quot;: 2,
+    &quot;scenario_count&quot;: 2,
+    &quot;models&quot;: [
+      &quot;gpt-4.1-mini&quot;
+    ],
+    &quot;retained_by_source&quot;: {
+      &quot;run1.results.ep&quot;: 1,
+      &quot;run2.results.ep&quot;: 1
+    },
+    &quot;expected_scenarios&quot;: 2,
+    &quot;expected_answers&quot;: 2,
+    &quot;missing_answers&quot;: 0,
+    &quot;duplicate_scenarios&quot;: 0,
+    &quot;superseded_answers&quot;: 0,
+    &quot;failed_scenarios&quot;: 0,
+    &quot;stale_scenarios&quot;: 0,
+    &quot;unresolved_quotes&quot;: 0,
+    &quot;unresolved_details&quot;: [],
+    &quot;partial&quot;: false
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p><code>retained_by_source</code> shows one candidate from each file: the retry is separately attributable and never masquerades as a clean first run.</p>
   </section>
 
   <section id="refine">
-    <h2><span class="chapter">06</span> Refine the codebook</h2>
-    <p>Qualitative coding is not a one-pass labeling exercise. Review excerpts together and revise categories when a distinction repeatedly matters.</p>
-    <pre><code>bewley code rename setup_problems onboarding_friction \
-  --description "Difficulty reaching an initial successful outcome"
-
-bewley code create unclear_guidance
-bewley code set-parent unclear_guidance onboarding_friction
-
-bewley code link onboarding_friction early_churn causes \
-  --memo "Repeated in four interviews"
-
-bewley code list --tree
-bewley code links onboarding_friction</code></pre>
-    <p>Use merge for synonyms, split for a code that hides meaningful variation, hierarchy for “is a kind of,” and links for analytic relationships such as causes, enables, or contradicts.</p>
+    <h2><span class="chapter">08</span> Refine the codebook</h2>
+    <p>Coding is iterative. Reading the delay excerpts suggests a near-synonym worth testing — <code>waiting_for_news</code> — applied by hand to the line where Abigail begs for letters (lines are 1-based and inclusive; byte spans are also accepted):</p>
+    <pre class="command"><code>bewley code create waiting_for_news \
+  --description &quot;Waiting anxiously for letters that do not come&quot;
+bewley annotate apply waiting_for_news corpus/1775-may-04-abigail-adams.txt \
+  --lines 9:9</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley annotate apply&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;annotate&quot;,
+    &quot;apply&quot;,
+    &quot;waiting_for_news&quot;,
+    &quot;corpus/1775-may-04-abigail-adams.txt&quot;,
+    &quot;--lines&quot;,
+    &quot;9:9&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;annotation_id&quot;: &quot;188d5f6b601748a199de03dcc92c3b96&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>Comparison shows the distinction never earns its keep: waiting <em>is</em> the delay theme. Merge it away — the target absorbs the source's evidence, while the absorbed annotation keeps its original code for provenance:</p>
+    <pre class="command"><code>bewley code merge waiting_for_news --into information_and_delay</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley code merge&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;code&quot;,
+    &quot;merge&quot;,
+    &quot;waiting_for_news&quot;,
+    &quot;--into&quot;,
+    &quot;information_and_delay&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;event_id&quot;: &quot;f24a884cfb6a4311a8d8d6a9bb81ae62&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <pre class="command"><code>bewley code show information_and_delay</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley code show&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;code&quot;,
+    &quot;show&quot;,
+    &quot;information_and_delay&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;code_id&quot;: &quot;afb71fbe691d48d88e1929d26c4ff309&quot;,
+    &quot;name&quot;: &quot;information_and_delay&quot;,
+    &quot;status&quot;: &quot;active&quot;,
+    &quot;active_annotations&quot;: 3,
+    &quot;aliases&quot;: [],
+    &quot;absorbs&quot;: [
+      &quot;waiting_for_news&quot;
+    ]
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>The count includes the absorbed annotation and <code>absorbs</code> names the merged source. Hierarchy and typed links express the emerging structure, and the core category anchors selective coding:</p>
+    <pre class="command"><code>bewley code create home_front --description &quot;The war as lived at home&quot;
+bewley code set-parent household_responsibility home_front
+bewley code set-parent health_and_scarcity home_front
+bewley code link separation_and_affection information_and_delay intensified_by \
+  --memo &quot;Delayed letters repeatedly sharpen the pain of separation.&quot;
+bewley code set-core separation_and_affection</code></pre>
+    <pre class="command"><code>bewley code list --tree</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley code list&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;code&quot;,
+    &quot;list&quot;,
+    &quot;--tree&quot;
+  ],
+  &quot;data&quot;: [
+    {
+      &quot;canonical_name&quot;: &quot;home_front&quot;,
+      &quot;code_id&quot;: &quot;366b240fa82d4d17a06e63bc89c56452&quot;,
+      &quot;children&quot;: [
+        {
+          &quot;canonical_name&quot;: &quot;health_and_scarcity&quot;,
+          &quot;code_id&quot;: &quot;71e09393198a4a05b4d5620914024539&quot;
+        },
+        {
+          &quot;canonical_name&quot;: &quot;household_responsibility&quot;,
+          &quot;code_id&quot;: &quot;34b397b0d69d46168f524751796fff03&quot;
+        }
+      ]
+    },
+    {
+      &quot;canonical_name&quot;: &quot;information_and_delay&quot;,
+      &quot;code_id&quot;: &quot;afb71fbe691d48d88e1929d26c4ff309&quot;
+    },
+    {
+      &quot;canonical_name&quot;: &quot;political_voice&quot;,
+      &quot;code_id&quot;: &quot;d093c6c4e7504aacb3cdffd712e23e34&quot;
+    },
+    {
+      &quot;canonical_name&quot;: &quot;public_duty&quot;,
+      &quot;code_id&quot;: &quot;0f7f8bc79a994492b9a93078de72f6b8&quot;
+    },
+    {
+      &quot;canonical_name&quot;: &quot;separation_and_affection&quot;,
+      &quot;code_id&quot;: &quot;2d75cc02b5c64981994ae63d87c8188a&quot;
+    },
+    {
+      &quot;canonical_name&quot;: &quot;war_and_danger&quot;,
+      &quot;code_id&quot;: &quot;c59e9894ff9d4258b2bda9d35688c208&quot;
+    }
+  ],
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p><code>coverage</code> answers "how much of the corpus does this category actually touch" — with <code>--breakdown</code> so a parent's inclusive rollup cannot hide divergent children:</p>
+    <pre class="command"><code>bewley code coverage home_front --breakdown</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley code coverage&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;code&quot;,
+    &quot;coverage&quot;,
+    &quot;home_front&quot;,
+    &quot;--breakdown&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;code&quot;: &quot;home_front&quot;,
+    &quot;total_respondents&quot;: 20,
+    &quot;direct&quot;: 0,
+    &quot;inclusive&quot;: 3,
+    &quot;descendants&quot;: [
+      &quot;health_and_scarcity&quot;,
+      &quot;household_responsibility&quot;
+    ],
+    &quot;breakdown&quot;: [
+      {
+        &quot;code&quot;: &quot;health_and_scarcity&quot;,
+        &quot;is_target&quot;: false,
+        &quot;respondents&quot;: 2
+      },
+      {
+        &quot;code&quot;: &quot;household_responsibility&quot;,
+        &quot;is_target&quot;: false,
+        &quot;respondents&quot;: 1
+      },
+      {
+        &quot;code&quot;: &quot;home_front&quot;,
+        &quot;is_target&quot;: true,
+        &quot;respondents&quot;: 0
+      }
+    ]
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
   </section>
 
   <section id="memo">
-    <h2><span class="chapter">07</span> Constant comparison and memos</h2>
-    <p>Retrieve coded evidence across the corpus, compare positive and deviant cases, and write down why the comparison changes your interpretation.</p>
-    <pre><code>bewley query 'onboarding_friction &amp; early_churn'
-bewley query 'onboarding_friction &amp; !early_churn'
-
-bewley memo add --code onboarding_friction \
-  "Friction predicts churn mainly when no human recovery occurs."
-
-bewley memo add --document corpus/interview-07.txt \
-  "Deviant case: severe setup friction, but strong support restored trust."</code></pre>
-    <p>Quote boolean expressions because <code>&amp;</code>, <code>|</code>, <code>!</code>, and parentheses also have meaning to a shell.</p>
+    <h2><span class="chapter">09</span> Constant comparison and memos</h2>
+    <p>Boolean queries retrieve evidence across the corpus. Both keyword (<code>AND OR NOT</code>) and symbolic (<code>&amp; | !</code>) operators work; quote the expression so the shell does not interpret them. Document mode asks which letters contain both themes anywhere:</p>
+    <pre class="command"><code>bewley query &quot;public_duty &amp; separation_and_affection&quot;</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley query&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;query&quot;,
+    &quot;public_duty &amp; separation_and_affection&quot;
+  ],
+  &quot;data&quot;: [
+    {
+      &quot;document_id&quot;: &quot;e39ff2c7391941f988d4099b87ba0d07&quot;,
+      &quot;current_path&quot;: &quot;corpus/1775-september-17-john-adams.txt&quot;
+    }
+  ],
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>Annotation mode is stricter: terms must be satisfied by <em>overlapping</em> spans. The 4 May 1775 letter matches because the line-level annotation absorbed from <code>waiting_for_news</code> overlaps the <em>heart of lead</em> sentence — note the absorbed annotation still reports its original code name:</p>
+    <pre class="command"><code>bewley query &quot;information_and_delay &amp; separation_and_affection&quot; --mode annotation</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley query&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;query&quot;,
+    &quot;information_and_delay &amp; separation_and_affection&quot;,
+    &quot;--mode&quot;,
+    &quot;annotation&quot;
+  ],
+  &quot;data&quot;: [
+    {
+      &quot;annotation_id&quot;: &quot;188d5f6b601748a199de03dcc92c3b96&quot;,
+      &quot;canonical_name&quot;: &quot;waiting_for_news&quot;,
+      &quot;current_path&quot;: &quot;corpus/1775-may-04-abigail-adams.txt&quot;,
+      &quot;start_line&quot;: 9,
+      &quot;end_line&quot;: 9,
+      &quot;anchor_status&quot;: &quot;clean&quot;
+    },
+    {
+      &quot;annotation_id&quot;: &quot;acc90f5f7e7449d5b9c3e402b42e6a91&quot;,
+      &quot;canonical_name&quot;: &quot;separation_and_affection&quot;,
+      &quot;current_path&quot;: &quot;corpus/1775-may-04-abigail-adams.txt&quot;,
+      &quot;start_line&quot;: 9,
+      &quot;end_line&quot;: 9,
+      &quot;anchor_status&quot;: &quot;clean&quot;
+    }
+  ],
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>Queries return evidence, not conclusions. The interpretation belongs in a memo:</p>
+    <pre class="command"><code>bewley memo add --code separation_and_affection \
+  &quot;Affection and complaint travel together: nearly every tender passage sits beside a demand for more letters.&quot;</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley memo add&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;memo&quot;,
+    &quot;add&quot;,
+    &quot;--code&quot;,
+    &quot;separation_and_affection&quot;,
+    &quot;Affection and complaint travel together: nearly every tender passage sits beside a demand for more letters.&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;memo_id&quot;: &quot;9a9c31cc6e0e45a48a8e9eaa1d1972c5&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
   </section>
 
   <section id="export">
-    <h2><span class="chapter">08</span> Export evidence and theory</h2>
-    <pre><code>bewley export quotes --all --format jsonl --human &gt; quotes.jsonl
-bewley export html --output coded-corpus.html
-bewley export theory --format json --output theory.json
-bewley export theory --format mermaid --output theory.mmd
-bewley export plots --output-dir plots
-bewley export narrative --output narrative.md</code></pre>
-    <p>See the result of <code>bewley export html</code> in the <a href="adams-report.html">interactive Adams letters explorer</a>.</p>
+    <h2><span class="chapter">10</span> Export evidence and theory</h2>
+    <p>Exports are regenerated views of the ledger. Quote tables carry document, revision, byte range, and exact text, so downstream reports can verify every excerpt:</p>
+    <pre class="command"><code>bewley export quotes --code political_voice --format jsonl</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley export quotes&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;export&quot;,
+    &quot;quotes&quot;,
+    &quot;--code&quot;,
+    &quot;political_voice&quot;,
+    &quot;--format&quot;,
+    &quot;jsonl&quot;
+  ],
+  &quot;data&quot;: [
+    {
+      &quot;code_name&quot;: &quot;political_voice&quot;,
+      &quot;code_id&quot;: &quot;d093c6c4e7504aacb3cdffd712e23e34&quot;,
+      &quot;document_id&quot;: &quot;24a0ae60ae5a41f1943db77b8da972ec&quot;,
+      &quot;document_path&quot;: &quot;corpus/1775-december-10-abigail-adams.txt&quot;,
+      &quot;revision_id&quot;: &quot;175c9c162e57420f9b6858d44fee8d03&quot;,
+      &quot;annotation_id&quot;: &quot;5a4134173aed4c07ab764835f3a18412&quot;,
+      &quot;start_byte&quot;: 5290,
+      &quot;end_byte&quot;: 5405,
+      &quot;start_line&quot;: 19,
+      &quot;end_line&quot;: 19,
+      &quot;exact_text&quot;: &quot;But I cannot conclude without telling you we are all very angry with your House of Assembly for their instructions.&quot;,
+      &quot;anchor_status&quot;: &quot;clean&quot;
+    }
+  … 2 further entries elided …
+  ],
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <pre class="command"><code>bewley export html --output adams-report.html --title &quot;Adams letters — coded corpus&quot;</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley export html&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;export&quot;,
+    &quot;html&quot;,
+    &quot;--output&quot;,
+    &quot;adams-report.html&quot;,
+    &quot;--title&quot;,
+    &quot;Adams letters — coded corpus&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;output_path&quot;: &quot;adams-report.html&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>That command produced the <a href="adams-report.html">explorer linked from the header</a> — search and filter every coded excerpt in this run. Theory structure exports as JSON or a Mermaid diagram, and <code>bewley codegen theory-explorer</code> generates an interactive D3 renderer:</p>
+    <pre class="command"><code>bewley export theory --format mermaid --output theory.mmd</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley export theory&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;export&quot;,
+    &quot;theory&quot;,
+    &quot;--format&quot;,
+    &quot;mermaid&quot;,
+    &quot;--output&quot;,
+    &quot;theory.mmd&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;output_path&quot;: &quot;theory.mmd&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <pre class="command"><code>bewley export plots --output-dir plots</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley export plots&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;export&quot;,
+    &quot;plots&quot;,
+    &quot;--output-dir&quot;,
+    &quot;plots&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;output_dir&quot;: &quot;plots&quot;,
+    &quot;plots&quot;: {
+      &quot;code_prevalence&quot;: &quot;plots/code-prevalence.svg&quot;,
+      &quot;document_density&quot;: &quot;plots/document-density.svg&quot;,
+      &quot;code_cooccurrence&quot;: &quot;plots/code-cooccurrence.svg&quot;
+    },
+    &quot;manifest&quot;: &quot;plots/plots.json&quot;,
+    &quot;code_count&quot;: 8,
+    &quot;document_count&quot;: 20
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
     <h3>Descriptive plots, not findings</h3>
-    <p>Plots help audit the shape of the coding work: which codes dominate, which documents received disproportionate attention, and which codes appear in the same documents. They are diagnostics for returning to the evidence—not statistical tests.</p>
+    <p>Plots audit the shape of the coding work — which codes dominate, which documents received disproportionate attention, which codes co-occur. They are prompts to return to the evidence, not statistical tests. These are the plots from this run:</p>
     <figure>
-      <img src="plots/code-prevalence.svg" alt="Horizontal bars comparing annotation and document counts for seven codes in the Adams letters example.">
-      <figcaption><strong>Code prevalence.</strong> Dark bars count annotations; the thin light bars count distinct documents. A large gap can reveal repeated coding within a small number of sources.</figcaption>
+      <img src="plots/code-prevalence.svg" alt="Horizontal bars comparing annotation and document counts per code in the Adams letters run.">
+      <figcaption><strong>Code prevalence.</strong> Dark bars count annotations; light bars count distinct documents. A large gap flags repeated coding within few sources.</figcaption>
     </figure>
     <figure>
-      <img src="plots/document-density.svg" alt="Horizontal bars showing annotation and distinct-code counts by Adams letter.">
-      <figcaption><strong>Coding density.</strong> Uneven density is a prompt to check sampling, document length, and analyst attention—not evidence that one document is intrinsically more important.</figcaption>
+      <img src="plots/document-density.svg" alt="Horizontal bars showing annotation and distinct-code counts by letter.">
+      <figcaption><strong>Coding density.</strong> Uneven density prompts a check of sampling, document length, and analyst attention.</figcaption>
     </figure>
     <figure>
-      <img src="plots/code-cooccurrence.svg" alt="Matrix showing the number of Adams letters in which each pair of codes appears.">
-      <figcaption><strong>Code co-occurrence.</strong> Cells count documents containing both codes. Co-occurrence suggests comparisons to inspect; it does not establish a relationship or causal mechanism.</figcaption>
+      <img src="plots/code-cooccurrence.svg" alt="Matrix counting the letters in which each pair of codes appears.">
+      <figcaption><strong>Code co-occurrence.</strong> Cells count documents containing both codes — comparisons to inspect, not relationships established.</figcaption>
     </figure>
-    <p>Before reporting a finding, inspect the export and confirm that its excerpts are non-empty, correctly scoped, and representative of the pattern. Treat a generated narrative as an inventory to interpret, not as a substitute for reading the evidence.</p>
+    <p>Before reporting a finding, read the export and confirm its excerpts are non-empty, correctly scoped, and representative. A generated narrative is an inventory to interpret, not a substitute for reading the evidence.</p>
   </section>
 
   <section id="integrity">
-    <h2><span class="chapter">09</span> Integrity and recovery</h2>
-    <pre><code>bewley status
-bewley history
-bewley fsck
-bewley rebuild-index
-
-# Undo by appending a compensating event:
-bewley undo &lt;event_id&gt;</code></pre>
-    <p>Run <code>fsck</code> before handing artifacts downstream. If a source document changes, review any conflicted annotations and resolve them against the new revision rather than silently accepting shifted text.</p>
+    <h2><span class="chapter">11</span> Integrity and recovery</h2>
+    <pre class="command"><code>bewley fsck</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley fsck&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;fsck&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;status&quot;: &quot;ok&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <pre class="command"><code>bewley history</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley history&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;history&quot;
+  ],
+  &quot;data&quot;: [
+    {
+      &quot;sequence_number&quot;: 1,
+      &quot;timestamp&quot;: &quot;2026-07-26T20:20:55Z&quot;,
+      &quot;event_type&quot;: &quot;project_initialized&quot;,
+      &quot;event_id&quot;: &quot;089d2cf62e5c47c4829f9938434196f2&quot;
+    },
+    {
+      &quot;sequence_number&quot;: 2,
+      &quot;timestamp&quot;: &quot;2026-07-26T20:20:56Z&quot;,
+      &quot;event_type&quot;: &quot;document_added&quot;,
+      &quot;event_id&quot;: &quot;74f600cf708645c6984f4bdf31841f16&quot;
+    },
+    {
+      &quot;sequence_number&quot;: 3,
+      &quot;timestamp&quot;: &quot;2026-07-26T20:20:56Z&quot;,
+      &quot;event_type&quot;: &quot;document_added&quot;,
+      &quot;event_id&quot;: &quot;24fc7dd1771848b495968e019bf8acce&quot;
+    },
+    {
+      &quot;sequence_number&quot;: 4,
+      &quot;timestamp&quot;: &quot;2026-07-26T20:20:56Z&quot;,
+      &quot;event_type&quot;: &quot;document_added&quot;,
+      &quot;event_id&quot;: &quot;a6ab6887467b4533b91c321cf24534cf&quot;
+    },
+    {
+      &quot;sequence_number&quot;: 5,
+      &quot;timestamp&quot;: &quot;2026-07-26T20:20:56Z&quot;,
+      &quot;event_type&quot;: &quot;document_added&quot;,
+      &quot;event_id&quot;: &quot;e8b2048ff7c44e02ba1110d5251e90c2&quot;
+    },
+    {
+      &quot;sequence_number&quot;: 6,
+      &quot;timestamp&quot;: &quot;2026-07-26T20:20:56Z&quot;,
+      &quot;event_type&quot;: &quot;document_added&quot;,
+      &quot;event_id&quot;: &quot;3e52b70e27d3401b8762611faf56b3ad&quot;
+    }
+  … 45 further entries elided …
+  ],
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>Undo appends a compensating event (<code>bewley undo &lt;event_id&gt;</code>); nothing is deleted. If the SQLite index is ever damaged, <code>bewley rebuild-index</code> reconstructs it from the event log alone. With annotations in place, <code>next</code> now recommends the analysis phase:</p>
+    <pre class="command"><code>bewley next</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley next&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;next&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;schema_version&quot;: &quot;1.0&quot;,
+    &quot;ready&quot;: true,
+    &quot;stage&quot;: &quot;analysis&quot;,
+    &quot;phase&quot;: &quot;analysis&quot;,
+    &quot;project_exists&quot;: true,
+    &quot;counts&quot;: {
+      &quot;documents&quot;: 20,
+      &quot;codes&quot;: 9,
+      &quot;active_annotations&quot;: 15
+    },
+    &quot;checklist&quot;: [
+      &quot;Continue constant comparison: `bewley show snippets --code &lt;ref&gt;`.&quot;,
+      &quot;Set core category: `bewley code set-core &lt;ref&gt;`.&quot;,
+      &quot;Export: `bewley export theory --format json --output theory.json`.&quot;
+    ],
+    &quot;primary_doc&quot;: &quot;grounded-theory&quot;,
+    &quot;blockers&quot;: []
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;docs-show&quot;,
+      &quot;purpose&quot;: &quot;See grounded theory docs&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;docs&quot;,
+        &quot;show&quot;,
+        &quot;grounded-theory&quot;
+      ],
+      &quot;mutates_state&quot;: false,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
+    <p>Run <code>fsck</code> before handing artifacts downstream. If a source document changes, review conflicted annotations against the new revision rather than silently accepting shifted text.</p>
   </section>
 
   <section id="reference">
-    <h2><span class="chapter">10</span> Command map</h2>
+    <h2><span class="chapter">12</span> Command map</h2>
     <table><thead><tr><th>Need</th><th>Command family</th></tr></thead><tbody>
-      <tr><td>Import or revise sources</td><td><code>add</code>, <code>update</code>, <code>list documents</code></td></tr>
-      <tr><td>Run agent-assisted open coding</td><td><code>open-coding jobs</code>, <code>ep run</code>, <code>open-coding ingest</code></td></tr>
-      <tr><td>Build the codebook</td><td><code>code create|rename|merge|split|set-parent|link</code></td></tr>
+      <tr><td>Discover the workflow</td><td><code>version</code>, <code>guide</code>, <code>next</code>, <code>capabilities</code></td></tr>
+      <tr><td>Import or revise sources</td><td><code>add</code>, <code>add-audio</code>, <code>add-video</code>, <code>update</code>, <code>list documents</code></td></tr>
+      <tr><td>Run model-assisted open coding</td><td><code>open-coding jobs</code>, external <code>ep run</code>, <code>open-coding ingest</code>, <code>open-coding apply</code></td></tr>
+      <tr><td>Recover a failed run</td><td><code>open-coding jobs --from-failures</code>, multi-file <code>open-coding ingest</code></td></tr>
+      <tr><td>Build the codebook</td><td><code>code create|rename|merge|split|set-parent|link|set-core</code></td></tr>
       <tr><td>Attach and inspect evidence</td><td><code>annotate apply|show|remove|resolve</code>, <code>show snippets</code></td></tr>
       <tr><td>Compare cases</td><td><code>query</code>, <code>code coverage</code></td></tr>
       <tr><td>Record interpretation</td><td><code>memo add|list|show|edit</code></td></tr>
-      <tr><td>Publish artifacts</td><td><code>export quotes|html|plots|theory|narrative</code></td></tr>
-      <tr><td>Inspect methodology</td><td><code>docs show getting-started|workflow|commands|grounded-theory</code></td></tr>
+      <tr><td>Publish artifacts</td><td><code>export quotes|html|plots|theory|narrative</code>, <code>codegen theory-explorer</code></td></tr>
+      <tr><td>Verify and recover</td><td><code>fsck</code>, <code>rebuild-index</code>, <code>history</code>, <code>undo</code></td></tr>
     </tbody></table>
+    <p>Exact options and defaults belong to <code>bewley &lt;command&gt; --help</code>; the embedded reference is <code>bewley docs show commands</code>. <code>add-audio</code>/<code>add-video</code> call the OpenAI transcription API directly — external paid calls whose envelopes carry a cost warning.</p>
   </section>
 
   <section id="agents">
-    <h2><span class="chapter">11</span> Agent-facing JSON contract</h2>
+    <h2><span class="chapter">13</span> Agent-facing JSON contract</h2>
     <p>Bewley is designed to be driven by agents. Every command emits exactly one versioned JSON envelope by default. Branch on <code>status</code>; do not infer success from the shape of <code>data</code>.</p>
     <pre><code>{
   "schema_version": "2.0",
   "status": "ok",
   "command": "bewley status",
   "argv": ["bewley", "status"],
-  "data": {"documents": 20, "codes": 7},
+  "data": {"documents": 20, "codes": 8},
   "warnings": [],
   "errors": [],
   "next_steps": []
 }</code></pre>
-    <p>Failures set <code>status</code> to <code>"error"</code>, populate <code>errors</code> with structured objects, and exit nonzero. Suggested actions use argv arrays and declare whether they mutate state, require network access, or require user approval.</p>
-    <pre><code>bewley capabilities
-bewley agent status
-bewley agent schema envelope
-bewley agent schema action</code></pre>
-    <div class="callout"><strong>Human output is opt-in.</strong> Use <code>--human</code> or <code>-H</code> only for terminal presentation. Agents should consume the default envelope.</div>
+    <p>Failures set <code>status</code> to <code>"error"</code>, populate <code>errors</code> with structured objects — ambiguous references list their candidate matches — and exit nonzero. Suggested actions use argv arrays and declare whether they mutate state, require network access, or require user approval.</p>
+    <pre class="command"><code>bewley guide          # the lifecycle and the ep-run execution boundary
+bewley next           # the single highest-priority next action, from artifact state
+bewley capabilities   # the versioned contract and bundled JSON Schemas
+bewley agent schema envelope</code></pre>
+    <div class="callout"><strong>Human output is opt-in.</strong> Use <code>--human</code> or <code>-H</code> only for terminal presentation. Agents should consume the default envelope, and the repository's <code>AGENTS.md</code> is the operating contract.</div>
   </section>
 
   <footer>
-    <p><strong>Bewley</strong> is an open-source Expected Parrot research tool, released under the MIT License. Source and issue tracking are available on <a href="https://github.com/expectedparrot/bewley">GitHub</a>.</p>
+    <p><strong>Bewley</strong> is an open-source Expected Parrot research tool, released under the MIT License. Source and issue tracking are available on <a href="https://github.com/expectedparrot/bewley">GitHub</a>. The Adams letters are public-domain material from Project Gutenberg ebook 34123; see <code>examples/adams-letters/README.md</code> for source and redistribution terms.</p>
   </footer>
 </article></main>
 <script>
   const nav=document.querySelector("nav"),toggle=document.querySelector(".nav-toggle");
   toggle.addEventListener("click",()=>{const open=nav.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open))});
-  document.querySelectorAll("pre").forEach(pre=>{const button=document.createElement("button");button.className="copy";button.type="button";button.textContent="Copy";button.addEventListener("click",async()=>{await navigator.clipboard.writeText(pre.innerText.replace(/^Copy\s*/,""));button.textContent="Copied";setTimeout(()=>button.textContent="Copy",1200)});pre.appendChild(button)});
+  document.querySelectorAll("details.output").forEach(d=>{const s=d.querySelector("summary");d.addEventListener("toggle",()=>{s.textContent=d.open?"Hide command output":"Show command output"})});
+  document.querySelectorAll("pre").forEach(pre=>{if(pre.closest("details"))return;const button=document.createElement("button");button.className="copy";button.type="button";button.textContent="Copy";button.addEventListener("click",async()=>{await navigator.clipboard.writeText(pre.querySelector("code").innerText);button.textContent="Copied";setTimeout(()=>button.textContent="Copy",1200)});pre.appendChild(button)});
   addEventListener("scroll",()=>{const max=document.documentElement.scrollHeight-innerHeight;document.querySelector("#progress").style.width=(max?scrollY/max*100:0)+"%"},{passive:true});
 </script>
 </body>

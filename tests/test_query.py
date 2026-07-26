@@ -100,3 +100,20 @@ class TestShowSnippets:
         stdout = project.cli_ok("show", "snippets", "--code", "unused")
         # Should succeed with no results (or a "no annotations" message)
         assert stdout is not None
+
+
+def test_symbolic_and_keyword_operators_are_equivalent(project: BewleyProject) -> None:
+    """Docs teach & | ! and AND OR NOT; both must parse identically."""
+    import json as _json
+
+    docs = _json.loads(project.cli("list", "documents", human=False)[1])["data"]
+    first = docs[0]["current_path"]
+    project.cli("code", "create", "alpha", human=False)
+    project.cli("code", "create", "beta", human=False)
+    project.cli("annotate", "apply", "alpha", first, "--lines", "1:1", human=False)
+
+    for expr in ["alpha & !beta", "alpha AND NOT beta", "(alpha | beta) & !beta"]:
+        code, stdout, _ = project.cli("query", expr, human=False)
+        assert code == 0, stdout
+        rows = _json.loads(stdout)["data"]
+        assert {row["current_path"] for row in rows} == {first}, expr
