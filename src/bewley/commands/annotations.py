@@ -4,7 +4,13 @@ from typing import Optional
 
 import typer
 
-from ..project import BewleyError, cmd_annotate_show, parse_byte_range, lines_to_byte_range
+from ..project import (
+    BewleyError,
+    cmd_annotate_show,
+    lines_to_byte_range,
+    parse_byte_range,
+    quote_to_byte_range,
+)
 from .common import HumanOption, fail, finish, get_project, should_emit_json
 
 app = typer.Typer(help="Annotation management.")
@@ -17,14 +23,18 @@ def annotate_apply(
     document: bool = typer.Option(False, "--document", help="Apply code to the entire document."),
     bytes_range: Optional[str] = typer.Option(None, "--bytes", help="Byte range as START:END (0-based, exclusive end)."),
     lines_range: Optional[str] = typer.Option(None, "--lines", help="Line range as START:END (1-based, inclusive)."),
+    quote: Optional[str] = typer.Option(None, "--quote", help="Anchor by the exact text itself: verbatim match or the command fails."),
+    occurrence: Optional[int] = typer.Option(None, "--occurrence", help="Which occurrence of --quote to anchor (1-based) when it appears more than once."),
     memo: Optional[str] = typer.Option(None, "--memo", help="Optional memo to attach to this annotation."),
     human: bool = HumanOption,
 ) -> None:
     """Apply a code to a document or text span."""
     command = "annotate apply"
     json_flag = should_emit_json(human)
-    if sum([bool(document), bool(bytes_range), bool(lines_range)]) != 1:
-        fail(command, BewleyError("Specify exactly one of --document, --bytes, or --lines", code="INVALID_INPUT"), json_flag)
+    if sum([bool(document), bool(bytes_range), bool(lines_range), quote is not None]) != 1:
+        fail(command, BewleyError("Specify exactly one of --document, --bytes, --lines, or --quote", code="INVALID_INPUT"), json_flag)
+    if occurrence is not None and quote is None:
+        fail(command, BewleyError("--occurrence requires --quote", code="INVALID_INPUT"), json_flag)
     try:
         project = get_project()
         if document:
@@ -36,13 +46,25 @@ def annotate_apply(
                 doc = project.resolve_document(conn, document_ref)
                 rev = project.current_revision(conn, doc["document_id"])
             content = (project.objects_dir / rev["content_sha256"]).read_bytes().decode("utf-8")
-            byte_range = lines_to_byte_range(content, *parse_byte_range(lines_range))
+            if quote is not None:
+                byte_range = quote_to_byte_range(content, quote, occurrence)
+            else:
+                byte_range = lines_to_byte_range(content, *parse_byte_range(lines_range))
             event = project.add_annotation(code_ref, document_ref, "span", byte_range, memo)
     except BewleyError as e:
         fail(command, e, json_flag)
-    ann_id = event["payload"]["annotation_id"]
+    payload = event["payload"]
+    ann_id = payload["annotation_id"]
+    data = {
+        "annotation_id": ann_id,
+        "scope_type": payload.get("scope_type"),
+        "start_line": payload.get("start_line"),
+        "end_line": payload.get("end_line"),
+        # Echo what was actually tagged so the caller can verify the anchor.
+        "annotated_text": payload.get("exact_text"),
+    }
     if json_flag:
-        finish(command, {"annotation_id": ann_id})
+        finish(command, data)
     else:
         typer.echo(ann_id)
 

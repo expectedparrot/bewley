@@ -41,6 +41,7 @@ from .util import (  # noqa: F401  (re-exported for compatibility)
     lines_to_byte_range,
     load_toml,
     parse_byte_range,
+    quote_to_byte_range,
     safe_decode,
     sha256_bytes,
     sha256_text,

@@ -83,6 +83,76 @@ class TestSpanAnnotation:
         assert "onboarding" in stdout
 
 
+class TestQuoteAnnotation:
+    def _apply_json(self, proj, *args):
+        import json
+
+        code, stdout, stderr = proj.cli(*args, human=False)
+        return code, json.loads(stdout)
+
+    def test_apply_by_quote_echoes_annotated_text(self, project) -> None:
+        project.cli_ok("code", "create", "trust")
+        code, envelope = self._apply_json(
+            project, "annotate", "apply", "trust", "corpus/interview_alice.txt",
+            "--quote", "it was the transparency",
+        )
+        assert code == 0
+        assert envelope["data"]["annotated_text"] == "it was the transparency"
+        assert envelope["data"]["start_line"] == 9
+
+    def test_quote_must_match_verbatim(self, project) -> None:
+        project.cli_ok("code", "create", "trust")
+        code, envelope = self._apply_json(
+            project, "annotate", "apply", "trust", "corpus/interview_alice.txt",
+            "--quote", "it was the Transparency",
+        )
+        assert code != 0
+        assert envelope["errors"][0]["code"] == "QUOTE_NOT_FOUND"
+
+    def test_ambiguous_quote_lists_occurrences(self, project) -> None:
+        project.cli_ok("code", "create", "trust")
+        code, envelope = self._apply_json(
+            project, "annotate", "apply", "trust", "corpus/interview_alice.txt",
+            "--quote", "Interviewer:",
+        )
+        assert code != 0
+        error = envelope["errors"][0]
+        assert error["code"] == "AMBIGUOUS_QUOTE"
+        occurrences = error["context"]["occurrences"]
+        assert len(occurrences) >= 2
+        assert all("line" in item for item in occurrences)
+
+    def test_occurrence_disambiguates(self, project) -> None:
+        project.cli_ok("code", "create", "trust")
+        code, envelope = self._apply_json(
+            project, "annotate", "apply", "trust", "corpus/interview_alice.txt",
+            "--quote", "Interviewer:", "--occurrence", "2",
+        )
+        assert code == 0
+        assert envelope["data"]["start_line"] == 7
+
+    def test_occurrence_requires_quote(self, project) -> None:
+        project.cli_ok("code", "create", "trust")
+        code, envelope = self._apply_json(
+            project, "annotate", "apply", "trust", "corpus/interview_alice.txt",
+            "--lines", "5:5", "--occurrence", "2",
+        )
+        assert code != 0
+        assert envelope["errors"][0]["code"] == "INVALID_INPUT"
+
+    def test_quote_with_multibyte_text_resolves_correct_bytes(self, project) -> None:
+        target = project.root / "corpus" / "quotes.txt"
+        target.write_text("She said — “trust me” — and left.\n", encoding="utf-8")
+        project.cli_ok("add", "corpus/quotes.txt")
+        project.cli_ok("code", "create", "trust")
+        code, envelope = self._apply_json(
+            project, "annotate", "apply", "trust", "corpus/quotes.txt",
+            "--quote", "“trust me”",
+        )
+        assert code == 0
+        assert envelope["data"]["annotated_text"] == "“trust me”"
+
+
 class TestAnnotationRelocation:
     def test_relocation_on_prepended_content(self, project: BewleyProject) -> None:
         """When content is prepended, span annotations should relocate."""

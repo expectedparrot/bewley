@@ -338,10 +338,13 @@ add(f"""
 """)
 
 # ── 8. Refine ──────────────────────────────────────────────────────────────
-ANNOTATE_CMD = cmdcap("""bewley code create waiting_for_news \\
-  --description "Waiting anxiously for letters that do not come"
-bewley annotate apply waiting_for_news corpus/1775-may-04-abigail-adams.txt \\
-  --lines 9:9""", "16-annotate-lines")
+ANNOTATE_CMD = cmdcap(
+    'bewley code create waiting_for_news \\\n'
+    '  --description "Waiting anxiously for letters that do not come"\n'
+    'bewley annotate apply waiting_for_news corpus/1775-may-04-abigail-adams.txt \\\n'
+    '  --quote "I want very much to hear from you, how you stood your journey, and in what state you find yourself now. I felt very anxious about you; though I endeavored to be very insensible and heroic, yet my heart felt like a heart of lead."',
+    "16-annotate-quote",
+)
 STRUCTURE_CMD = cmd("""bewley code create home_front --description "The war as lived at home"
 bewley code set-parent household_responsibility home_front
 bewley code set-parent health_and_scarcity home_front
@@ -351,7 +354,7 @@ bewley code set-core separation_and_affection""")
 add(f"""
   <section id="refine">
     <h2><span class="chapter">08</span> Refine the codebook</h2>
-    <p>A first-pass codebook is never the final one: rereading tagged evidence changes your mind about the categories themselves, and the tool has to make changing your mind cheap and traceable. Suppose reading the delay excerpts suggests a distinction worth testing — <em>waiting</em> as its own idea, separate from slow information. Create the candidate code and tag Abigail's plea by hand (lines are 1-based and inclusive; byte spans are also accepted):</p>
+    <p>A first-pass codebook is never the final one: rereading tagged evidence changes your mind about the categories themselves, and the tool has to make changing your mind cheap and traceable. Suppose reading the delay excerpts suggests a distinction worth testing — <em>waiting</em> as its own idea, separate from slow information. Create the candidate code and tag Abigail's plea by hand. The least error-prone way to say <em>where</em> is to quote the passage itself: <code>--quote</code> matches the text verbatim or fails loudly (a mistyped word, a straightened curly quote — anything inexact is an error, never a wrong span), an ambiguous quote lists its occurrences for <code>--occurrence N</code> to pick from, and the envelope echoes exactly what was tagged so you can verify it. Line ranges (<code>--lines 9:9</code>, 1-based and inclusive) and byte spans remain available for coordinate-precise work:</p>
     {ANNOTATE_CMD}
     <p>Comparison shows the distinction never earns its keep: waiting <em>is</em> the delay theme. Merge it away — the target absorbs the source's evidence, while the absorbed annotation keeps its original code for provenance:</p>
     {cmdcap("bewley code merge waiting_for_news --into information_and_delay", "17-merge")}
@@ -378,7 +381,7 @@ add(f"""
     {hcap("20h-case-show", "Abigail's side of the comparison: her role attribute and her ten letters, ready to read against John's.")}
     <p>Boolean queries retrieve evidence across the whole corpus. Both keyword (<code>AND OR NOT</code>) and symbolic (<code>&amp; | !</code>) operators work; quote the expression so the shell does not interpret them. Document mode asks which letters contain both themes anywhere:</p>
     {cmdcap('bewley query "public_duty & separation_and_affection"', "21-query-document")}
-    <p>Annotation mode is stricter: terms must be satisfied by <em>overlapping</em> spans. The 4 May 1775 letter matches because the line-level annotation absorbed from <code>waiting_for_news</code> overlaps the <em>heart of lead</em> sentence — note the absorbed annotation still reports its original code name:</p>
+    <p>Annotation mode is stricter: terms must be satisfied by <em>overlapping</em> spans. The 4 May 1775 letter matches because the passage quoted for <code>waiting_for_news</code> overlaps the <em>heart of lead</em> sentence — note the absorbed annotation still reports its original code name:</p>
     {cmdcap('bewley query "information_and_delay & separation_and_affection" --mode annotation', "22-query-annotation")}
     {hcap("22h-query-annotation", "The overlapping evidence itself: Abigail's plea for letters and her “heart of lead,” in the same passage of the 4 May 1775 letter.")}
     <p>Queries return evidence, not conclusions. The interpretation belongs in a memo:</p>

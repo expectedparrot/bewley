@@ -95,13 +95,13 @@ presentation mode and should not be used by agents parsing results.
 
 | Command | Purpose |
 |---|---|
-| `bewley annotate apply <code> <doc> (--document \| --bytes S:E \| --lines S:E) [--memo M]` | Apply a code to a document or text span. **One scope flag is mandatory** — see note below. Prints the `annotation_id`. |
+| `bewley annotate apply <code> <doc> (--document \| --bytes S:E \| --lines S:E \| --quote "text" [--occurrence N]) [--memo M]` | Apply a code to a document or text span. **One scope flag is mandatory** — see note below. `--quote` anchors by the exact text itself (verbatim match or the command fails; multiple occurrences require `--occurrence`, 1-based) and is the least error-prone scope. The envelope echoes the annotated text for verification. |
 | `bewley annotate remove <annotation_id>` | Deactivate an annotation. |
 | `bewley annotate show <annotation_id>` | Show annotation details and the annotated text. |
 | `bewley annotate resolve <annotation_id> --bytes S:E [--memo M]` | Fix a conflicted annotation after a document revision update. |
 | `bewley show snippets --code <ref>` | Show text content of all annotations for a code. |
 
-> **`annotate apply` requires exactly one scope flag.** You must pass one of `--document`, `--bytes S:E`, or `--lines S:E`. Omitting all three produces an `INVALID_INPUT` error envelope and exit code 1. When generating batch annotation scripts, always include the scope flag and check exit codes:
+> **`annotate apply` requires exactly one scope flag.** You must pass one of `--document`, `--bytes S:E`, `--lines S:E`, or `--quote "text"`. Omitting all of them produces an `INVALID_INPUT` error envelope and exit code 1. Prefer `--quote`: byte offsets are UTF-8-sensitive and line counts drift when documents are re-wrapped, while a quote either matches verbatim or fails loudly (`QUOTE_NOT_FOUND` / `AMBIGUOUS_QUOTE` with the occurrences listed). When generating batch annotation scripts, always include the scope flag and check exit codes:
 > ```bash
 > bewley annotate apply my_code doc_id --lines 5:8 || echo "FAILED: my_code on doc_id"
 > ```

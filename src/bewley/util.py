@@ -99,6 +99,49 @@ def lines_to_byte_range(text: str, start_line: int, end_line: int) -> tuple[int,
     return start_byte, end_byte
 
 
+def quote_to_byte_range(text: str, quote: str, occurrence: int | None = None) -> tuple[int, int]:
+    """Resolve a verbatim quote to its byte span, fail-closed on ambiguity.
+
+    Exact match only: punctuation, capitalization, and whitespace must all
+    agree. Multiple occurrences require an explicit 1-based ``occurrence``.
+    """
+    if not quote:
+        raise BewleyError("quote must be non-empty", code="INVALID_INPUT")
+    positions: list[int] = []
+    at = text.find(quote)
+    while at >= 0:
+        positions.append(at)
+        at = text.find(quote, at + 1)
+    if not positions:
+        raise BewleyError(
+            "quote not found verbatim in the current revision",
+            code="QUOTE_NOT_FOUND",
+            context={"quote": quote[:160]},
+            hint="The quote must match exactly, including punctuation, capitalization, and whitespace.",
+        )
+    if occurrence is None:
+        if len(positions) > 1:
+            raise BewleyError(
+                f"quote appears {len(positions)} times",
+                code="AMBIGUOUS_QUOTE",
+                context={"occurrences": [
+                    {"occurrence": index + 1, "line": text.count("\n", 0, position) + 1}
+                    for index, position in enumerate(positions)
+                ]},
+                hint="Disambiguate with --occurrence N (1-based).",
+            )
+        occurrence = 1
+    if occurrence < 1 or occurrence > len(positions):
+        raise BewleyError(
+            f"occurrence {occurrence} out of range",
+            code="INVALID_INPUT",
+            context={"available_occurrences": len(positions)},
+        )
+    char_start = positions[occurrence - 1]
+    start_byte = len(text[:char_start].encode("utf-8"))
+    return start_byte, start_byte + len(quote.encode("utf-8"))
+
+
 def safe_decode(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 

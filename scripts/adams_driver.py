@@ -277,9 +277,15 @@ def main() -> None:
     bewley("code", "create", "waiting_for_news",
            "--description", "Waiting anxiously for letters that do not come")
     may04 = texts["1775-may-04-abigail-adams.txt"]
-    line = line_of(may04, "I want very much to hear from you")
+    waiting_quote = (
+        "I want very much to hear from you, how you stood your journey, and in what "
+        "state you find yourself now. I felt very anxious about you; though I "
+        "endeavored to be very insensible and heroic, yet my heart felt like a heart "
+        "of lead."
+    )
+    assert waiting_quote in may04
     bewley("annotate", "apply", "waiting_for_news", "corpus/1775-may-04-abigail-adams.txt",
-           "--lines", f"{line}:{line}", capture="16-annotate-lines")
+           "--quote", waiting_quote, capture="16-annotate-quote")
     bewley("code", "merge", "waiting_for_news", "--into", "information_and_delay", capture="17-merge")
     bewley("code", "show", "information_and_delay", capture="18-code-show")
     bewley("code", "create", "home_front", "--description", "The war as lived at home")
