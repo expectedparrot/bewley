@@ -94,6 +94,10 @@ presentation mode and should not be used by agents parsing results.
 | `bewley code unlink <link_id>` | Remove a code link. |
 | `bewley code set-core <ref>` | Designate a code as the core category (grounded theory). |
 | `bewley code show-core` | Show the current core category. |
+| `bewley code update <ref> [--description D] [--inclusion I] [--exclusion E]` | Update a code's definition and its inclusion/exclusion criteria — when the code applies, when it does not, and what to use instead. |
+| `bewley code lint` | Flag codebook quality problems (missing definitions or criteria, definitions that restate the name, unused codes, heavily-used codes without memos, near-duplicate names). Flags, never fixes. |
+| `bewley codebook release <name>` | Freeze the current structured codebook as a named, immutable snapshot (event-recorded). |
+| `bewley codebook diff <from> <to>` | Compare two releases: codes added, removed, and changed (definition, criteria, parent). |
 
 ## Annotations
 

@@ -17,7 +17,7 @@ from bewley.commands.agent import (
     version_command,
 )
 from bewley.commands.codegen import app as codegen_app
-from bewley.commands.codes import app as code_app
+from bewley.commands.codes import app as code_app, codebook_app
 from bewley.commands.docs import app as docs_app
 from bewley.commands.documents import (
     add_audio_command,
@@ -60,6 +60,7 @@ app.add_typer(show_app, name="show")
 
 # Code management
 app.add_typer(code_app, name="code")
+app.add_typer(codebook_app, name="codebook")
 
 # Annotation management
 app.add_typer(annotate_app, name="annotate")

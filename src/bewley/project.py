@@ -295,6 +295,12 @@ _SCHEMA_SQL = """
                   label TEXT PRIMARY KEY,
                   role TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS codebook_releases (
+                  name TEXT PRIMARY KEY,
+                  release_id TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  snapshot TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS review_decisions (
                   candidate_id TEXT PRIMARY KEY,
                   decision TEXT NOT NULL,
@@ -416,6 +422,11 @@ class Project:
             conn.execute("ALTER TABLE annotations ADD COLUMN speaker_scope TEXT")
         except sqlite3.OperationalError:
             pass
+        for column in ("inclusion_criteria", "exclusion_criteria"):
+            try:
+                conn.execute(f"ALTER TABLE codes ADD COLUMN {column} TEXT")
+            except sqlite3.OperationalError:
+                pass
 
     def init_project(self) -> None:
         if self.meta.exists():
@@ -893,6 +904,26 @@ class Project:
             conn.execute(
                 "INSERT OR REPLACE INTO speaker_roles (label, role) VALUES (?, ?)",
                 (payload["label"], payload["role"]),
+            )
+            return
+        if etype == "code_updated":
+            fields = {
+                key: payload[key]
+                for key in ("description", "inclusion_criteria", "exclusion_criteria")
+                if key in payload
+            }
+            if fields:
+                assignments = ", ".join(f"{key} = ?" for key in fields)
+                conn.execute(
+                    f"UPDATE codes SET {assignments} WHERE code_id = ?",
+                    (*fields.values(), payload["code_id"]),
+                )
+            return
+        if etype == "codebook_released":
+            conn.execute(
+                "INSERT OR REPLACE INTO codebook_releases (name, release_id, created_at, snapshot) VALUES (?, ?, ?, ?)",
+                (payload["name"], payload["release_id"], event["timestamp"],
+                 json.dumps(payload["snapshot"])),
             )
             return
         if etype == "review_decision_recorded":
@@ -1990,6 +2021,76 @@ class Project:
                 )
             return row["start_byte"], row["end_byte"]
 
+    def update_code(
+        self,
+        ref: str,
+        description: str | None = None,
+        inclusion_criteria: str | None = None,
+        exclusion_criteria: str | None = None,
+    ) -> dict[str, Any]:
+        fields = {
+            key: value
+            for key, value in (
+                ("description", description),
+                ("inclusion_criteria", inclusion_criteria),
+                ("exclusion_criteria", exclusion_criteria),
+            )
+            if value is not None
+        }
+        if not fields:
+            raise BewleyError(
+                "code update requires at least one of --description, --inclusion, --exclusion",
+                code="INVALID_INPUT",
+            )
+        self.ensure_db()
+        with self.connect() as conn:
+            code = self.resolve_active_code(conn, ref)
+        return self.append_event("code_updated", {"code_id": code["code_id"], **fields})
+
+    def _codebook_snapshot(self, conn: sqlite3.Connection) -> list[dict[str, Any]]:
+        parents = {
+            row["code_id"]: row["canonical_name"]
+            for row in conn.execute("SELECT code_id, canonical_name FROM codes")
+        }
+        return [
+            {
+                "canonical_name": row["canonical_name"],
+                "description": row["description"],
+                "inclusion_criteria": row["inclusion_criteria"],
+                "exclusion_criteria": row["exclusion_criteria"],
+                "parent": parents.get(row["parent_code_id"]),
+            }
+            for row in conn.execute(
+                "SELECT * FROM codes WHERE status = 'active' ORDER BY canonical_name"
+            )
+        ]
+
+    def release_codebook(self, name: str) -> dict[str, Any]:
+        name = name.strip()
+        if not name:
+            raise BewleyError("release name must be non-empty", code="INVALID_INPUT")
+        self.ensure_db()
+        with self.connect() as conn:
+            try:
+                existing = conn.execute(
+                    "SELECT name FROM codebook_releases WHERE name = ?", (name,)
+                ).fetchone()
+            except sqlite3.OperationalError:
+                existing = None
+            if existing:
+                raise BewleyError(
+                    f"release name already exists: {name}",
+                    code="ALREADY_EXISTS",
+                    hint="Releases are immutable snapshots; pick a new name.",
+                )
+            snapshot = self._codebook_snapshot(conn)
+        if not snapshot:
+            raise BewleyError("the codebook is empty; nothing to release", code="INVALID_INPUT")
+        return self.append_event(
+            "codebook_released",
+            {"release_id": uuid.uuid4().hex, "name": name, "snapshot": snapshot},
+        )
+
     def record_review_decision(
         self,
         candidate_id: str,
@@ -2779,6 +2880,101 @@ def cmd_speakers_list(project: Project, document_ref: str) -> dict:
     }
 
 
+def cmd_code_lint(project: Project) -> list[dict]:
+    """Codebook quality findings. Flags, never fixes."""
+    import difflib
+
+    findings: list[dict] = []
+    with project.connect() as conn:
+        codes = conn.execute(
+            """
+            SELECT c.code_id, c.canonical_name, c.description,
+                   c.inclusion_criteria, c.exclusion_criteria, c.parent_code_id,
+                   COUNT(DISTINCT CASE WHEN a.is_active = 1 THEN a.annotation_id END) annotations
+            FROM codes c LEFT JOIN annotations a ON a.code_id = c.code_id
+            WHERE c.status = 'active'
+            GROUP BY c.code_id ORDER BY c.canonical_name
+            """
+        ).fetchall()
+        memo_codes = {
+            row["target_id"]
+            for row in conn.execute(
+                "SELECT DISTINCT target_id FROM memos WHERE target_type = 'code' AND is_active = 1"
+            )
+        }
+        parent_ids = {row["parent_code_id"] for row in codes if row["parent_code_id"]}
+
+    def flag(code_row, check: str, detail: str) -> None:
+        findings.append({
+            "code_name": code_row["canonical_name"], "check": check, "detail": detail,
+        })
+
+    for row in codes:
+        name_words = row["canonical_name"].replace("_", " ").replace("/", " ").strip().lower()
+        description = (row["description"] or "").strip().lower().rstrip(".")
+        if not description:
+            flag(row, "missing_description",
+                 "No definition; future coders (and models) will guess.")
+        elif description == name_words:
+            flag(row, "definition_restates_name",
+                 "The definition merely repeats the code name.")
+        if int(row["annotations"]) > 0 and not (row["inclusion_criteria"] or "").strip():
+            flag(row, "missing_criteria",
+                 f"{row['annotations']} annotation(s) but no inclusion criteria recorded.")
+        if int(row["annotations"]) == 0 and row["code_id"] not in parent_ids:
+            flag(row, "unused_code", "No annotations and no children.")
+        if int(row["annotations"]) >= 5 and row["code_id"] not in memo_codes:
+            flag(row, "many_annotations_no_memo",
+                 f"{row['annotations']} annotations but no memo recording what they mean.")
+    names = [row["canonical_name"] for row in codes]
+    for index, left in enumerate(names):
+        for right in names[index + 1:]:
+            ratio = difflib.SequenceMatcher(None, left, right).ratio()
+            if ratio >= 0.85:
+                findings.append({
+                    "code_name": left, "check": "near_duplicate_names",
+                    "detail": f"Very similar to '{right}' — same concept twice, or merge candidates?",
+                })
+    return findings
+
+
+def cmd_codebook_diff(project: Project, from_name: str, to_name: str) -> dict:
+    with project.connect() as conn:
+        releases = {}
+        for name in (from_name, to_name):
+            row = conn.execute(
+                "SELECT snapshot FROM codebook_releases WHERE name = ?", (name,)
+            ).fetchone()
+            if row is None:
+                known = [
+                    r["name"] for r in conn.execute(
+                        "SELECT name FROM codebook_releases ORDER BY created_at"
+                    )
+                ]
+                raise BewleyError(
+                    f"unknown release: {name}", code="NOT_FOUND",
+                    context={"known_releases": known},
+                )
+            releases[name] = {
+                entry["canonical_name"]: entry for entry in json.loads(row["snapshot"])
+            }
+    before, after = releases[from_name], releases[to_name]
+    added = sorted(set(after) - set(before))
+    removed = sorted(set(before) - set(after))
+    changed = []
+    for name in sorted(set(before) & set(after)):
+        deltas = {}
+        for field in ("description", "inclusion_criteria", "exclusion_criteria", "parent"):
+            if before[name].get(field) != after[name].get(field):
+                deltas[field] = {"from": before[name].get(field), "to": after[name].get(field)}
+        if deltas:
+            changed.append({"code_name": name, "changes": deltas})
+    return {
+        "from": from_name, "to": to_name,
+        "added": added, "removed": removed, "changed": changed,
+    }
+
+
 def cmd_attribute_list(project: Project) -> list[dict]:
     with project.connect() as conn:
         rows = conn.execute(
@@ -2997,7 +3193,13 @@ def cmd_code_show(project: Project, ref: str) -> dict:
             src = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["source_code_id"],)).fetchone()
             tgt = conn.execute("SELECT canonical_name FROM codes WHERE code_id = ?", (lk["target_code_id"],)).fetchone()
             link_items.append({"link_id": lk["link_id"], "source_name": src["canonical_name"] if src else lk["source_code_id"][:8], "relationship": lk["relationship"], "target_name": tgt["canonical_name"] if tgt else lk["target_code_id"][:8]})
-    result: dict[str, Any] = {"code_id": code["code_id"], "name": code["canonical_name"], "status": code["status"], "active_annotations": count, "aliases": [row["alias_name"] for row in aliases]}
+    result: dict[str, Any] = {
+        "code_id": code["code_id"], "name": code["canonical_name"], "status": code["status"],
+        "description": code["description"],
+        "inclusion_criteria": code["inclusion_criteria"],
+        "exclusion_criteria": code["exclusion_criteria"],
+        "active_annotations": count, "aliases": [row["alias_name"] for row in aliases],
+    }
     if absorbs:
         result["absorbs"] = absorbs
     if parent_name:

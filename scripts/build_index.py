@@ -328,7 +328,9 @@ add(f"""
     <p><code>apply</code> executes the decisions: accepted candidates become codes (carrying their definitions into the codebook) and exact-span annotations; rejected ones are skipped with their recorded reasons; anything undecided would be itemized and skipped, fail-closed. Preview first:</p>
     {cmdcap("bewley open-coding apply --dry-run", "09-apply-dry-run")}
     {cmdcap("bewley open-coding apply", "10-apply")}
-    <p>Only rows whose quotation resolved to exactly one location are applied; anything skipped is itemized with a reason — an unresolved quote, a stale revision, an already-applied row — never guessed. Re-running is idempotent. The evidence is now queryable:</p>
+    <p>Only rows whose quotation resolved to exactly one location are applied; anything skipped is itemized with a reason — an unresolved quote, a stale revision, an already-applied row — never guessed. Re-running is idempotent. Freeze this first codebook as a named, immutable release, so after refinement there is something exact to diff against:</p>
+    {cmdcap("bewley codebook release first-pass", "10b-release")}
+    <p>The evidence is now queryable:</p>
     {cmdcap("bewley show snippets --code political_voice", "11-snippets")}
     <p>And this is what the coded evidence actually looks like — the point of the whole exercise. With <code>--human</code>, each snippet is the verbatim passage under its code:</p>
     {hcap("11h-snippets", "The <code>political_voice</code> evidence: Abigail's demand, John's laughing dismissal, and her anger at the Assembly — each anchored to exact lines.")}
@@ -352,6 +354,12 @@ add(f"""
 """)
 
 # ── 8. Refine ──────────────────────────────────────────────────────────────
+CRITERIA_CMD = cmdcap(
+    "bewley code update political_voice \\\n"
+    "  --inclusion \"A claim about who is entitled to speak, decide, or be represented, made in the writer's own voice.\" \\\n"
+    "  --exclusion \"War or government news without a claim about entitlement to a voice; use public_duty for the duty itself.\"",
+    "20d-criteria",
+)
 ANNOTATE_CMD = cmdcap(
     'bewley code create waiting_for_news \\\n'
     '  --description "Waiting anxiously for letters that do not come"\n'
@@ -379,6 +387,14 @@ add(f"""
     {hcap("19h-code-tree", "The refined codebook: <code>home_front</code> now parents the household and scarcity codes; every code keeps its definition and counts.")}
     <p><code>coverage</code> answers "how much of the corpus does this category actually touch" — with <code>--breakdown</code> so a parent's inclusive rollup cannot hide divergent children:</p>
     {cmdcap("bewley code coverage home_front --breakdown", "20-coverage")}
+    <h3>From labels to a codebook others could use</h3>
+    <p>A one-sentence definition is enough for the coder who invented the code, and not enough for anyone else — a second coder, a future model run, or you in six months. Structured criteria say when the code applies <em>and</em> when it does not, including what to use instead at the boundary:</p>
+    {CRITERIA_CMD}
+    <p><code>code lint</code> reads the codebook the way a skeptical colleague would — and reports the honest gap between the one code that now has criteria and the six that do not. It flags; it never fixes:</p>
+    {hcap("20h-lint", "The linter's findings: six well-used codes still lack inclusion criteria. Each is a prompt to write the boundary down while the reasoning is fresh.")}
+    <p>Release the refined codebook and diff it against <code>first-pass</code> from chapter 6 — the refinement chapter, summarized exactly: one code added, two re-parented, one given criteria:</p>
+    {cmdcap("bewley codebook release refined", "20e-release")}
+    {cmdcap("bewley codebook diff first-pass refined", "20f-diff")}
   </section>
 """)
 
@@ -514,7 +530,7 @@ add("""
       <tr><td>Import or revise sources</td><td><code>add</code>, <code>add-audio</code>, <code>add-video</code>, <code>update</code>, <code>list documents</code></td></tr>
       <tr><td>Run model-assisted open coding</td><td><code>open-coding jobs</code>, external <code>ep run</code>, <code>open-coding ingest</code>, <code>open-coding apply</code></td></tr>
       <tr><td>Recover a failed run</td><td><code>open-coding jobs --from-failures</code>, multi-file <code>open-coding ingest</code></td></tr>
-      <tr><td>Build the codebook</td><td><code>code create|rename|merge|split|set-parent|link|set-core</code></td></tr>
+      <tr><td>Build the codebook</td><td><code>code create|update|rename|merge|split|set-parent|link|set-core</code>, <code>code lint</code>, <code>codebook release|diff</code></td></tr>
       <tr><td>Attach and inspect evidence</td><td><code>annotate apply|show|remove|resolve</code>, <code>show snippets</code></td></tr>
       <tr><td>Compare cases</td><td><code>query</code>, <code>code coverage</code></td></tr>
       <tr><td>Record interpretation</td><td><code>memo add|list|show|edit</code></td></tr>

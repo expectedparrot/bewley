@@ -1,57 +1,57 @@
 {
-  "generated_at": "2026-07-27T19:27:00Z",
+  "generated_at": "2026-07-27T19:38:32Z",
   "codes": [
     {
-      "code_id": "d793213799cb498e8f0740da3ad11bba",
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
       "canonical_name": "political_voice",
       "color": null,
       "annotations": 3,
       "documents": 3
     },
     {
-      "code_id": "e824865e70334da3a5de5e9f57cea365",
+      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
       "canonical_name": "health_and_scarcity",
       "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
+      "code_id": "4368ab89c8214c3b8524baa58e867653",
       "canonical_name": "information_and_delay",
       "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "9691eb9976e54667a294f3ae1b6bf116",
+      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
       "canonical_name": "public_duty",
       "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "0a778449f80d436ebdde6e05021dc8fb",
+      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
       "canonical_name": "separation_and_affection",
       "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "1073be30be174af28391b85106f194d6",
+      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
       "canonical_name": "war_and_danger",
       "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "442885cf9300462fbbd7a6996e361988",
+      "code_id": "de0303c2f04d46b485163d12ef177a10",
       "canonical_name": "household_responsibility",
       "color": null,
       "annotations": 1,
       "documents": 1
     },
     {
-      "code_id": "9edbda7254b04ac3a3264da60a87c506",
+      "code_id": "bafa234d5c3543e397939823738f6a37",
       "canonical_name": "home_front",
       "color": null,
       "annotations": 0,
@@ -60,140 +60,140 @@
   ],
   "documents": [
     {
-      "document_id": "51b9da5987b441229b46eb754ee5d374",
+      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
       "current_path": "corpus/1775-may-04-abigail-adams.txt",
       "annotations": 3,
       "codes": 3,
       "byte_length": 2534
     },
     {
-      "document_id": "06fe87c445e1442f88b1145ba0639741",
+      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
       "current_path": "corpus/1775-june-15-abigail-adams.txt",
       "annotations": 2,
       "codes": 2,
       "byte_length": 5063
     },
     {
-      "document_id": "4acb2e6a5e064dab8afeb608b137fd86",
+      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
       "current_path": "corpus/1775-september-17-john-adams.txt",
       "annotations": 2,
       "codes": 2,
       "byte_length": 2307
     },
     {
-      "document_id": "e47a36c500414187a06f19aff90c4d3e",
+      "document_id": "0d65952ddb23477380f2f0a059a03707",
       "current_path": "corpus/1776-march-31-abigail-adams.txt",
       "annotations": 2,
       "codes": 2,
       "byte_length": 5214
     },
     {
-      "document_id": "2020e1a7eb494e0f8aa07726124b3862",
+      "document_id": "6f38cfdf67b84933ae3f4b39cfac48d0",
       "current_path": "corpus/1775-december-10-abigail-adams.txt",
       "annotations": 1,
       "codes": 1,
       "byte_length": 5754
     },
     {
-      "document_id": "effeea3fcc584a0cba8c204dfdf8df0d",
+      "document_id": "92136da53424454899f43db0ada01251",
       "current_path": "corpus/1776-april-14-john-adams.txt",
       "annotations": 1,
       "codes": 1,
       "byte_length": 4601
     },
     {
-      "document_id": "bf79fbf862204b4d8742fe18bfab56d7",
+      "document_id": "18a21f5611ed48ffb08bebf3b584bbf5",
       "current_path": "corpus/1776-july-03-john-adams.txt",
       "annotations": 1,
       "codes": 1,
       "byte_length": 3849
     },
     {
-      "document_id": "b314232858034cf891865265f2320801",
+      "document_id": "71a196b262e94800b2ff9c94296bd682",
       "current_path": "corpus/1776-july-13-abigail-adams.txt",
       "annotations": 1,
       "codes": 1,
       "byte_length": 2778
     },
     {
-      "document_id": "ee241c5f26ce4410beb414e155284acb",
+      "document_id": "f7e037e33a064d719d9653a60d8a4272",
       "current_path": "corpus/1776-june-03-abigail-adams.txt",
       "annotations": 1,
       "codes": 1,
       "byte_length": 3101
     },
     {
-      "document_id": "02dacace4c3647a1b756eab58fe28291",
+      "document_id": "b919a3b2f811495883f3216cc8ce8a56",
       "current_path": "corpus/1776-march-17-john-adams.txt",
       "annotations": 1,
       "codes": 1,
       "byte_length": 2371
     },
     {
-      "document_id": "cfda89f46c1843b19353856931b1173a",
+      "document_id": "f252c2cf640c49a9abd700d65c01e937",
       "current_path": "corpus/1775-april-30-john-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 1280
     },
     {
-      "document_id": "8453ac8b31f0447f9c0db610aae327d4",
+      "document_id": "412fbfd260724c4b9fe1a6acc9fe8712",
       "current_path": "corpus/1775-august-10-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 1699
     },
     {
-      "document_id": "4223be1131d64fbea3267b8b572a973e",
+      "document_id": "c882f493f73b4062a41ce0c63f1bec39",
       "current_path": "corpus/1775-december-03-john-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 3280
     },
     {
-      "document_id": "148e5ed690604603bc9d6f6491b0caa7",
+      "document_id": "3eb8260ff4c44b39aa8817f9ea85ea30",
       "current_path": "corpus/1775-june-11-john-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 4079
     },
     {
-      "document_id": "75c2c7aa1626466bbc1eb8ae619238af",
+      "document_id": "9d4c2dd30d9f44c3ac11778d5a7d1533",
       "current_path": "corpus/1775-june-18-john-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 817
     },
     {
-      "document_id": "b59c53a873de4deda675f0ca02b784d8",
+      "document_id": "3948d211bb41434f89262ce7166066ef",
       "current_path": "corpus/1775-june-22-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 2227
     },
     {
-      "document_id": "81623f9fece3443fab7d84e0e368ba14",
+      "document_id": "7b2fc612b5b94178a8a701468f7524c5",
       "current_path": "corpus/1775-october-21-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 5841
     },
     {
-      "document_id": "15b3a8264aff42a897b1a5cb232ad637",
+      "document_id": "cb4b8df3eb7d49f99422de9e2e3670dc",
       "current_path": "corpus/1775-october-23-john-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 2378
     },
     {
-      "document_id": "ca7d607e78d6472db67dcb7d63007d93",
+      "document_id": "83996f4c8cf64f47bc5f13d529d4920b",
       "current_path": "corpus/1776-july-11-john-adams.txt",
       "annotations": 0,
       "codes": 0,
       "byte_length": 3415
     },
     {
-      "document_id": "9426784c69d649b2a79e0a887c3f1996",
+      "document_id": "3f40a059071c42b48c1996ace129f647",
       "current_path": "corpus/1776-march-02-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
@@ -202,223 +202,223 @@
   ],
   "cooccurrence": [
     {
-      "left_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "right_id": "0a778449f80d436ebdde6e05021dc8fb",
+      "left_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "right_id": "3cc3c950a1044e5ba16a672df55e0419",
       "documents": 2
     },
     {
-      "left_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "right_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
+      "left_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "right_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
       "documents": 1
     },
     {
-      "left_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "right_id": "8f0162785ce5490d9e6529f6daead0a5",
-      "documents": 1
-    },
-    {
-      "left_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "right_id": "9691eb9976e54667a294f3ae1b6bf116",
-      "documents": 1
-    },
-    {
-      "left_id": "1073be30be174af28391b85106f194d6",
-      "right_id": "1073be30be174af28391b85106f194d6",
+      "left_id": "4368ab89c8214c3b8524baa58e867653",
+      "right_id": "4368ab89c8214c3b8524baa58e867653",
       "documents": 2
     },
     {
-      "left_id": "1073be30be174af28391b85106f194d6",
-      "right_id": "e824865e70334da3a5de5e9f57cea365",
+      "left_id": "4368ab89c8214c3b8524baa58e867653",
+      "right_id": "727ed35137994789b1b923c170a16ea7",
       "documents": 1
     },
     {
-      "left_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
-      "right_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
+      "left_id": "4368ab89c8214c3b8524baa58e867653",
+      "right_id": "bbce30ad284f47f085e3cdaf9e176a87",
+      "documents": 1
+    },
+    {
+      "left_id": "4368ab89c8214c3b8524baa58e867653",
+      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "documents": 1
+    },
+    {
+      "left_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "right_id": "64da40c410704f2ca94c2826e5a92d6b",
       "documents": 2
     },
     {
-      "left_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
-      "right_id": "8f0162785ce5490d9e6529f6daead0a5",
+      "left_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
       "documents": 1
     },
     {
-      "left_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
-      "right_id": "d793213799cb498e8f0740da3ad11bba",
+      "left_id": "727ed35137994789b1b923c170a16ea7",
+      "right_id": "727ed35137994789b1b923c170a16ea7",
       "documents": 1
     },
     {
-      "left_id": "442885cf9300462fbbd7a6996e361988",
-      "right_id": "442885cf9300462fbbd7a6996e361988",
+      "left_id": "727ed35137994789b1b923c170a16ea7",
+      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
       "documents": 1
     },
     {
-      "left_id": "8f0162785ce5490d9e6529f6daead0a5",
-      "right_id": "8f0162785ce5490d9e6529f6daead0a5",
-      "documents": 1
-    },
-    {
-      "left_id": "9691eb9976e54667a294f3ae1b6bf116",
-      "right_id": "9691eb9976e54667a294f3ae1b6bf116",
-      "documents": 2
-    },
-    {
-      "left_id": "d793213799cb498e8f0740da3ad11bba",
-      "right_id": "d793213799cb498e8f0740da3ad11bba",
+      "left_id": "bbce30ad284f47f085e3cdaf9e176a87",
+      "right_id": "bbce30ad284f47f085e3cdaf9e176a87",
       "documents": 3
     },
     {
-      "left_id": "e824865e70334da3a5de5e9f57cea365",
-      "right_id": "e824865e70334da3a5de5e9f57cea365",
+      "left_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "documents": 2
+    },
+    {
+      "left_id": "de0303c2f04d46b485163d12ef177a10",
+      "right_id": "de0303c2f04d46b485163d12ef177a10",
+      "documents": 1
+    },
+    {
+      "left_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
+      "right_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
       "documents": 2
     }
   ],
   "matrix": [
     {
-      "code_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "document_id": "4acb2e6a5e064dab8afeb608b137fd86",
+      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "document_id": "71a196b262e94800b2ff9c94296bd682",
       "annotations": 1
     },
     {
-      "code_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "document_id": "51b9da5987b441229b46eb754ee5d374",
+      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
       "annotations": 1
     },
     {
-      "code_id": "1073be30be174af28391b85106f194d6",
-      "document_id": "02dacace4c3647a1b756eab58fe28291",
+      "code_id": "4368ab89c8214c3b8524baa58e867653",
+      "document_id": "0d65952ddb23477380f2f0a059a03707",
       "annotations": 1
     },
     {
-      "code_id": "1073be30be174af28391b85106f194d6",
-      "document_id": "06fe87c445e1442f88b1145ba0639741",
-      "annotations": 1
-    },
-    {
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
-      "document_id": "51b9da5987b441229b46eb754ee5d374",
+      "code_id": "4368ab89c8214c3b8524baa58e867653",
+      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
       "annotations": 2
     },
     {
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
-      "document_id": "e47a36c500414187a06f19aff90c4d3e",
+      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "document_id": "18a21f5611ed48ffb08bebf3b584bbf5",
       "annotations": 1
     },
     {
-      "code_id": "442885cf9300462fbbd7a6996e361988",
-      "document_id": "ee241c5f26ce4410beb414e155284acb",
+      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
       "annotations": 1
     },
     {
-      "code_id": "9691eb9976e54667a294f3ae1b6bf116",
-      "document_id": "4acb2e6a5e064dab8afeb608b137fd86",
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
+      "document_id": "0d65952ddb23477380f2f0a059a03707",
       "annotations": 1
     },
     {
-      "code_id": "9691eb9976e54667a294f3ae1b6bf116",
-      "document_id": "bf79fbf862204b4d8742fe18bfab56d7",
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
+      "document_id": "6f38cfdf67b84933ae3f4b39cfac48d0",
       "annotations": 1
     },
     {
-      "code_id": "d793213799cb498e8f0740da3ad11bba",
-      "document_id": "2020e1a7eb494e0f8aa07726124b3862",
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
+      "document_id": "92136da53424454899f43db0ada01251",
       "annotations": 1
     },
     {
-      "code_id": "d793213799cb498e8f0740da3ad11bba",
-      "document_id": "e47a36c500414187a06f19aff90c4d3e",
+      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
       "annotations": 1
     },
     {
-      "code_id": "d793213799cb498e8f0740da3ad11bba",
-      "document_id": "effeea3fcc584a0cba8c204dfdf8df0d",
+      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
       "annotations": 1
     },
     {
-      "code_id": "e824865e70334da3a5de5e9f57cea365",
-      "document_id": "06fe87c445e1442f88b1145ba0639741",
+      "code_id": "de0303c2f04d46b485163d12ef177a10",
+      "document_id": "f7e037e33a064d719d9653a60d8a4272",
       "annotations": 1
     },
     {
-      "code_id": "e824865e70334da3a5de5e9f57cea365",
-      "document_id": "b314232858034cf891865265f2320801",
+      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
+      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
+      "annotations": 1
+    },
+    {
+      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
+      "document_id": "b919a3b2f811495883f3216cc8ce8a56",
       "annotations": 1
     }
   ],
   "annotation_positions": [
     {
-      "document_id": "02dacace4c3647a1b756eab58fe28291",
-      "code_id": "1073be30be174af28391b85106f194d6",
-      "start_byte": 1433
-    },
-    {
-      "document_id": "06fe87c445e1442f88b1145ba0639741",
-      "code_id": "1073be30be174af28391b85106f194d6",
-      "start_byte": 1768
-    },
-    {
-      "document_id": "06fe87c445e1442f88b1145ba0639741",
-      "code_id": "e824865e70334da3a5de5e9f57cea365",
-      "start_byte": 4644
-    },
-    {
-      "document_id": "2020e1a7eb494e0f8aa07726124b3862",
-      "code_id": "d793213799cb498e8f0740da3ad11bba",
-      "start_byte": 5290
-    },
-    {
-      "document_id": "4acb2e6a5e064dab8afeb608b137fd86",
-      "code_id": "9691eb9976e54667a294f3ae1b6bf116",
-      "start_byte": 1833
-    },
-    {
-      "document_id": "4acb2e6a5e064dab8afeb608b137fd86",
-      "code_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "start_byte": 2232
-    },
-    {
-      "document_id": "51b9da5987b441229b46eb754ee5d374",
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
-      "start_byte": 1513
-    },
-    {
-      "document_id": "51b9da5987b441229b46eb754ee5d374",
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
-      "start_byte": 1513
-    },
-    {
-      "document_id": "51b9da5987b441229b46eb754ee5d374",
-      "code_id": "0a778449f80d436ebdde6e05021dc8fb",
-      "start_byte": 1617
-    },
-    {
-      "document_id": "b314232858034cf891865265f2320801",
-      "code_id": "e824865e70334da3a5de5e9f57cea365",
-      "start_byte": 362
-    },
-    {
-      "document_id": "bf79fbf862204b4d8742fe18bfab56d7",
-      "code_id": "9691eb9976e54667a294f3ae1b6bf116",
-      "start_byte": 2892
-    },
-    {
-      "document_id": "e47a36c500414187a06f19aff90c4d3e",
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e",
+      "document_id": "0d65952ddb23477380f2f0a059a03707",
+      "code_id": "4368ab89c8214c3b8524baa58e867653",
       "start_byte": 164
     },
     {
-      "document_id": "e47a36c500414187a06f19aff90c4d3e",
-      "code_id": "d793213799cb498e8f0740da3ad11bba",
+      "document_id": "0d65952ddb23477380f2f0a059a03707",
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
       "start_byte": 3114
     },
     {
-      "document_id": "ee241c5f26ce4410beb414e155284acb",
-      "code_id": "442885cf9300462fbbd7a6996e361988",
-      "start_byte": 2223
+      "document_id": "18a21f5611ed48ffb08bebf3b584bbf5",
+      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "start_byte": 2892
     },
     {
-      "document_id": "effeea3fcc584a0cba8c204dfdf8df0d",
-      "code_id": "d793213799cb498e8f0740da3ad11bba",
+      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
+      "code_id": "4368ab89c8214c3b8524baa58e867653",
+      "start_byte": 1513
+    },
+    {
+      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
+      "code_id": "4368ab89c8214c3b8524baa58e867653",
+      "start_byte": 1513
+    },
+    {
+      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
+      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "start_byte": 1617
+    },
+    {
+      "document_id": "6f38cfdf67b84933ae3f4b39cfac48d0",
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
+      "start_byte": 5290
+    },
+    {
+      "document_id": "71a196b262e94800b2ff9c94296bd682",
+      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "start_byte": 362
+    },
+    {
+      "document_id": "92136da53424454899f43db0ada01251",
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
       "start_byte": 3117
+    },
+    {
+      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
+      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
+      "start_byte": 1768
+    },
+    {
+      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
+      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "start_byte": 4644
+    },
+    {
+      "document_id": "b919a3b2f811495883f3216cc8ce8a56",
+      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
+      "start_byte": 1433
+    },
+    {
+      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
+      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "start_byte": 1833
+    },
+    {
+      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
+      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "start_byte": 2232
+    },
+    {
+      "document_id": "f7e037e33a064d719d9653a60d8a4272",
+      "code_id": "de0303c2f04d46b485163d12ef177a10",
+      "start_byte": 2223
     }
   ],
   "events": [
@@ -748,96 +748,96 @@
     {
       "sequence": 80,
       "type": "annotation_added",
-      "code_id": "d793213799cb498e8f0740da3ad11bba"
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87"
     },
     {
       "sequence": 81,
       "type": "annotation_added",
-      "code_id": "1073be30be174af28391b85106f194d6"
+      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b"
     },
     {
       "sequence": 82,
       "type": "annotation_added",
-      "code_id": "e824865e70334da3a5de5e9f57cea365"
+      "code_id": "3cc3c950a1044e5ba16a672df55e0419"
     },
     {
       "sequence": 83,
       "type": "annotation_added",
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e"
+      "code_id": "4368ab89c8214c3b8524baa58e867653"
     },
     {
       "sequence": 84,
       "type": "annotation_added",
-      "code_id": "0a778449f80d436ebdde6e05021dc8fb"
+      "code_id": "c10344fa9f3943f38d9507685ecf7c46"
     },
     {
       "sequence": 85,
       "type": "annotation_added",
-      "code_id": "9691eb9976e54667a294f3ae1b6bf116"
+      "code_id": "64da40c410704f2ca94c2826e5a92d6b"
     },
     {
       "sequence": 86,
       "type": "annotation_added",
-      "code_id": "0a778449f80d436ebdde6e05021dc8fb"
+      "code_id": "c10344fa9f3943f38d9507685ecf7c46"
     },
     {
       "sequence": 87,
       "type": "annotation_added",
-      "code_id": "d793213799cb498e8f0740da3ad11bba"
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87"
     },
     {
       "sequence": 88,
       "type": "annotation_added",
-      "code_id": "9691eb9976e54667a294f3ae1b6bf116"
+      "code_id": "64da40c410704f2ca94c2826e5a92d6b"
     },
     {
       "sequence": 89,
       "type": "annotation_added",
-      "code_id": "e824865e70334da3a5de5e9f57cea365"
+      "code_id": "3cc3c950a1044e5ba16a672df55e0419"
     },
     {
       "sequence": 90,
       "type": "annotation_added",
-      "code_id": "442885cf9300462fbbd7a6996e361988"
+      "code_id": "de0303c2f04d46b485163d12ef177a10"
     },
     {
       "sequence": 91,
       "type": "annotation_added",
-      "code_id": "1073be30be174af28391b85106f194d6"
+      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b"
     },
     {
       "sequence": 92,
       "type": "annotation_added",
-      "code_id": "d793213799cb498e8f0740da3ad11bba"
+      "code_id": "bbce30ad284f47f085e3cdaf9e176a87"
     },
     {
       "sequence": 93,
       "type": "annotation_added",
-      "code_id": "3f5b9e2fae1547b69524c5ed11b4a02e"
+      "code_id": "4368ab89c8214c3b8524baa58e867653"
     },
     {
       "sequence": 94,
+      "type": "codebook_released"
+    },
+    {
+      "sequence": 95,
       "type": "code_created",
       "name": "waiting_for_news"
     },
     {
-      "sequence": 95,
+      "sequence": 96,
       "type": "annotation_added",
-      "code_id": "8f0162785ce5490d9e6529f6daead0a5"
+      "code_id": "727ed35137994789b1b923c170a16ea7"
     },
     {
-      "sequence": 96,
+      "sequence": 97,
       "type": "code_merged",
       "sources": 1
     },
     {
-      "sequence": 97,
+      "sequence": 98,
       "type": "code_created",
       "name": "home_front"
-    },
-    {
-      "sequence": 98,
-      "type": "code_parent_set"
     },
     {
       "sequence": 99,
@@ -845,14 +845,26 @@
     },
     {
       "sequence": 100,
-      "type": "code_link_created"
+      "type": "code_parent_set"
     },
     {
       "sequence": 101,
-      "type": "core_category_set"
+      "type": "code_link_created"
     },
     {
       "sequence": 102,
+      "type": "core_category_set"
+    },
+    {
+      "sequence": 103,
+      "type": "code_updated"
+    },
+    {
+      "sequence": 104,
+      "type": "codebook_released"
+    },
+    {
+      "sequence": 105,
       "type": "memo_created"
     }
   ],

@@ -397,3 +397,117 @@ def code_coverage(
             for row in result["breakdown"]:
                 marker = "*" if row["is_target"] else " "
                 typer.echo(f"  {marker} {row['code']}\t{row['respondents']} of {result['total_respondents']}")
+
+
+@app.command("update")
+def code_update(
+    ref: str = typer.Argument(..., help="Code name, alias, or id."),
+    description: Optional[str] = typer.Option(None, "--description", help="The full definition."),
+    inclusion: Optional[str] = typer.Option(None, "--inclusion", help="When this code applies."),
+    exclusion: Optional[str] = typer.Option(None, "--exclusion", help="When it does not, and what to use instead."),
+    human: bool = HumanOption,
+) -> None:
+    """Update a code's definition and inclusion/exclusion criteria."""
+    command = "code update"
+    json_flag = should_emit_json(human)
+    try:
+        project = get_project(command, json_flag)
+        project.update_code(
+            ref, description=description,
+            inclusion_criteria=inclusion, exclusion_criteria=exclusion,
+        )
+        data = cmd_code_show(project, ref)
+    except BewleyError as e:
+        fail(command, e, json_flag)
+        return
+    if json_flag:
+        finish(command, data)
+    else:
+        typer.echo("ok")
+
+
+@app.command("lint")
+def code_lint(human: bool = HumanOption) -> None:
+    """Flag codebook quality problems; never auto-fixes."""
+    command = "code lint"
+    json_flag = should_emit_json(human)
+    try:
+        from ..project import cmd_code_lint
+
+        project = get_project(command, json_flag)
+        findings = cmd_code_lint(project)
+    except BewleyError as e:
+        fail(command, e, json_flag)
+        return
+    if json_flag:
+        finish(command, {"finding_count": len(findings), "findings": findings})
+        return
+    if not findings:
+        typer.echo("codebook clean: no findings")
+        return
+    from rich.table import Table
+
+    table = Table(title=f"{len(findings)} codebook findings")
+    table.add_column("code")
+    table.add_column("check", no_wrap=True)
+    table.add_column("detail", overflow="fold")
+    for finding in findings:
+        table.add_row(finding["code_name"], finding["check"], finding["detail"])
+    rich_console().print(table)
+
+
+codebook_app = typer.Typer(help="Immutable named snapshots of the structured codebook.")
+
+
+@codebook_app.command("release")
+def codebook_release(
+    name: str = typer.Argument(..., help="Release name, e.g. pilot-1. Immutable once created."),
+    human: bool = HumanOption,
+) -> None:
+    """Freeze the current codebook as a named, immutable release."""
+    command = "codebook release"
+    json_flag = should_emit_json(human)
+    try:
+        project = get_project(command, json_flag)
+        event = project.release_codebook(name)
+        data = {
+            "name": name,
+            "release_id": event["payload"]["release_id"],
+            "codes": len(event["payload"]["snapshot"]),
+        }
+    except BewleyError as e:
+        fail(command, e, json_flag)
+        return
+    if json_flag:
+        finish(command, data)
+    else:
+        typer.echo(f"released {name}: {data['codes']} codes")
+
+
+@codebook_app.command("diff")
+def codebook_diff(
+    from_name: str = typer.Argument(..., help="Earlier release name."),
+    to_name: str = typer.Argument(..., help="Later release name."),
+    human: bool = HumanOption,
+) -> None:
+    """Compare two codebook releases: added, removed, and changed codes."""
+    command = "codebook diff"
+    json_flag = should_emit_json(human)
+    try:
+        from ..project import cmd_codebook_diff
+
+        project = get_project(command, json_flag)
+        data = cmd_codebook_diff(project, from_name, to_name)
+    except BewleyError as e:
+        fail(command, e, json_flag)
+        return
+    if json_flag:
+        finish(command, data)
+        return
+    for name in data["added"]:
+        typer.echo(f"+ {name}")
+    for name in data["removed"]:
+        typer.echo(f"- {name}")
+    for entry in data["changed"]:
+        fields = ", ".join(entry["changes"])
+        typer.echo(f"~ {entry['code_name']} ({fields})")

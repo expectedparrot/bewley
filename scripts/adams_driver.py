@@ -248,6 +248,7 @@ def main() -> None:
 
     bewley("open-coding", "apply", "--dry-run", capture="09-apply-dry-run")
     bewley("open-coding", "apply", capture="10-apply")
+    bewley("codebook", "release", "first-pass", capture="10b-release")
     bewley("show", "snippets", "--code", "political_voice", capture="11-snippets")
     bewley_human("show", "snippets", "--code", "political_voice", capture="11h-snippets")
     bewley_human("code", "list", capture="11h-codes")
@@ -305,6 +306,15 @@ def main() -> None:
     bewley("code", "list", "--tree", capture="19-code-tree")
     bewley_human("code", "list", "--tree", capture="19h-code-tree")
     bewley("code", "coverage", "home_front", "--breakdown", capture="20-coverage")
+    bewley("code", "update", "political_voice",
+           "--inclusion", "A claim about who is entitled to speak, decide, or be represented, "
+           "made in the writer's own voice.",
+           "--exclusion", "War or government news without a claim about entitlement to a voice; "
+           "use public_duty for the duty itself.",
+           capture="20d-criteria")
+    bewley_human("code", "lint", capture="20h-lint")
+    bewley("codebook", "release", "refined", capture="20e-release")
+    bewley("codebook", "diff", "first-pass", "refined", capture="20f-diff")
     bewley_human("case", "show", "Abigail Adams", capture="20h-case-show")
 
     # ── Chapter: compare and memo ──────────────────────────────────────────
