@@ -34,8 +34,10 @@ use `--help` for exact options and defaults.
   step is external and requires user approval before a paid model is selected.
 - `add-audio` / `add-video` call the OpenAI transcription API directly; they
   are paid external calls and require user approval.
-- Preserve `jobs.ep`, `models.ep`, every `results.ep`, and the candidate-code
-  CSV as run evidence.
+- Preserve `jobs.ep`, `models.ep`, every `results.ep`, the candidate-code
+  CSV, and the append-only `ingest_log.jsonl`/`apply_log.jsonl` sidecars as
+  run evidence. The sidecars keep the full proposal record after the reviewer
+  deletes rejected rows from the CSV; never edit or truncate them.
 
 ## Authentication and private material
 

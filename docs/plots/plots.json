@@ -1,247 +1,678 @@
 {
-  "generated_at": "2026-07-27T11:07:24Z",
+  "generated_at": "2026-07-27T11:44:32Z",
   "codes": [
     {
-      "code_id": "1598a41e9aae48318ad57409e86ebd19",
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3",
       "canonical_name": "political_voice",
+      "color": null,
       "annotations": 3,
       "documents": 3
     },
     {
-      "code_id": "c36458bac55e4793b07f50a11b2842a4",
+      "code_id": "906922c5a6214b0d96ecefa74965a6a0",
       "canonical_name": "health_and_scarcity",
+      "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "8f80783d526f463ab05d1f11dbdacd17",
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b",
       "canonical_name": "information_and_delay",
+      "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "7f95b966523b4e90b2007febaac96ea6",
+      "code_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
       "canonical_name": "public_duty",
+      "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "4afbb62a32d6415391a07d6ab6d54dfa",
+      "code_id": "a335c314ec304b1c9352fd0428199c02",
       "canonical_name": "separation_and_affection",
+      "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "ce3d140c31cf476f8c7661ce5f192ef0",
+      "code_id": "5c84c772b3c0493f8308a0590dd37548",
       "canonical_name": "war_and_danger",
+      "color": null,
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "9b002afdc61d45f9b1fbe79cb991f3a4",
+      "code_id": "a774b68902c4458aaf2b5034761be331",
       "canonical_name": "household_responsibility",
+      "color": null,
       "annotations": 1,
       "documents": 1
     },
     {
-      "code_id": "ea1512cad870495bb25f12d0bfa54934",
+      "code_id": "cb00c16795414c7a98b6905954b8f314",
       "canonical_name": "home_front",
+      "color": null,
       "annotations": 0,
       "documents": 0
     }
   ],
   "documents": [
     {
-      "document_id": "8ed1e0b9156b4b5689a897fa08f38e2a",
+      "document_id": "a6dde3ddd6354b5e9cda7cb16d0b3b22",
       "current_path": "corpus/1775-may-04-abigail-adams.txt",
       "annotations": 3,
-      "codes": 3
+      "codes": 3,
+      "byte_length": 2534
     },
     {
-      "document_id": "b195e76d618b40e7b1cdf1ada0c0627b",
+      "document_id": "3c6ee93e4e694740a4185f4a36c3a780",
       "current_path": "corpus/1775-june-15-abigail-adams.txt",
       "annotations": 2,
-      "codes": 2
+      "codes": 2,
+      "byte_length": 5063
     },
     {
-      "document_id": "8fe3e522b7784cf58f547fb1d2174fec",
+      "document_id": "ed90df66adb144b19b311c751852d8c3",
       "current_path": "corpus/1775-september-17-john-adams.txt",
       "annotations": 2,
-      "codes": 2
+      "codes": 2,
+      "byte_length": 2307
     },
     {
-      "document_id": "94b3db892c8142d9bfa282b13f6187b9",
+      "document_id": "1608d36aef184046b22942670668eb36",
       "current_path": "corpus/1776-march-31-abigail-adams.txt",
       "annotations": 2,
-      "codes": 2
+      "codes": 2,
+      "byte_length": 5214
     },
     {
-      "document_id": "2ab10ba6ccb343b4a1e7a5179c241356",
+      "document_id": "4d754a71684d475eb44195c3ea2daa9c",
       "current_path": "corpus/1775-december-10-abigail-adams.txt",
       "annotations": 1,
-      "codes": 1
+      "codes": 1,
+      "byte_length": 5754
     },
     {
-      "document_id": "82a3ed0e66e7402a806db42b623ed93e",
+      "document_id": "fadd63571d434fe7944f8823ecf4655b",
       "current_path": "corpus/1776-april-14-john-adams.txt",
       "annotations": 1,
-      "codes": 1
+      "codes": 1,
+      "byte_length": 4601
     },
     {
-      "document_id": "688cf48185f04ceab8754edcf6d85983",
+      "document_id": "a9bc2914bda44b8393151f7fe1b52823",
       "current_path": "corpus/1776-july-03-john-adams.txt",
       "annotations": 1,
-      "codes": 1
+      "codes": 1,
+      "byte_length": 3849
     },
     {
-      "document_id": "8824bead04b147b19dac7743d9d716e0",
+      "document_id": "4cb8f795e17647669ce9c10fe3be3a13",
       "current_path": "corpus/1776-july-13-abigail-adams.txt",
       "annotations": 1,
-      "codes": 1
+      "codes": 1,
+      "byte_length": 2778
     },
     {
-      "document_id": "1061fa73da924dbc8ebbfb050d323853",
+      "document_id": "e359907efc17463bb1eebc651fa422e3",
       "current_path": "corpus/1776-june-03-abigail-adams.txt",
       "annotations": 1,
-      "codes": 1
+      "codes": 1,
+      "byte_length": 3101
     },
     {
-      "document_id": "249aebfdc06242079144e92a4b42bbe1",
+      "document_id": "ab82945444f84d328c85209beec766e1",
       "current_path": "corpus/1776-march-17-john-adams.txt",
       "annotations": 1,
-      "codes": 1
+      "codes": 1,
+      "byte_length": 2371
     },
     {
-      "document_id": "ff06b3a14ef849a99ffed4ebe61cfb17",
+      "document_id": "1b651cfa25a04d209530d5bd59de5fa4",
       "current_path": "corpus/1775-april-30-john-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 1280
     },
     {
-      "document_id": "eb686fad422f44c395c3f5a807186287",
+      "document_id": "d173c888d73747cb903a0cb23a662f5d",
       "current_path": "corpus/1775-august-10-abigail-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 1699
     },
     {
-      "document_id": "0b8d89ea72a14ff0b7c1c321613e0d7a",
+      "document_id": "3e2de35bd57142acb4ee4cea1a087535",
       "current_path": "corpus/1775-december-03-john-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 3280
     },
     {
-      "document_id": "1beb496f0a2541d0ad5b8f4757584ad0",
+      "document_id": "a676cdab223144808274db056b5c3739",
       "current_path": "corpus/1775-june-11-john-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 4079
     },
     {
-      "document_id": "f64c1e2262574f2e8b9f8a433622aa0d",
+      "document_id": "7257407072e6441094eee6b68e8f4239",
       "current_path": "corpus/1775-june-18-john-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 817
     },
     {
-      "document_id": "d22e8860db5c4c2e829388d837489897",
+      "document_id": "023cecafa7374652b298249a331e5f0e",
       "current_path": "corpus/1775-june-22-abigail-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 2227
     },
     {
-      "document_id": "b21380f6b2dd4c5fa06eb00be02468df",
+      "document_id": "3352631f59be471994d5f6be6207b467",
       "current_path": "corpus/1775-october-21-abigail-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 5841
     },
     {
-      "document_id": "c541a31f309940acb6c9e48528497aba",
+      "document_id": "4018a4a1416846e7b16e8b5c91039af8",
       "current_path": "corpus/1775-october-23-john-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 2378
     },
     {
-      "document_id": "1c55a391cdab43bfb3d8762e7b4df138",
+      "document_id": "99588add25514c508fcccac6257f0cb0",
       "current_path": "corpus/1776-july-11-john-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 3415
     },
     {
-      "document_id": "6828d4bbbb89445e823710a1b25db7af",
+      "document_id": "880dddb87e204a2380f7a23520a56cb7",
       "current_path": "corpus/1776-march-02-abigail-adams.txt",
       "annotations": 0,
-      "codes": 0
+      "codes": 0,
+      "byte_length": 8010
     }
   ],
   "cooccurrence": [
     {
-      "left_id": "1598a41e9aae48318ad57409e86ebd19",
-      "right_id": "1598a41e9aae48318ad57409e86ebd19",
+      "left_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "right_id": "18b5912a96c44477b4c46bc1b9bef6f3",
       "documents": 3
     },
     {
-      "left_id": "1598a41e9aae48318ad57409e86ebd19",
-      "right_id": "8f80783d526f463ab05d1f11dbdacd17",
+      "left_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "right_id": "582d5109d75049aaae1fe830ca0d9a8b",
       "documents": 1
     },
     {
-      "left_id": "4afbb62a32d6415391a07d6ab6d54dfa",
-      "right_id": "4afbb62a32d6415391a07d6ab6d54dfa",
+      "left_id": "503dae3b8e484cff813a6ad73055a069",
+      "right_id": "503dae3b8e484cff813a6ad73055a069",
+      "documents": 1
+    },
+    {
+      "left_id": "503dae3b8e484cff813a6ad73055a069",
+      "right_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "documents": 1
+    },
+    {
+      "left_id": "503dae3b8e484cff813a6ad73055a069",
+      "right_id": "a335c314ec304b1c9352fd0428199c02",
+      "documents": 1
+    },
+    {
+      "left_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "right_id": "582d5109d75049aaae1fe830ca0d9a8b",
       "documents": 2
     },
     {
-      "left_id": "4afbb62a32d6415391a07d6ab6d54dfa",
-      "right_id": "7f95b966523b4e90b2007febaac96ea6",
+      "left_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "right_id": "a335c314ec304b1c9352fd0428199c02",
       "documents": 1
     },
     {
-      "left_id": "4afbb62a32d6415391a07d6ab6d54dfa",
-      "right_id": "804f6e5c417d4bd198133aaa4e74ce70",
-      "documents": 1
-    },
-    {
-      "left_id": "4afbb62a32d6415391a07d6ab6d54dfa",
-      "right_id": "8f80783d526f463ab05d1f11dbdacd17",
-      "documents": 1
-    },
-    {
-      "left_id": "7f95b966523b4e90b2007febaac96ea6",
-      "right_id": "7f95b966523b4e90b2007febaac96ea6",
+      "left_id": "5c84c772b3c0493f8308a0590dd37548",
+      "right_id": "5c84c772b3c0493f8308a0590dd37548",
       "documents": 2
     },
     {
-      "left_id": "804f6e5c417d4bd198133aaa4e74ce70",
-      "right_id": "804f6e5c417d4bd198133aaa4e74ce70",
+      "left_id": "5c84c772b3c0493f8308a0590dd37548",
+      "right_id": "906922c5a6214b0d96ecefa74965a6a0",
       "documents": 1
     },
     {
-      "left_id": "804f6e5c417d4bd198133aaa4e74ce70",
-      "right_id": "8f80783d526f463ab05d1f11dbdacd17",
-      "documents": 1
-    },
-    {
-      "left_id": "8f80783d526f463ab05d1f11dbdacd17",
-      "right_id": "8f80783d526f463ab05d1f11dbdacd17",
+      "left_id": "906922c5a6214b0d96ecefa74965a6a0",
+      "right_id": "906922c5a6214b0d96ecefa74965a6a0",
       "documents": 2
     },
     {
-      "left_id": "9b002afdc61d45f9b1fbe79cb991f3a4",
-      "right_id": "9b002afdc61d45f9b1fbe79cb991f3a4",
-      "documents": 1
-    },
-    {
-      "left_id": "c36458bac55e4793b07f50a11b2842a4",
-      "right_id": "c36458bac55e4793b07f50a11b2842a4",
+      "left_id": "a335c314ec304b1c9352fd0428199c02",
+      "right_id": "a335c314ec304b1c9352fd0428199c02",
       "documents": 2
     },
     {
-      "left_id": "c36458bac55e4793b07f50a11b2842a4",
-      "right_id": "ce3d140c31cf476f8c7661ce5f192ef0",
+      "left_id": "a335c314ec304b1c9352fd0428199c02",
+      "right_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
       "documents": 1
     },
     {
-      "left_id": "ce3d140c31cf476f8c7661ce5f192ef0",
-      "right_id": "ce3d140c31cf476f8c7661ce5f192ef0",
+      "left_id": "a774b68902c4458aaf2b5034761be331",
+      "right_id": "a774b68902c4458aaf2b5034761be331",
+      "documents": 1
+    },
+    {
+      "left_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
+      "right_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
       "documents": 2
     }
-  ]
+  ],
+  "matrix": [
+    {
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "document_id": "1608d36aef184046b22942670668eb36",
+      "annotations": 1
+    },
+    {
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "document_id": "4d754a71684d475eb44195c3ea2daa9c",
+      "annotations": 1
+    },
+    {
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "document_id": "fadd63571d434fe7944f8823ecf4655b",
+      "annotations": 1
+    },
+    {
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "document_id": "1608d36aef184046b22942670668eb36",
+      "annotations": 1
+    },
+    {
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "document_id": "a6dde3ddd6354b5e9cda7cb16d0b3b22",
+      "annotations": 2
+    },
+    {
+      "code_id": "5c84c772b3c0493f8308a0590dd37548",
+      "document_id": "3c6ee93e4e694740a4185f4a36c3a780",
+      "annotations": 1
+    },
+    {
+      "code_id": "5c84c772b3c0493f8308a0590dd37548",
+      "document_id": "ab82945444f84d328c85209beec766e1",
+      "annotations": 1
+    },
+    {
+      "code_id": "906922c5a6214b0d96ecefa74965a6a0",
+      "document_id": "3c6ee93e4e694740a4185f4a36c3a780",
+      "annotations": 1
+    },
+    {
+      "code_id": "906922c5a6214b0d96ecefa74965a6a0",
+      "document_id": "4cb8f795e17647669ce9c10fe3be3a13",
+      "annotations": 1
+    },
+    {
+      "code_id": "a335c314ec304b1c9352fd0428199c02",
+      "document_id": "a6dde3ddd6354b5e9cda7cb16d0b3b22",
+      "annotations": 1
+    },
+    {
+      "code_id": "a335c314ec304b1c9352fd0428199c02",
+      "document_id": "ed90df66adb144b19b311c751852d8c3",
+      "annotations": 1
+    },
+    {
+      "code_id": "a774b68902c4458aaf2b5034761be331",
+      "document_id": "e359907efc17463bb1eebc651fa422e3",
+      "annotations": 1
+    },
+    {
+      "code_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
+      "document_id": "a9bc2914bda44b8393151f7fe1b52823",
+      "annotations": 1
+    },
+    {
+      "code_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
+      "document_id": "ed90df66adb144b19b311c751852d8c3",
+      "annotations": 1
+    }
+  ],
+  "annotation_positions": [
+    {
+      "document_id": "1608d36aef184046b22942670668eb36",
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "start_byte": 164
+    },
+    {
+      "document_id": "1608d36aef184046b22942670668eb36",
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "start_byte": 3114
+    },
+    {
+      "document_id": "3c6ee93e4e694740a4185f4a36c3a780",
+      "code_id": "5c84c772b3c0493f8308a0590dd37548",
+      "start_byte": 1768
+    },
+    {
+      "document_id": "3c6ee93e4e694740a4185f4a36c3a780",
+      "code_id": "906922c5a6214b0d96ecefa74965a6a0",
+      "start_byte": 4644
+    },
+    {
+      "document_id": "4cb8f795e17647669ce9c10fe3be3a13",
+      "code_id": "906922c5a6214b0d96ecefa74965a6a0",
+      "start_byte": 362
+    },
+    {
+      "document_id": "4d754a71684d475eb44195c3ea2daa9c",
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "start_byte": 5290
+    },
+    {
+      "document_id": "a6dde3ddd6354b5e9cda7cb16d0b3b22",
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "start_byte": 1011
+    },
+    {
+      "document_id": "a6dde3ddd6354b5e9cda7cb16d0b3b22",
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b",
+      "start_byte": 1513
+    },
+    {
+      "document_id": "a6dde3ddd6354b5e9cda7cb16d0b3b22",
+      "code_id": "a335c314ec304b1c9352fd0428199c02",
+      "start_byte": 1617
+    },
+    {
+      "document_id": "a9bc2914bda44b8393151f7fe1b52823",
+      "code_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
+      "start_byte": 2892
+    },
+    {
+      "document_id": "ab82945444f84d328c85209beec766e1",
+      "code_id": "5c84c772b3c0493f8308a0590dd37548",
+      "start_byte": 1433
+    },
+    {
+      "document_id": "e359907efc17463bb1eebc651fa422e3",
+      "code_id": "a774b68902c4458aaf2b5034761be331",
+      "start_byte": 2223
+    },
+    {
+      "document_id": "ed90df66adb144b19b311c751852d8c3",
+      "code_id": "b3c193aae9a94bfbbb5e9442c5ceb241",
+      "start_byte": 1833
+    },
+    {
+      "document_id": "ed90df66adb144b19b311c751852d8c3",
+      "code_id": "a335c314ec304b1c9352fd0428199c02",
+      "start_byte": 2232
+    },
+    {
+      "document_id": "fadd63571d434fe7944f8823ecf4655b",
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3",
+      "start_byte": 3117
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "type": "project_initialized"
+    },
+    {
+      "sequence": 2,
+      "type": "document_added"
+    },
+    {
+      "sequence": 3,
+      "type": "document_added"
+    },
+    {
+      "sequence": 4,
+      "type": "document_added"
+    },
+    {
+      "sequence": 5,
+      "type": "document_added"
+    },
+    {
+      "sequence": 6,
+      "type": "document_added"
+    },
+    {
+      "sequence": 7,
+      "type": "document_added"
+    },
+    {
+      "sequence": 8,
+      "type": "document_added"
+    },
+    {
+      "sequence": 9,
+      "type": "document_added"
+    },
+    {
+      "sequence": 10,
+      "type": "document_added"
+    },
+    {
+      "sequence": 11,
+      "type": "document_added"
+    },
+    {
+      "sequence": 12,
+      "type": "document_added"
+    },
+    {
+      "sequence": 13,
+      "type": "document_added"
+    },
+    {
+      "sequence": 14,
+      "type": "document_added"
+    },
+    {
+      "sequence": 15,
+      "type": "document_added"
+    },
+    {
+      "sequence": 16,
+      "type": "document_added"
+    },
+    {
+      "sequence": 17,
+      "type": "document_added"
+    },
+    {
+      "sequence": 18,
+      "type": "document_added"
+    },
+    {
+      "sequence": 19,
+      "type": "document_added"
+    },
+    {
+      "sequence": 20,
+      "type": "document_added"
+    },
+    {
+      "sequence": 21,
+      "type": "document_added"
+    },
+    {
+      "sequence": 22,
+      "type": "code_created",
+      "name": "political_voice"
+    },
+    {
+      "sequence": 23,
+      "type": "code_created",
+      "name": "war_and_danger"
+    },
+    {
+      "sequence": 24,
+      "type": "code_created",
+      "name": "health_and_scarcity"
+    },
+    {
+      "sequence": 25,
+      "type": "code_created",
+      "name": "information_and_delay"
+    },
+    {
+      "sequence": 26,
+      "type": "code_created",
+      "name": "separation_and_affection"
+    },
+    {
+      "sequence": 27,
+      "type": "code_created",
+      "name": "public_duty"
+    },
+    {
+      "sequence": 28,
+      "type": "code_created",
+      "name": "household_responsibility"
+    },
+    {
+      "sequence": 29,
+      "type": "annotation_added",
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3"
+    },
+    {
+      "sequence": 30,
+      "type": "annotation_added",
+      "code_id": "5c84c772b3c0493f8308a0590dd37548"
+    },
+    {
+      "sequence": 31,
+      "type": "annotation_added",
+      "code_id": "906922c5a6214b0d96ecefa74965a6a0"
+    },
+    {
+      "sequence": 32,
+      "type": "annotation_added",
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b"
+    },
+    {
+      "sequence": 33,
+      "type": "annotation_added",
+      "code_id": "a335c314ec304b1c9352fd0428199c02"
+    },
+    {
+      "sequence": 34,
+      "type": "annotation_added",
+      "code_id": "b3c193aae9a94bfbbb5e9442c5ceb241"
+    },
+    {
+      "sequence": 35,
+      "type": "annotation_added",
+      "code_id": "a335c314ec304b1c9352fd0428199c02"
+    },
+    {
+      "sequence": 36,
+      "type": "annotation_added",
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3"
+    },
+    {
+      "sequence": 37,
+      "type": "annotation_added",
+      "code_id": "b3c193aae9a94bfbbb5e9442c5ceb241"
+    },
+    {
+      "sequence": 38,
+      "type": "annotation_added",
+      "code_id": "906922c5a6214b0d96ecefa74965a6a0"
+    },
+    {
+      "sequence": 39,
+      "type": "annotation_added",
+      "code_id": "a774b68902c4458aaf2b5034761be331"
+    },
+    {
+      "sequence": 40,
+      "type": "annotation_added",
+      "code_id": "5c84c772b3c0493f8308a0590dd37548"
+    },
+    {
+      "sequence": 41,
+      "type": "annotation_added",
+      "code_id": "18b5912a96c44477b4c46bc1b9bef6f3"
+    },
+    {
+      "sequence": 42,
+      "type": "annotation_added",
+      "code_id": "582d5109d75049aaae1fe830ca0d9a8b"
+    },
+    {
+      "sequence": 43,
+      "type": "code_created",
+      "name": "waiting_for_news"
+    },
+    {
+      "sequence": 44,
+      "type": "annotation_added",
+      "code_id": "503dae3b8e484cff813a6ad73055a069"
+    },
+    {
+      "sequence": 45,
+      "type": "code_merged",
+      "sources": 1
+    },
+    {
+      "sequence": 46,
+      "type": "code_created",
+      "name": "home_front"
+    },
+    {
+      "sequence": 47,
+      "type": "code_parent_set"
+    },
+    {
+      "sequence": 48,
+      "type": "code_parent_set"
+    },
+    {
+      "sequence": 49,
+      "type": "code_link_created"
+    },
+    {
+      "sequence": 50,
+      "type": "core_category_set"
+    },
+    {
+      "sequence": 51,
+      "type": "memo_created"
+    }
+  ],
+  "review": {
+    "proposed": {
+      "daily_minutiae": 4,
+      "travel_logistics": 3,
+      "weather_report": 3,
+      "political_voice": 3,
+      "war_and_danger": 2,
+      "health_and_scarcity": 2,
+      "information_and_delay": 2,
+      "separation_and_affection": 2,
+      "public_duty": 2,
+      "household_responsibility": 1
+    },
+    "applied": {
+      "political_voice": 3,
+      "war_and_danger": 2,
+      "health_and_scarcity": 2,
+      "information_and_delay": 2,
+      "separation_and_affection": 2,
+      "public_duty": 2,
+      "household_responsibility": 1
+    }
+  }
 }

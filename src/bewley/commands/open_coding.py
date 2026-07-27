@@ -11,7 +11,7 @@ from typing import Any, Optional
 import typer
 
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
-from bewley.project import BewleyError, safe_decode
+from bewley.project import BewleyError, safe_decode, utcnow
 
 
 app = typer.Typer(help="Build open-coding Jobs packages and ingest EDSL Results.")
@@ -457,6 +457,24 @@ def ingest_command(
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+        # Append-only provenance: the CSV is a working file the reviewer edits
+        # (deleting rejected rows), so the original proposal set survives here.
+        ingest_log = target.parent / "ingest_log.jsonl"
+        with ingest_log.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({
+                "ingested_at": utcnow(),
+                "results": [str(source) for source in sources],
+                "output": str(target),
+                "candidates": [
+                    {
+                        "candidate_id": row["candidate_id"],
+                        "code_name": row["code_name"],
+                        "source_document_path": row["source_document_path"],
+                        "resolve_status": row["resolve_status"],
+                    }
+                    for row in rows
+                ],
+            }) + "\n")
         warnings_list = []
         if superseded:
             warnings_list.append(
@@ -465,6 +483,7 @@ def ingest_command(
         data = {
             "object_type": "CandidateCodes",
             "output": str(target),
+            "ingest_log": str(ingest_log),
             "results": [str(source) for source in sources],
             "result_count": total_rows,
             "candidate_count": len(rows),
@@ -661,6 +680,17 @@ def apply_command(
                     (item["byte_start"], item["byte_end"]), None,
                 )
                 applied += 1
+            with (source.parent / "apply_log.jsonl").open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({
+                    "applied_at": utcnow(),
+                    "input": str(source),
+                    "applied": [
+                        {"candidate_id": item["candidate_id"], "code_name": item["code_name"]}
+                        for item in plan
+                    ],
+                    "created_codes": created_codes,
+                    "skipped": skipped_details,
+                }) + "\n")
         data = {
             "input": str(source),
             "rows": len(candidates),

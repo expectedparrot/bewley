@@ -299,7 +299,7 @@ add(f"""
     <p>The candidate CSV is the human checkpoint, and <code>open-coding candidates</code> is how you read it — the full review queue of everything the model proposed, before any judgment:</p>
     {cmdcap("bewley open-coding candidates", "08b-candidates")}
     {hcap("08h-candidates", "The complete review queue: all 24 proposals across 10 codes, each with its definition and verbatim quote. The seven analytic codes serve the research question; <code>daily_minutiae</code>, <code>travel_logistics</code>, and <code>weather_report</code> are topic labels without analytic weight.")}
-    <p>In this run the review kept 14 of the 24 candidates and deleted the topic-label rows. Review means editing the CSV: delete rejected rows, keep the rest.</p>
+    <p>In this run the review kept 14 of the 24 candidates and deleted the topic-label rows. Review means editing the CSV: delete rejected rows, keep the rest. Deleting a row does not erase the record — every ingest appends the full proposal set to <code>qualitative-analysis/ingest_log.jsonl</code>, and apply appends its outcomes to <code>apply_log.jsonl</code>, so proposed-versus-kept stays auditable (the review-outcomes plot in <a href="#export">chapter 10</a> is drawn from exactly these logs).</p>
     <p><code>apply</code> is where proposals become the real thing: each surviving label is created as a code (carrying its definition into the codebook), and each surviving quote becomes an annotation — the label tagged onto that exact stretch of the letter. Preview first:</p>
     {cmdcap("bewley open-coding apply --dry-run", "09-apply-dry-run")}
     {cmdcap("bewley open-coding apply", "10-apply")}
@@ -394,8 +394,28 @@ add(f"""
       <figcaption><strong>Coding density.</strong> Uneven density prompts a check of sampling, document length, and analyst attention.</figcaption>
     </figure>
     <figure>
+      <img src="plots/code-document-matrix.svg" alt="Heatmap of annotation counts for each code in each letter, letters in chronological order.">
+      <figcaption><strong>Code × document matrix.</strong> The joint view the two bar charts summarize: which codes appear in which letters, in corpus order. Row patterns show a theme's reach; column patterns show a letter's texture.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/annotation-positions.svg" alt="One track per letter with colored ticks marking where each annotation falls within the text.">
+      <figcaption><strong>Where codes appear within documents.</strong> Each track is a letter at proportional length; each tick is an annotation at its byte position. Clusters show where in a letter a theme concentrates — and empty tracks show exactly which letters carry no codes yet.</figcaption>
+    </figure>
+    <figure>
       <img src="plots/code-cooccurrence.svg" alt="Matrix counting the letters in which each pair of codes appears.">
       <figcaption><strong>Code co-occurrence.</strong> Cells count documents containing both codes — comparisons to inspect, not relationships established.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/review-funnel.svg" alt="Per proposed code, a light bar for candidates proposed and a dark bar for annotations applied after review.">
+      <figcaption><strong>Review outcomes.</strong> Drawn from the append-only ingest and apply logs: what the model proposed (light) against what survived human review (dark). The all-light rows — <code>daily_minutiae</code>, <code>travel_logistics</code>, <code>weather_report</code> — are the proposals rejected in chapter 6, kept visible instead of vanishing.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/code-saturation.svg" alt="Step line of cumulative distinct codes as annotations were applied.">
+      <figcaption><strong>Code saturation.</strong> Distinct codes accumulated as annotations were applied, in event-log order. A flattening curve supports a saturation claim; a still-climbing one says to keep coding. The final uptick here is chapter 8's hand-coded <code>waiting_for_news</code>.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/codebook-evolution.svg" alt="Step line of active codebook size over the event history with the merge decision marked.">
+      <figcaption><strong>Codebook evolution.</strong> Active codebook size over the project's real analytic history, with merges, splits, and renames marked — the audit trail as a picture. The marked dip is chapter 8's merge of <code>waiting_for_news</code> into <code>information_and_delay</code>.</figcaption>
     </figure>
     <p>Before reporting a finding, read the export and confirm its excerpts are non-empty, correctly scoped, and representative. A generated narrative is an inventory to interpret, not a substitute for reading the evidence.</p>
   </section>

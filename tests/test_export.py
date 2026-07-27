@@ -92,7 +92,7 @@ class TestExportHtml:
 
 
 class TestExportPlots:
-    def test_writes_three_accessible_svg_plots_and_manifest(self, project: BewleyProject) -> None:
+    def test_writes_accessible_svg_plots_and_manifest(self, project: BewleyProject) -> None:
         project.cli_ok("code", "create", "trust")
         project.cli_ok("code", "create", "friction")
         project.cli_ok("annotate", "apply", "trust", "corpus/interview_alice.txt", "--lines", "5:5")
@@ -101,7 +101,14 @@ class TestExportPlots:
         stdout = project.cli_ok("export", "plots", "--output-dir", "report/plots")
 
         paths = [project.root / line for line in stdout.splitlines() if line]
-        assert len(paths) == 3
+        # No open-coding sidecar logs in this project, so the review funnel is skipped.
+        assert len(paths) == 7
+        names = {path.name for path in paths}
+        assert names == {
+            "code-prevalence.svg", "document-density.svg", "code-cooccurrence.svg",
+            "code-document-matrix.svg", "code-saturation.svg",
+            "annotation-positions.svg", "codebook-evolution.svg",
+        }
         for path in paths:
             assert path.exists()
             svg = path.read_text(encoding="utf-8")
@@ -111,3 +118,39 @@ class TestExportPlots:
         manifest = json.loads((project.root / "report/plots/plots.json").read_text())
         assert {row["canonical_name"] for row in manifest["codes"]} == {"friction", "trust"}
         assert any(row["documents"] == 1 for row in manifest["cooccurrence"])
+        assert manifest["matrix"], "matrix cells should be present"
+        assert manifest["annotation_positions"], "annotation positions should be present"
+        assert any(event["type"] == "code_created" for event in manifest["events"])
+
+    def test_review_funnel_drawn_from_sidecar_logs(self, project: BewleyProject) -> None:
+        base = project.root / "qualitative-analysis"
+        base.mkdir(exist_ok=True)
+        (base / "ingest_log.jsonl").write_text(json.dumps({"candidates": [
+            {"candidate_id": "a", "code_name": "trust"},
+            {"candidate_id": "b", "code_name": "noise"},
+        ]}) + "\n", encoding="utf-8")
+        (base / "apply_log.jsonl").write_text(json.dumps({"applied": [
+            {"candidate_id": "a", "code_name": "trust"},
+        ]}) + "\n", encoding="utf-8")
+
+        stdout = project.cli_ok("export", "plots", "--output-dir", "report/plots")
+
+        paths = [project.root / line for line in stdout.splitlines() if line]
+        assert any(path.name == "review-funnel.svg" for path in paths)
+        manifest = json.loads((project.root / "report/plots/plots.json").read_text())
+        assert manifest["review"]["proposed"] == {"trust": 1, "noise": 1}
+        assert manifest["review"]["applied"] == {"trust": 1}
+
+    def test_merged_code_annotations_resolve_in_matrix(self, project: BewleyProject) -> None:
+        project.cli_ok("code", "create", "trust")
+        project.cli_ok("code", "create", "confidence")
+        project.cli_ok("annotate", "apply", "confidence", "corpus/interview_alice.txt", "--lines", "5:5")
+        project.cli_ok("code", "merge", "confidence", "--into", "trust")
+
+        project.cli_ok("export", "plots", "--output-dir", "report/plots")
+
+        manifest = json.loads((project.root / "report/plots/plots.json").read_text())
+        trust_id = next(row["code_id"] for row in manifest["codes"] if row["canonical_name"] == "trust")
+        assert all(cell["code_id"] == trust_id for cell in manifest["matrix"])
+        assert all(row["code_id"] == trust_id for row in manifest["annotation_positions"])
+        assert any(event["type"] == "code_merged" for event in manifest["events"])
