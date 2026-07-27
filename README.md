@@ -23,6 +23,17 @@ bewley can:
 `bewley export html` from twenty public-domain Adams letters, and the
 [HTML tutorial](https://expectedparrot.github.io/bewley/) that builds it.
 
+**Try it with no data of your own:** that corpus ships inside the package.
+
+```bash
+bewley example fetch adams-letters
+cd adams-letters && bewley init
+```
+
+writes the twenty letters (with their source and license documentation) into
+a fresh directory, ready for the tutorial's worked run. `bewley example list`
+enumerates the bundled examples.
+
 ## Copy and paste into a coding agent
 
 ```text

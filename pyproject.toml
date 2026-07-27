@@ -44,4 +44,10 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-bewley = ["docs_content/*.md", "schemas/*.json"]
+bewley = [
+    "docs_content/*.md",
+    "schemas/*.json",
+    "examples/*/*.md",
+    "examples/*/*.txt",
+    "examples/*/corpus/*.txt",
+]

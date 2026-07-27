@@ -35,6 +35,8 @@ presentation mode and should not be used by agents parsing results.
 | `bewley docs list` | List embedded documentation topics. |
 | `bewley docs show <topic>` | Show one embedded documentation topic. |
 | `bewley docs search <query>` | Search across the embedded documentation. |
+| `bewley example list` | List the example corpora bundled with the installed package. |
+| `bewley example fetch <name> [--dest DIR]` | Write a bundled example corpus (documents, README, license) into a new local directory. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |
 | `bewley rebuild-index` | Rebuild the SQLite index from the event log. |
 | `bewley capabilities` | Describe the versioned agent interface and bundled schemas. |

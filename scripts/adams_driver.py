@@ -3,7 +3,7 @@
 
 Runs every tutorial command against the real corpus, uses a deterministic
 fixture Results object in place of the external `ep run` (no model calls),
-captures each JSON envelope to build/adams-run/captures/, and regenerates
+captures each JSON envelope to build/tutorial/captures/, and regenerates
 the explorer + plots into the repo's docs/.
 
 Usage (from the repo root, with dev dependencies installed):
@@ -23,9 +23,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SRC = str(REPO / "src")
-CORPUS_SRC = REPO / "examples" / "adams-letters" / "corpus"
-RUN = REPO / "build" / "adams-run"
-CAPTURES = RUN / "captures"
+TUTORIAL = REPO / "build" / "tutorial"
+RUN = TUTORIAL / "adams-letters"
+CAPTURES = TUTORIAL / "captures"
 
 # (code, filename, anchor phrase) — the reviewer-kept candidate codes.
 PLANNED = [
@@ -47,14 +47,14 @@ PLANNED = [
 REJECT_CODES = ["daily_minutiae", "travel_logistics", "weather_report"]
 
 
-def bewley_human(*args: str, capture: str) -> str:
+def bewley_human(*args: str, capture: str, cwd: Path | None = None) -> str:
     """Run a command with --human and capture the rendered text."""
     env = os.environ.copy()
     env["PYTHONPATH"] = SRC
     env.pop("BEWLEY_HUMAN_OUTPUT", None)
     completed = subprocess.run(
         [sys.executable, "-m", "bewley", *args, "--human"],
-        cwd=RUN, env=env, text=True,
+        cwd=cwd or RUN, env=env, text=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     assert completed.returncode == 0, f"failed: {args}\n{completed.stdout}\n{completed.stderr}"
@@ -64,13 +64,13 @@ def bewley_human(*args: str, capture: str) -> str:
     return completed.stdout
 
 
-def bewley(*args: str, expect_fail: bool = False, capture: str | None = None) -> dict:
+def bewley(*args: str, expect_fail: bool = False, capture: str | None = None, cwd: Path | None = None) -> dict:
     env = os.environ.copy()
     env["PYTHONPATH"] = SRC
     env.pop("BEWLEY_HUMAN_OUTPUT", None)
     completed = subprocess.run(
         [sys.executable, "-m", "bewley", *args],
-        cwd=RUN, env=env, text=True,
+        cwd=cwd or RUN, env=env, text=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     if expect_fail:
@@ -120,17 +120,14 @@ def line_of(text: str, phrase: str) -> int:
 
 
 def main() -> None:
-    if RUN.exists():
-        shutil.rmtree(RUN)
-    (RUN / "corpus").mkdir(parents=True)
-    CAPTURES.mkdir()
-    for letter in sorted(CORPUS_SRC.glob("*.txt")):
-        shutil.copyfile(letter, RUN / "corpus" / letter.name)
-
-    texts = {p.name: (RUN / "corpus" / p.name).read_text(encoding="utf-8") for p in sorted(CORPUS_SRC.glob("*.txt"))}
+    if TUTORIAL.exists():
+        shutil.rmtree(TUTORIAL)
+    CAPTURES.mkdir(parents=True)
 
     # ── Chapter: start the project ─────────────────────────────────────────
-    bewley("version", capture="01-version")
+    bewley("version", capture="01-version", cwd=TUTORIAL)
+    bewley("example", "fetch", "adams-letters", capture="01b-fetch", cwd=TUTORIAL)
+    texts = {p.name: p.read_text(encoding="utf-8") for p in sorted((RUN / "corpus").glob("*.txt"))}
     bewley("init", capture="02-init")
     bewley("add", "corpus/1775-april-30-john-adams.txt", capture="03-add")
     for name in sorted(texts):

@@ -27,6 +27,7 @@ from bewley.commands.documents import (
     show_app,
     update_command,
 )
+from bewley.commands.examples import app as example_app
 from bewley.commands.export import app as export_app
 from bewley.commands.history import history_command, undo_command
 from bewley.commands.memos import app as memo_app
@@ -75,6 +76,7 @@ app.add_typer(memo_app, name="memo")
 
 # Docs
 app.add_typer(docs_app, name="docs")
+app.add_typer(example_app, name="example")
 
 # Codegen
 app.add_typer(codegen_app, name="codegen")
