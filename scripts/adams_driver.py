@@ -125,7 +125,14 @@ def main() -> None:
     CAPTURES.mkdir(parents=True)
 
     # ── Chapter: start the project ─────────────────────────────────────────
-    bewley("version", capture="01-version", cwd=TUTORIAL)
+    version_envelope = bewley("version", capture="01-version", cwd=TUTORIAL)
+    import tomllib
+    declared = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    reported = version_envelope["data"]["version"]
+    assert reported == declared, (
+        f"docs would embed version {reported} but pyproject declares {declared}; "
+        "refresh the environment with `pip install -e .` before regenerating"
+    )
     bewley("example", "fetch", "adams-letters", capture="01b-fetch", cwd=TUTORIAL)
     texts = {p.name: p.read_text(encoding="utf-8") for p in sorted((RUN / "corpus").glob("*.txt"))}
     bewley("init", capture="02-init")

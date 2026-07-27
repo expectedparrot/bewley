@@ -410,8 +410,8 @@ add(f"""
       <figcaption><strong>Review outcomes.</strong> Drawn from the append-only ingest and apply logs: what the model proposed (light) against what survived human review (dark). The all-light rows — <code>daily_minutiae</code>, <code>travel_logistics</code>, <code>weather_report</code> — are the proposals rejected in chapter 6, kept visible instead of vanishing.</figcaption>
     </figure>
     <figure>
-      <img src="plots/code-saturation.svg" alt="Step line of cumulative distinct codes as annotations were applied.">
-      <figcaption><strong>Code saturation.</strong> Distinct codes accumulated as annotations were applied, in event-log order. A flattening curve supports a saturation claim; a still-climbing one says to keep coding. The final uptick here is chapter 8's hand-coded <code>waiting_for_news</code>.</figcaption>
+      <img src="plots/code-discovery.svg" alt="Step line of cumulative distinct codes as annotations were applied.">
+      <figcaption><strong>Code discovery.</strong> Distinct codes accumulated as annotations were applied, in event-log order. The plot reports a fact — the final uptick here is chapter 8's hand-coded <code>waiting_for_news</code>, and a flat tail means recent material introduced no new codes. Whether that amounts to <em>saturation</em> is a methodological judgment about the sample, the questions, and conceptual depth; the plot informs that judgment but cannot make it.</figcaption>
     </figure>
     <figure>
       <img src="plots/codebook-evolution.svg" alt="Step line of active codebook size over the event history with the merge decision marked.">

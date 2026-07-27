@@ -264,7 +264,7 @@ def code_document_matrix_svg(data: dict[str, Any]) -> str:
                 "Annotation counts for each code (rows) in each document (columns, in corpus order).")
 
 
-def saturation_svg(data: dict[str, Any]) -> str:
+def code_discovery_svg(data: dict[str, Any]) -> str:
     steps: list[tuple[int, int]] = []
     seen: set[str] = set()
     count = 0
@@ -299,9 +299,9 @@ def saturation_svg(data: dict[str, Any]) -> str:
         parts.append(f'<text class="value" x="{final_x - 6:.1f}" y="{final_y - 9:.1f}" text-anchor="end">{steps[-1][1]} distinct codes after {steps[-1][0]} annotations</text>')
     parts.append(f'<text class="value" x="{left + plot_w / 2}" y="{height - 12}" text-anchor="middle">annotations, in the order they were applied</text>')
     parts.append(f'<text class="value" transform="translate(20,{top + plot_h / 2}) rotate(-90)" text-anchor="middle">distinct codes</text>')
-    return _svg(width, height, "Code saturation",
+    return _svg(width, height, "Code discovery",
                 "".join(parts),
-                "Cumulative count of distinct codes as annotations were applied, in event-log order. A flattening curve suggests saturation; a climbing one suggests more coding is needed.")
+                "Cumulative count of distinct codes as annotations were applied, in event-log order. A flat tail means recent material introduced no new codes; whether that constitutes saturation is a methodological judgment the researcher makes, not a fact this plot establishes.")
 
 
 def review_funnel_svg(data: dict[str, Any]) -> str:
@@ -430,7 +430,7 @@ def export_plots(project: Project, output_dir: Path) -> dict[str, Any]:
         "document_density": ("document-density.svg", document_density_svg),
         "code_cooccurrence": ("code-cooccurrence.svg", cooccurrence_svg),
         "code_document_matrix": ("code-document-matrix.svg", code_document_matrix_svg),
-        "code_saturation": ("code-saturation.svg", saturation_svg),
+        "code_discovery": ("code-discovery.svg", code_discovery_svg),
         "review_funnel": ("review-funnel.svg", review_funnel_svg),
         "annotation_positions": ("annotation-positions.svg", annotation_positions_svg),
         "codebook_evolution": ("codebook-evolution.svg", codebook_evolution_svg),

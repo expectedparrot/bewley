@@ -106,7 +106,7 @@ class TestExportPlots:
         names = {path.name for path in paths}
         assert names == {
             "code-prevalence.svg", "document-density.svg", "code-cooccurrence.svg",
-            "code-document-matrix.svg", "code-saturation.svg",
+            "code-document-matrix.svg", "code-discovery.svg",
             "annotation-positions.svg", "codebook-evolution.svg",
         }
         for path in paths:
