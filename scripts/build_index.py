@@ -470,6 +470,13 @@ add(f"""
     <p>For interviews, the most natural unit is often the whole turn — robust to re-wrapping, no quote needed. <code>--turn</code> anchors the Nth turn of the segmentation:</p>
     {cmdcap("bewley annotate apply war_and_danger corpus/interview-01-abigail-adams.txt --turn 8", "37-iv-turn")}
     <p>A span that crosses an interviewer question and a participant answer is legitimate sometimes (coding an exchange); it is recorded as <code>speaker_scope: mixed</code> with a warning rather than refused. After <code>bewley update</code> changes a transcript, rerun <code>speakers detect</code> — segmentation is tied to the exact revision it parsed.</p>
+    <h3>The model pipeline respects the same boundary</h3>
+    <p>Model-assisted open coding (<a href="#opencoding">chapter 5</a>) works unchanged on transcripts — the packaged prompt additionally instructs the model to anchor quotes in participant turns — but instructions are not enforcement. Enforcement happens at ingest: a proposed quote that resolves inside interviewer turns is located, then marked <code>interviewer_text</code> — itemized like an unresolved quote, visible in the review queue, and skipped by <code>apply</code>. Never silently dropped, never silently applied:</p>
+    {cmdcap("bewley open-coding jobs --output jobs.ep --model gpt-4.1-mini", "38-iv-jobs")}
+    <div class="callout"><strong>Fixture substitution again.</strong> As in chapter 5, <code>results.ep</code> here is a deterministic fixture: four plausible candidates across the three transcripts, one of which — deliberately — quotes the interviewer's question <em>"Who had the harder years?"</em>.</div>
+    {cmdcap("bewley open-coding ingest results.ep --jobs jobs.ep", "39-iv-ingest")}
+    <p>Three participant-anchored candidates resolved exactly; the interviewer-anchored one is itemized in <code>unresolved_details</code> with <code>resolve_status: interviewer_text</code>. The review queue shows all four, so the human review sees exactly what the model tried:</p>
+    {hcap("39h-iv-candidates", "The full proposal set. <code>shared_hardship</code> is anchored in the interviewer's question — located, flagged, and excluded from apply unless a human re-anchors it in participant speech.")}
   </section>
 """)
 

@@ -357,6 +357,49 @@ def main() -> None:
     bewley("annotate", "apply", "war_and_danger", "corpus/interview-01-abigail-adams.txt",
            "--turn", "8", capture="37-iv-turn", cwd=IRUN)
 
+    # The model pipeline respects the same boundary: one fixture answer quotes
+    # the interviewer, and ingest marks it interviewer_text instead of applying it.
+    bewley("open-coding", "jobs", "--output", "jobs.ep", "--model", "gpt-4.1-mini",
+           capture="38-iv-jobs", cwd=IRUN)
+    iv_jobs = Jobs.git.load(IRUN / "jobs.ep")
+    iv_scenarios = {
+        Path(dict(item)["document_path"]).name: dict(item) for item in iv_jobs.scenarios
+    }
+    iv_answers = {
+        "interview-01-abigail-adams.txt": [{
+            "code": "unchosen_duties",
+            "description": "Responsibilities that arrived with the war rather than by choice.",
+            "quote": "There was very little that was ordinary about it.",
+        }],
+        "interview-02-john-adams.txt": [{
+            "code": "marriage_by_post",
+            "description": "Sustaining a relationship through correspondence under delay.",
+            "quote": "It taught us to conduct a marriage by post, which is a thing",
+        }],
+        "interview-03-joint.txt": [
+            {
+                "code": "waiting_as_occupation",
+                "description": "Waiting for news framed as unpaid, invisible work.",
+                "quote": "Waiting for\nnews is its own occupation.",
+            },
+            {
+                "code": "shared_hardship",
+                "description": "Comparing whose wartime years were harder.",
+                "quote": "Who had the harder years, 1775 and\n1776?",
+            },
+        ],
+    }
+    for name, entries in iv_answers.items():
+        transcript = (IRUN / "corpus" / name).read_text(encoding="utf-8")
+        for entry in entries:
+            assert entry["quote"] in transcript, (name, entry["quote"])
+    Results(survey=Survey([]), data=[
+        result_for(iv_scenarios[name], entries) for name, entries in iv_answers.items()
+    ]).git.save(IRUN / "results.ep")
+    bewley("open-coding", "ingest", "results.ep", "--jobs", "jobs.ep",
+           capture="39-iv-ingest", cwd=IRUN)
+    bewley_human("open-coding", "candidates", capture="39h-iv-candidates", cwd=IRUN)
+
     # Refresh the shipped example artifacts from THIS run.
     report = (RUN / "adams-report.html").read_text(encoding="utf-8")
     (REPO / "docs" / "adams-report.html").write_text(

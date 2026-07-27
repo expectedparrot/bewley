@@ -229,3 +229,73 @@ def test_multi_model_results_are_not_duplicates(project: BewleyProject) -> None:
     assert sorted(data["models"]) == ["gpt-4o-mini", "test"]
     assert data["partial"] is False
     assert data["candidate_count"] == 2
+
+
+def test_ingest_marks_interviewer_anchored_quotes(empty_project: BewleyProject) -> None:
+    from edsl import Jobs, Results, Survey
+
+    transcript = (
+        "INTERVIEWER: What changed after the war began?\n\n"
+        "NARRATOR: Everything changed. The prices, the post, the whole "
+        "rhythm of the town.\n"
+    )
+    path = empty_project.root / "corpus" / "talk.txt"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(transcript, encoding="utf-8")
+    empty_project.cli_ok("add", "corpus/talk.txt")
+    empty_project.cli_ok("speakers", "detect", "corpus/talk.txt")
+    empty_project.cli_ok("speakers", "set-role", "INTERVIEWER", "interviewer")
+    empty_project.cli_ok("speakers", "set-role", "NARRATOR", "participant")
+
+    _json(empty_project, "open-coding", "jobs", "--output", "talk.jobs.ep")
+    jobs = Jobs.git.load(empty_project.root / "talk.jobs.ep")
+    scenario_data = dict(jobs.scenarios[0])
+    results_path = empty_project.root / "talk.results.ep"
+    Results(survey=Survey([]), data=[
+        _result_for(scenario_data, "What changed after the war began?"),
+    ]).git.save(results_path)
+
+    data = _json(empty_project, "open-coding", "ingest", str(results_path),
+                 "--jobs", "talk.jobs.ep")
+    assert data["unresolved_quotes"] == 1
+    assert data["unresolved_details"][0]["resolve_status"] == "interviewer_text"
+
+    with (empty_project.root / "qualitative-analysis" / "candidate_codes.csv").open() as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows[0]["resolve_status"] == "interviewer_text"
+    assert rows[0]["byte_start"]  # located, just disallowed
+
+    apply_data = _json(empty_project, "open-coding", "apply")
+    assert apply_data["annotations_applied"] == 0
+    assert apply_data["skipped_details"][0]["reason"] == "unresolved_quote:interviewer_text"
+
+
+def test_ingest_participant_quotes_unaffected_by_segmentation(empty_project: BewleyProject) -> None:
+    from edsl import Jobs, Results, Survey
+
+    transcript = (
+        "INTERVIEWER: What changed after the war began?\n\n"
+        "NARRATOR: Everything changed. The prices, the post, the whole "
+        "rhythm of the town.\n"
+    )
+    path = empty_project.root / "corpus" / "talk.txt"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(transcript, encoding="utf-8")
+    empty_project.cli_ok("add", "corpus/talk.txt")
+    empty_project.cli_ok("speakers", "detect", "corpus/talk.txt")
+    empty_project.cli_ok("speakers", "set-role", "INTERVIEWER", "interviewer")
+    empty_project.cli_ok("speakers", "set-role", "NARRATOR", "participant")
+
+    _json(empty_project, "open-coding", "jobs", "--output", "talk.jobs.ep")
+    jobs = Jobs.git.load(empty_project.root / "talk.jobs.ep")
+    scenario_data = dict(jobs.scenarios[0])
+    results_path = empty_project.root / "talk.results.ep"
+    Results(survey=Survey([]), data=[
+        _result_for(scenario_data, "The prices, the post, the whole rhythm of the town."),
+    ]).git.save(results_path)
+
+    data = _json(empty_project, "open-coding", "ingest", str(results_path),
+                 "--jobs", "talk.jobs.ep")
+    assert data["unresolved_quotes"] == 0
+    apply_data = _json(empty_project, "open-coding", "apply")
+    assert apply_data["annotations_applied"] == 1

@@ -31,7 +31,12 @@ Return only a JSON array containing 3–15 objects. Each object must have:
 - "quote": an exact, verbatim quotation copied from the document
 
 Prefer analytically meaningful concepts over topic labels. Do not invent or
-normalize quotation text. Every quote must occur exactly in the document."""
+normalize quotation text. Every quote must occur exactly in the document.
+
+If the document is a transcript with labeled speaker turns (for example
+INTERVIEWER: and participant names), anchor every quote in a participant's
+words. Never quote the interviewer's questions: a theme introduced by the
+question's wording is not evidence about the participant."""
 
 
 def _path(project_root: Path, value: Path) -> Path:
@@ -402,6 +407,16 @@ def ingest_command(
                 text = safe_decode((project.objects_dir / current["content_sha256"]).read_bytes())
                 for entry_index, entry in enumerate(entries):
                     status, start_byte, end_byte = _resolve_quote(text, entry["quote"])
+                    if status == "exact":
+                        # A quote that resolves inside interviewer turns is
+                        # located but disallowed — same fail-closed handling
+                        # as an unresolved quote, never silently dropped.
+                        scope = project._speaker_scope_for_span(
+                            conn, document["document_id"], current["revision_id"],
+                            start_byte, end_byte,
+                        )
+                        if scope == "interviewer":
+                            status = "interviewer_text"
                     candidate_id = hashlib.sha256(
                         f"{key[0]}:{key[1]}:{entry_index}:{entry['code']}:{entry['quote']}".encode()
                     ).hexdigest()[:16]
