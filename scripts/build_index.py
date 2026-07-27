@@ -218,7 +218,7 @@ add("""
       <div class="card"><h3>Codes can evolve</h3><p>Rename, merge, split, nest, and link codes as distinctions sharpen — merges absorb their sources without losing provenance.</p></div>
       <div class="card"><h3>Model work stays external</h3><p>Bewley packages open-coding jobs as EDSL objects; the paid <code>ep run</code> step is yours to authorize.</p></div>
     </div>
-    <p class="callout"><strong>What will differ in your run.</strong> Every output on this page is a real captured envelope from one run. IDs are generated per project, and one step — the external model call — is replaced here by a deterministic fixture so the page is reproducible without paid inference; that substitution is labeled where it happens in <a href="#opencoding">chapter 5</a>. In a real run, only the model's answer content differs.</p>
+    <p class="callout"><strong>If you follow along, expect small differences.</strong> Every output shown on this page was captured from one real working session, so you can see exactly what each command produces. If you run the same commands yourself, two things will look different: the machine-generated identifiers and timestamps (each project generates its own), and the labels the model proposes in <a href="#opencoding">chapter 5</a> — for that one step this page substitutes a saved copy of a model's answers in place of a live, paid model call, so the page can be rebuilt at no cost; the substitution is labeled where it happens. Everything else — the commands, what each one does, and the shape of every output — is what you will see.</p>
   </section>
 """)
 
