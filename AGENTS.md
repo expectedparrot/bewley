@@ -20,6 +20,11 @@ use `--help` for exact options and defaults.
 - Code layout: `src/bewley/commands/` holds one module per command group over
   the `project.py` library; `cli.py` is assembly only. Add new helpers to the
   owning module, not to `cli.py`.
+- `docs/index.html`, `docs/adams-report.html`, and `docs/plots/` are generated.
+  Never edit them by hand: change `scripts/build_index.py` (prose) or
+  `scripts/adams_driver.py` (worked run), then run
+  `python scripts/adams_driver.py && python scripts/build_index.py` and commit
+  the regenerated output.
 
 ## External execution boundary
 
