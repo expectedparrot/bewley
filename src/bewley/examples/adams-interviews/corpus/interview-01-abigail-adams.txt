@@ -1,0 +1,46 @@
+Title: Oral-history interview with Abigail Adams (FICTIONAL)
+Format: Q&A transcript with line-labeled speaker turns
+Status: FICTIONAL — synthetic demonstration data written in 2026 for the
+Status: bewley tutorial. This exchange never took place. Themes and some
+Status: phrasing are drawn from the genuine 1775-1776 correspondence (see
+Status: the adams-letters example); every answer is invented.
+
+INTERVIEWER: Mrs. Adams, thank you for sitting with me. I'd like to start
+with the autumn of 1775. Your husband was in Philadelphia at the Congress.
+What did an ordinary day in Braintree look like for you?
+
+ABIGAIL ADAMS: There was very little that was ordinary about it. I had the
+children, the farm, the accounts, and the schooling to manage, and no
+certainty from one week to the next what the army at Boston would do. The
+merchant complains of the farmer and the farmer of the merchant, and I
+stood between them trying to keep the household fed. I did not choose
+those duties; they arrived when John departed, and they did not ask my
+leave.
+
+INTERVIEWER: You wrote to him constantly through that period. What did the
+letters carry that the newspapers could not?
+
+ABIGAIL ADAMS: Everything that mattered. The papers carried proclamations;
+my letters carried the price of pins and the health of his children. And
+his to me carried too little, if I am honest — I told him more than once
+that a letter half as long as I wished was still a feast after three weeks
+of silence. When the post failed, my heart was as heavy as lead. You
+cannot understand the war between us and Britain without understanding
+the smaller war against distance itself.
+
+INTERVIEWER: In March of 1776 you asked him to "remember the ladies" in
+the new code of laws. Did you expect the request to be taken seriously?
+
+ABIGAIL ADAMS: I expected exactly what I received, which was laughter
+dressed as affection. But I was in earnest. All men would be tyrants if
+they could — I wrote that plainly. If particular care is not paid to the
+ladies, we are determined to foment a rebellion of our own, and we will
+not hold ourselves bound by laws in which we have no voice. That I said
+it with some wit does not mean I did not mean it.
+
+INTERVIEWER: Were you afraid, those first summers of the war?
+
+ABIGAIL ADAMS: We lived in continual expectation of alarms. I heard the
+cannon at Boston from my own hill. Fear was a boarder in every house on
+that coast; the question was only whether you let it govern the
+household. I did not.

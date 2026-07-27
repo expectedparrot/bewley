@@ -27,6 +27,29 @@ class TestExampleList:
         assert "adams-letters" in stdout
 
 
+class TestFictionalMarking:
+    """Synthetic demonstration data must be unmistakably marked as such."""
+
+    def test_interviews_listed_and_described_as_fictional(self, tmp_path: Path) -> None:
+        proj = BewleyProject(tmp_path)
+        code, stdout, stderr = proj.cli("example", "list", human=False)
+        assert code == 0
+        rows = {row["name"]: row for row in json.loads(stdout)["data"]["examples"]}
+        assert rows["adams-interviews"]["documents"] == 3
+        assert "fictional" in rows["adams-interviews"]["description"].lower()
+
+    def test_every_interview_file_carries_the_fictional_header(self, tmp_path: Path) -> None:
+        proj = BewleyProject(tmp_path)
+        proj.cli_ok("example", "fetch", "adams-interviews")
+        corpus = tmp_path / "adams-interviews" / "corpus"
+        files = sorted(corpus.glob("*.txt"))
+        assert len(files) == 3
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            assert "FICTIONAL" in text, f"{path.name} lacks the FICTIONAL marker"
+            assert "INTERVIEWER:" in text
+
+
 class TestExampleFetch:
     def test_writes_corpus_readme_and_license(self, tmp_path: Path) -> None:
         proj = BewleyProject(tmp_path)

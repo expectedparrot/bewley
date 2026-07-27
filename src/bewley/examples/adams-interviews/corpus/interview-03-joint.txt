@@ -1,0 +1,45 @@
+Title: Joint interview with Abigail and John Adams (FICTIONAL)
+Format: Q&A transcript with line-labeled speaker turns, two participants
+Status: FICTIONAL — synthetic demonstration data written in 2026 for the
+Status: bewley tutorial. This exchange never took place. Themes and some
+Status: phrasing are drawn from the genuine 1775-1776 correspondence (see
+Status: the adams-letters example); every answer is invented.
+
+INTERVIEWER: I have you both together, which the war rarely managed. Let
+me ask the obvious question first. Who had the harder years, 1775 and
+1776?
+
+ABIGAIL ADAMS: John will say I did, because it is gallant, and because
+it is true.
+
+JOHN ADAMS: I will say she did because the evidence says so. I risked a
+hanging in the abstract; she managed smallpox in the house. She had the
+children inoculated at Boston while I read about it a fortnight later,
+helpless as a newspaper.
+
+ABIGAIL ADAMS: A fortnight if the post rider was sober. I want very much
+to hear from you, I wrote, more times than I can now count. Waiting for
+news is its own occupation. No one gives you credit for it, and it fills
+the whole day regardless.
+
+INTERVIEWER: Did you quarrel by letter?
+
+JOHN ADAMS: We negotiated. A quarrel wants an answer within the hour;
+ours took six weeks a round, which cools the blood wonderfully.
+
+ABIGAIL ADAMS: We quarreled once, properly, about the ladies and the new
+code of laws. He laughed at me in writing. I have kept the letter, so
+that history may decide which of us it finds amusing.
+
+INTERVIEWER: And the duty itself — the Congress, the farm, the whole
+machinery. Was it worth what it cost the household?
+
+ABIGAIL ADAMS: Ask me what it cost first. It cost a decade of evenings.
+The country got a constitution and I got a correspondence. I am proud of
+both, but only one of them kept me company.
+
+JOHN ADAMS: It was worth it, and it was not, and any honest founder will
+tell you the same in private. The public duty was real and the private
+arithmetic never balanced. We paid it in separation, and we paid it
+willingly, and we would both like the record to show that willingly is
+not the same word as gladly.

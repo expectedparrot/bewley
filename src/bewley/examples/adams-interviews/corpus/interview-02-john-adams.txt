@@ -1,0 +1,49 @@
+Title: Oral-history interview with John Adams (FICTIONAL)
+Format: Q&A transcript with line-labeled speaker turns
+Status: FICTIONAL — synthetic demonstration data written in 2026 for the
+Status: bewley tutorial. This exchange never took place. Themes and some
+Status: phrasing are drawn from the genuine 1775-1776 correspondence (see
+Status: the adams-letters example); every answer is invented.
+
+INTERVIEWER: Mr. Adams, you spent most of 1775 and 1776 away from your
+family, at the Congress in Philadelphia. How did you justify that absence
+to yourself?
+
+JOHN ADAMS: Justify is the right word, because it required justification
+daily. I believed — I still believe — that a man who is offered a part in
+the founding of a government has no honest way to refuse it. But I will
+not pretend the ledger balanced. My wife governed a farm through a war
+while I governed nothing but committees. When Henry was made a General, I
+remember thinking that every man in America seemed to have a commission
+except the ones sitting in that room, and that ours was the only work
+nobody would ever see.
+
+INTERVIEWER: The second of July, 1776 — you wrote that it would be
+celebrated as the most memorable epoch in the history of America. Did it
+feel that large in the moment?
+
+JOHN ADAMS: Larger. I wrote to Abigail that it ought to be commemorated
+with pomp and parade, with shows, games, sports, guns, bells, bonfires,
+and illuminations, from one end of this continent to the other. People
+now smile that I fixed on the wrong date. Let them smile — the point was
+never the date. The point was that thirteen quarrelsome colonies had done
+an irreversible thing, and I wanted my wife to know it from my hand
+before she knew it from a crier.
+
+INTERVIEWER: Your letters home are affectionate but often short. Your
+wife noticed.
+
+JOHN ADAMS: She did, and she was right to. I answered her in the
+tenderest language I possessed, but I answered late and I answered
+briefly, and a committee has no tenderness to spare. The truth is that
+her letters were the better history. Mine reported votes; hers reported
+a country. If posterity reads only one side of that correspondence, I
+know which side I would advise.
+
+INTERVIEWER: Did the distance change the marriage?
+
+JOHN ADAMS: It taught us to conduct a marriage by post, which is a thing
+I recommend to no one. Every argument arrived three weeks stale and
+every comfort likewise. And yet I do not know two people who wrote
+themselves closer together. The separation was the price of the duty;
+the letters were how we refused to pay it entirely.
