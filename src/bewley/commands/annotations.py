@@ -25,14 +25,16 @@ def annotate_apply(
     lines_range: Optional[str] = typer.Option(None, "--lines", help="Line range as START:END (1-based, inclusive)."),
     quote: Optional[str] = typer.Option(None, "--quote", help="Anchor by the exact text itself: verbatim match or the command fails."),
     occurrence: Optional[int] = typer.Option(None, "--occurrence", help="Which occurrence of --quote to anchor (1-based) when it appears more than once."),
+    turn: Optional[int] = typer.Option(None, "--turn", help="Anchor a whole speaker turn by its 1-based index (requires `bewley speakers detect`)."),
+    allow_interviewer: bool = typer.Option(False, "--allow-interviewer", help="Permit a span that lies entirely within interviewer turns."),
     memo: Optional[str] = typer.Option(None, "--memo", help="Optional memo to attach to this annotation."),
     human: bool = HumanOption,
 ) -> None:
     """Apply a code to a document or text span."""
     command = "annotate apply"
     json_flag = should_emit_json(human)
-    if sum([bool(document), bool(bytes_range), bool(lines_range), quote is not None]) != 1:
-        fail(command, BewleyError("Specify exactly one of --document, --bytes, --lines, or --quote", code="INVALID_INPUT"), json_flag)
+    if sum([bool(document), bool(bytes_range), bool(lines_range), quote is not None, turn is not None]) != 1:
+        fail(command, BewleyError("Specify exactly one of --document, --bytes, --lines, --quote, or --turn", code="INVALID_INPUT"), json_flag)
     if occurrence is not None and quote is None:
         fail(command, BewleyError("--occurrence requires --quote", code="INVALID_INPUT"), json_flag)
     try:
@@ -40,7 +42,16 @@ def annotate_apply(
         if document:
             event = project.add_annotation(code_ref, document_ref, "document", None, memo)
         elif bytes_range:
-            event = project.add_annotation(code_ref, document_ref, "span", parse_byte_range(bytes_range), memo)
+            event = project.add_annotation(
+                code_ref, document_ref, "span", parse_byte_range(bytes_range), memo,
+                allow_interviewer=allow_interviewer,
+            )
+        elif turn is not None:
+            byte_range = project.turn_byte_range(document_ref, turn)
+            event = project.add_annotation(
+                code_ref, document_ref, "span", byte_range, memo,
+                allow_interviewer=allow_interviewer,
+            )
         else:
             with project.connect() as conn:
                 doc = project.resolve_document(conn, document_ref)
@@ -50,21 +61,28 @@ def annotate_apply(
                 byte_range = quote_to_byte_range(content, quote, occurrence)
             else:
                 byte_range = lines_to_byte_range(content, *parse_byte_range(lines_range))
-            event = project.add_annotation(code_ref, document_ref, "span", byte_range, memo)
+            event = project.add_annotation(
+                code_ref, document_ref, "span", byte_range, memo,
+                allow_interviewer=allow_interviewer,
+            )
     except BewleyError as e:
         fail(command, e, json_flag)
     payload = event["payload"]
     ann_id = payload["annotation_id"]
+    warnings = None
+    if payload.get("speaker_scope") == "mixed":
+        warnings = ["span crosses turns of more than one speaker role"]
     data = {
         "annotation_id": ann_id,
         "scope_type": payload.get("scope_type"),
         "start_line": payload.get("start_line"),
         "end_line": payload.get("end_line"),
+        "speaker_scope": payload.get("speaker_scope"),
         # Echo what was actually tagged so the caller can verify the anchor.
         "annotated_text": payload.get("exact_text"),
     }
     if json_flag:
-        finish(command, data)
+        finish(command, data, warnings=warnings)
     else:
         typer.echo(ann_id)
 

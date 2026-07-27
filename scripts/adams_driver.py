@@ -321,6 +321,42 @@ def main() -> None:
     bewley("history", capture="29-history")
     bewley("next", capture="30-next-final")
 
+    # ── Chapter: interviews and speakers (separate mini-project) ───────────
+    IRUN = TUTORIAL / "adams-interviews"
+    bewley("example", "fetch", "adams-interviews", capture="31-iv-fetch", cwd=TUTORIAL)
+    bewley("init", cwd=IRUN)
+    for path in sorted((IRUN / "corpus").glob("*.txt")):
+        bewley("add", f"corpus/{path.name}", cwd=IRUN)
+    bewley("speakers", "detect", "corpus/interview-01-abigail-adams.txt",
+           capture="32-iv-detect", cwd=IRUN)
+    bewley("speakers", "detect", "corpus/interview-02-john-adams.txt", cwd=IRUN)
+    bewley("speakers", "detect", "corpus/interview-03-joint.txt", cwd=IRUN)
+    bewley("next", capture="32b-iv-next", cwd=IRUN)
+    bewley("speakers", "set-role", "INTERVIEWER", "interviewer",
+           capture="33-iv-role", cwd=IRUN)
+    bewley("speakers", "set-role", "ABIGAIL ADAMS", "participant", cwd=IRUN)
+    bewley("speakers", "set-role", "JOHN ADAMS", "participant", cwd=IRUN)
+    bewley("case", "create", "Abigail Adams", "--type", "person", cwd=IRUN)
+    bewley("case", "create", "John Adams", "--type", "person", cwd=IRUN)
+    bewley("speakers", "link-case", "corpus/interview-03-joint.txt", "ABIGAIL ADAMS",
+           "Abigail Adams", capture="34-iv-link-case", cwd=IRUN)
+    bewley("speakers", "link-case", "corpus/interview-03-joint.txt", "JOHN ADAMS",
+           "John Adams", cwd=IRUN)
+    bewley_human("speakers", "list", "corpus/interview-03-joint.txt",
+                 capture="34h-iv-speakers", cwd=IRUN)
+    bewley("code", "create", "political_voice",
+           "--description", descriptions["political_voice"], cwd=IRUN)
+    bewley("code", "create", "war_and_danger",
+           "--description", descriptions["war_and_danger"], cwd=IRUN)
+    bewley("annotate", "apply", "political_voice", "corpus/interview-01-abigail-adams.txt",
+           "--quote", 'you asked him to "remember the ladies"',
+           expect_fail=True, capture="35-iv-blocked", cwd=IRUN)
+    bewley("annotate", "apply", "political_voice", "corpus/interview-01-abigail-adams.txt",
+           "--quote", "I expected exactly what I received",
+           capture="36-iv-quote", cwd=IRUN)
+    bewley("annotate", "apply", "war_and_danger", "corpus/interview-01-abigail-adams.txt",
+           "--turn", "8", capture="37-iv-turn", cwd=IRUN)
+
     # Refresh the shipped example artifacts from THIS run.
     report = (RUN / "adams-report.html").read_text(encoding="utf-8")
     (REPO / "docs" / "adams-report.html").write_text(

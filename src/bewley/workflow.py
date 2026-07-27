@@ -101,7 +101,7 @@ def _study_state(project: "Project | None") -> dict:
 
     state = {
         "method": None, "unit_of_analysis": None, "research_questions": 0,
-        "cases": 0, "unlinked_documents": 0,
+        "cases": 0, "unlinked_documents": 0, "unassigned_speaker_labels": [],
     }
     if project is None:
         return state
@@ -117,6 +117,11 @@ def _study_state(project: "Project | None") -> dict:
             state["cases"] = conn.execute(
                 "SELECT COUNT(*) FROM cases WHERE status = 'active'"
             ).fetchone()[0]
+            state["unassigned_speaker_labels"] = [
+                row[0] for row in conn.execute(
+                    "SELECT DISTINCT label FROM speaker_turns WHERE label NOT IN (SELECT label FROM speaker_roles) ORDER BY label"
+                )
+            ]
             state["unlinked_documents"] = conn.execute(
                 """
                 SELECT COUNT(*) FROM documents d
@@ -164,6 +169,14 @@ def _phase_state(project: "Project | None", project_exists: bool) -> dict:
                 "label": f"Link the {study['unlinked_documents']} remaining document(s) to cases",
                 "command": 'bewley case link "<case>" corpus/<file> --as author',
             }] + steps
+    # Detected labels without roles are an unresolved state, not a setup
+    # suggestion: they outrank everything so coding can't proceed blind.
+    if project and study["unassigned_speaker_labels"]:
+        labels = ", ".join(study["unassigned_speaker_labels"])
+        steps = [{
+            "label": f"Assign roles to detected speaker labels ({labels})",
+            "command": "bewley speakers set-role <label> <interviewer|participant|other>",
+        }] + steps
     return {
         "phase": phase,
         "project_exists": project_exists,

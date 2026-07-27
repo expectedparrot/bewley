@@ -13,6 +13,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 RUN = REPO / "build" / "tutorial" / "adams-letters"
+IVRUN = REPO / "build" / "tutorial" / "adams-interviews"
 CAPTURES = REPO / "build" / "tutorial" / "captures"
 OUT = REPO / "docs" / "index.html"
 
@@ -34,6 +35,8 @@ def clean(obj):
         return (
             obj.replace(str(RUN) + "/", "")
             .replace(str(RUN), ".")
+            .replace(str(IVRUN) + "/", "")
+            .replace(str(IVRUN), ".")
             .replace(str(REPO), "~/bewley")
         )
     if isinstance(obj, list):
@@ -183,7 +186,8 @@ add("""<!doctype html>
   <button class="nav-toggle" type="button" aria-expanded="false">Show tutorial contents</button>
   <div class="part">Foundations</div><a href="#orientation">1. The corpus and the question</a><a href="#model">2. Data model</a><a href="#install">3. Installation</a>
   <div class="part">Worked run</div><a href="#project">4. Start the project</a><a href="#opencoding">5. Model-assisted open coding</a><a href="#review">6. Review and apply</a><a href="#retry">7. When a run fails</a><a href="#refine">8. Refine the codebook</a><a href="#memo">9. Compare and memo</a><a href="#export">10. Export evidence</a>
-  <div class="part">Practice</div><a href="#integrity">11. Integrity and recovery</a><a href="#reference">12. Command map</a><a href="#agents">13. Agent interface</a>
+  <a href="#speakers">11. Interviews and speakers</a>
+  <div class="part">Practice</div><a href="#integrity">12. Integrity and recovery</a><a href="#reference">13. Command map</a><a href="#agents">14. Agent interface</a>
   <div class="small">Every output on this page was captured from one real run on the bundled Adams-letters corpus.</div>
 </nav>
 <main><article>
@@ -437,10 +441,41 @@ add(f"""
   </section>
 """)
 
-# ── 11. Integrity ──────────────────────────────────────────────────────────
+# ── 11. Interviews and speakers ────────────────────────────────────────────
+BLOCKED_CMD = cmdcap(
+    "bewley annotate apply political_voice corpus/interview-01-abigail-adams.txt "
+    "--quote 'you asked him to \"remember the ladies\"'",
+    "35-iv-blocked",
+)
+add(f"""
+  <section id="speakers">
+    <h2><span class="chapter">11</span> Interviews and speakers</h2>
+    <p>Everything so far treated a document as one voice. Interviews are not: part of the text is the interviewer and part is the response, and coding the interviewer's question as if the respondent said it is the classic transcript error — a theme gets attributed to a participant that was actually introduced by the question's wording. Bewley's answer is to make the document's voices explicit and then let the annotation machinery respect them.</p>
+    <div class="callout warn"><strong>Fictional demonstration data.</strong> This chapter uses a second bundled example: three invented Q&amp;A interviews "with" the Adamses, written for this tutorial and marked <code>FICTIONAL</code> in every file header. The exchanges never took place; their themes echo the genuine letters so the codes carry over.</div>
+    <p>Fetch it and set up a separate small project (same commands as chapter 4):</p>
+    {cmdcap("bewley example fetch adams-interviews", "31-iv-fetch")}
+    {cmd("cd adams-interviews && bewley init && bewley add corpus/interview-01-abigail-adams.txt   # …and the other two")}
+    <p>Segmentation is an explicit, recorded step — nothing is inferred silently. The default rule matches ALL-CAPS labels at line starts (<code>INTERVIEWER:</code>, <code>ABIGAIL ADAMS:</code>), so mixed-case header lines like <code>Title:</code> never become speakers; for transcripts with mixed-case labels, pass each one with <code>--label</code>:</p>
+    {cmdcap("bewley speakers detect corpus/interview-01-abigail-adams.txt", "32-iv-detect")}
+    <p>Detected labels are only labels; whether a voice should be coded is a judgment, so it is a separate recorded decision. Until roles are assigned, <code>bewley next</code> treats the gap as the top unresolved state:</p>
+    {cmdcap("bewley next", "32b-iv-next")}
+    {cmdcap("bewley speakers set-role INTERVIEWER interviewer", "33-iv-role")}
+    <p>The participants get <code>participant</code> the same way. A speaker is scoped to its document — the same person can appear in many transcripts — and <em>whose</em> voice it is links to the cases from chapter 4's machinery:</p>
+    {cmdcap('bewley speakers link-case corpus/interview-03-joint.txt "ABIGAIL ADAMS" "Abigail Adams"', "34-iv-link-case")}
+    {hcap("34h-iv-speakers", "The joint interview: two participants and an interviewer, with roles, share of the text, and linked cases — the multi-speaker case the letters could never exercise.")}
+    <p>Now the boundary does real work. Try to code a phrase that appears only in the interviewer's question — the span resolves, but bewley refuses it, because every span in a segmented document carries a <code>speaker_scope</code>:</p>
+    {BLOCKED_CMD}
+    <p>(<code>--allow-interviewer</code> exists for the deliberate case.) Code the participant's answer instead and the envelope records that the evidence is participant speech:</p>
+    {cmdcap('bewley annotate apply political_voice corpus/interview-01-abigail-adams.txt --quote "I expected exactly what I received"', "36-iv-quote")}
+    <p>For interviews, the most natural unit is often the whole turn — robust to re-wrapping, no quote needed. <code>--turn</code> anchors the Nth turn of the segmentation:</p>
+    {cmdcap("bewley annotate apply war_and_danger corpus/interview-01-abigail-adams.txt --turn 8", "37-iv-turn")}
+    <p>A span that crosses an interviewer question and a participant answer is legitimate sometimes (coding an exchange); it is recorded as <code>speaker_scope: mixed</code> with a warning rather than refused. After <code>bewley update</code> changes a transcript, rerun <code>speakers detect</code> — segmentation is tied to the exact revision it parsed.</p>
+  </section>
+""")
+
 add(f"""
   <section id="integrity">
-    <h2><span class="chapter">11</span> Integrity and recovery</h2>
+    <h2><span class="chapter">12</span> Integrity and recovery</h2>
     {cmdcap("bewley fsck", "28-fsck")}
     {cmdcap("bewley history", "29-history")}
     <p>Undo appends a compensating event (<code>bewley undo &lt;event_id&gt;</code>); nothing is deleted. If the SQLite index is ever damaged, <code>bewley rebuild-index</code> reconstructs it from the event log alone. With annotations in place, <code>next</code> now recommends the analysis phase:</p>
@@ -452,12 +487,13 @@ add(f"""
 # ── 12. Command map ────────────────────────────────────────────────────────
 add("""
   <section id="reference">
-    <h2><span class="chapter">12</span> Command map</h2>
+    <h2><span class="chapter">13</span> Command map</h2>
     <table><thead><tr><th>Need</th><th>Command family</th></tr></thead><tbody>
       <tr><td>Discover the workflow</td><td><code>version</code>, <code>guide</code>, <code>next</code>, <code>capabilities</code></td></tr>
       <tr><td>Try it on bundled data</td><td><code>example list</code>, <code>example fetch</code></td></tr>
       <tr><td>Declare the study</td><td><code>study set</code>, <code>study show</code>, <code>question add</code>, <code>question list</code></td></tr>
       <tr><td>Say who the data is about</td><td><code>case create|list|show|set|link</code>, <code>attribute define|list</code>, <code>link add|list|remove</code></td></tr>
+      <tr><td>Say who is speaking</td><td><code>speakers detect|list|set-role|link-case</code>, <code>annotate apply --turn</code></td></tr>
       <tr><td>Import or revise sources</td><td><code>add</code>, <code>add-audio</code>, <code>add-video</code>, <code>update</code>, <code>list documents</code></td></tr>
       <tr><td>Run model-assisted open coding</td><td><code>open-coding jobs</code>, external <code>ep run</code>, <code>open-coding ingest</code>, <code>open-coding apply</code></td></tr>
       <tr><td>Recover a failed run</td><td><code>open-coding jobs --from-failures</code>, multi-file <code>open-coding ingest</code></td></tr>
@@ -475,7 +511,7 @@ add("""
 # ── 13. Agent interface ────────────────────────────────────────────────────
 add("""
   <section id="agents">
-    <h2><span class="chapter">13</span> Agent-facing JSON contract</h2>
+    <h2><span class="chapter">14</span> Agent-facing JSON contract</h2>
     <p>Bewley is designed to be driven by agents. Every command emits exactly one versioned JSON envelope by default. Branch on <code>status</code>; do not infer success from the shape of <code>data</code>.</p>
     <pre><code>{
   "schema_version": "2.0",

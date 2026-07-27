@@ -33,7 +33,7 @@ ENVELOPE_SCHEMA_VERSION = "2.0"
 _COMMAND_GROUPS = {
     "list", "show", "code", "annotate", "export", "memo",
     "docs", "codegen", "open-coding", "agent", "example", "study", "question",
-    "case", "attribute", "link",
+    "case", "attribute", "link", "speakers",
 }
 
 

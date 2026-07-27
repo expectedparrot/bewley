@@ -282,6 +282,19 @@ _SCHEMA_SQL = """
                 );
                 CREATE INDEX IF NOT EXISTS idx_entity_links_source ON entity_links (source_kind, source_id);
                 CREATE INDEX IF NOT EXISTS idx_entity_links_target ON entity_links (target_kind, target_id);
+                CREATE TABLE IF NOT EXISTS speaker_turns (
+                  document_id TEXT NOT NULL,
+                  revision_id TEXT NOT NULL,
+                  turn_index INTEGER NOT NULL,
+                  label TEXT NOT NULL,
+                  start_byte INTEGER NOT NULL,
+                  end_byte INTEGER NOT NULL,
+                  PRIMARY KEY (document_id, revision_id, turn_index)
+                );
+                CREATE TABLE IF NOT EXISTS speaker_roles (
+                  label TEXT PRIMARY KEY,
+                  role TEXT NOT NULL
+                );
                 """
 
 # Study manifest fields stored in project_settings under "study.<field>".
@@ -290,9 +303,17 @@ STUDY_FIELDS = ("method", "unit_of_analysis", "purpose")
 ATTRIBUTE_VALUE_TYPES = ("text", "number", "boolean", "date", "categorical")
 ATTRIBUTE_SPECIALS = ("missing", "unknown", "not_applicable", "confidential")
 
+SPEAKER_ROLES = ("interviewer", "participant", "other")
+
+# A speaker turn starts with an ALL-CAPS label at the beginning of a line
+# ("INTERVIEWER:", "ABIGAIL ADAMS:"); mixed-case header lines ("Title:",
+# "Status:") never match. Unlabeled lines continue the preceding turn.
+_TURN_LABEL_RE = re.compile(r"^([A-Z][A-Z0-9 .'-]{1,30}):", re.MULTILINE)
+
 # Allowed (source_kind, relationship, target_kind) combinations for entity
 # links (RFC 001). Grows by design change, not at runtime.
 LINK_RULES = {
+    ("speaker", "is", "case"),
     ("case", "author", "document"),
     ("case", "participant", "document"),
     ("case", "subject", "document"),
@@ -378,6 +399,10 @@ class Project:
             pass
         try:
             conn.execute("ALTER TABLE codes ADD COLUMN merged_into TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE annotations ADD COLUMN speaker_scope TEXT")
         except sqlite3.OperationalError:
             pass
 
@@ -699,8 +724,8 @@ class Project:
                 INSERT INTO annotations (
                   annotation_id, code_id, document_id, document_revision_id, scope_type, start_byte, end_byte,
                   start_line, end_line, exact_text, prefix_context, suffix_context, anchor_status,
-                  created_by_event_id, superseded_by_event_id, memo, created_at, is_active
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1)
+                  created_by_event_id, superseded_by_event_id, memo, created_at, is_active, speaker_scope
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1, ?)
                 """,
                 (
                     payload["annotation_id"],
@@ -719,6 +744,7 @@ class Project:
                     event["event_id"],
                     payload.get("memo"),
                     event["timestamp"],
+                    payload.get("speaker_scope"),
                 ),
             )
             return
@@ -840,6 +866,23 @@ class Project:
             return
         if etype == "entity_link_removed":
             conn.execute("UPDATE entity_links SET is_active = 0 WHERE link_id = ?", (payload["link_id"],))
+            return
+        if etype == "document_segmented":
+            conn.execute(
+                "DELETE FROM speaker_turns WHERE document_id = ?", (payload["document_id"],)
+            )
+            for turn in payload["turns"]:
+                conn.execute(
+                    "INSERT INTO speaker_turns (document_id, revision_id, turn_index, label, start_byte, end_byte) VALUES (?, ?, ?, ?, ?, ?)",
+                    (payload["document_id"], payload["revision_id"], turn["index"],
+                     turn["label"], turn["start_byte"], turn["end_byte"]),
+                )
+            return
+        if etype == "speaker_role_set":
+            conn.execute(
+                "INSERT OR REPLACE INTO speaker_roles (label, role) VALUES (?, ?)",
+                (payload["label"], payload["role"]),
+            )
             return
         if etype == "core_category_set":
             conn.execute(
@@ -1777,6 +1820,157 @@ class Project:
                 )
         return self.append_event("entity_link_removed", {"link_id": link_id})
 
+    def _parse_speaker_turns(self, text: str, labels: list[str] | None = None) -> list[dict[str, Any]]:
+        """Split a transcript into labeled turns.
+
+        A turn starts at a line beginning ``LABEL:``. With explicit labels,
+        exactly those labels match; otherwise the ALL-CAPS rule applies (so
+        mixed-case header lines like ``Title:`` never become speakers).
+        Unlabeled lines continue the preceding turn.
+        """
+        if labels:
+            pattern = re.compile(
+                r"^(" + "|".join(re.escape(label) for label in labels) + r"):", re.MULTILINE
+            )
+        else:
+            pattern = _TURN_LABEL_RE
+        matches = list(pattern.finditer(text))
+        turns: list[dict[str, Any]] = []
+        for index, match in enumerate(matches):
+            start_char = match.start()
+            next_char = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            segment = text[start_char:next_char].rstrip()
+            end_char = start_char + len(segment)
+            start_byte = len(text[:start_char].encode("utf-8"))
+            end_byte = start_byte + len(text[start_char:end_char].encode("utf-8"))
+            turns.append({
+                "index": index + 1,
+                "label": match.group(1),
+                "start_byte": start_byte,
+                "end_byte": end_byte,
+            })
+        return turns
+
+    def segment_document(self, document_ref: str, labels: list[str] | None = None) -> dict[str, Any]:
+        self.ensure_db()
+        with self.connect() as conn:
+            document = self.resolve_document(conn, document_ref)
+            revision = self.current_revision(conn, document["document_id"])
+        text = safe_decode((self.objects_dir / revision["content_sha256"]).read_bytes())
+        turns = self._parse_speaker_turns(text, labels)
+        if not turns:
+            raise BewleyError(
+                "no speaker turns found",
+                code="NO_SPEAKER_TURNS",
+                context={"rule": "explicit-labels" if labels else "caps-labels"},
+                hint=(
+                    "The default rule matches ALL-CAPS labels at line starts (INTERVIEWER:). "
+                    "For mixed-case transcripts pass the labels explicitly: "
+                    "--label Interviewer --label Alice."
+                ),
+            )
+        payload: dict[str, Any] = {
+            "document_id": document["document_id"],
+            "revision_id": revision["revision_id"],
+            "rule": "explicit-labels" if labels else "caps-labels",
+            "turns": turns,
+        }
+        if labels:
+            payload["labels"] = labels
+        return self.append_event("document_segmented", payload)
+
+    def set_speaker_role(self, label: str, role: str) -> dict[str, Any]:
+        if role not in SPEAKER_ROLES:
+            raise BewleyError(
+                f"unknown speaker role: {role}",
+                code="INVALID_INPUT",
+                context={"allowed_roles": list(SPEAKER_ROLES)},
+            )
+        self.ensure_db()
+        with self.connect() as conn:
+            known = [
+                row["label"]
+                for row in conn.execute("SELECT DISTINCT label FROM speaker_turns ORDER BY label")
+            ]
+            if label not in known:
+                raise BewleyError(
+                    f"unknown speaker label: {label}",
+                    code="NOT_FOUND",
+                    context={"known_labels": known},
+                    hint="Labels come from `bewley speakers detect <doc>`; run it first.",
+                )
+        return self.append_event("speaker_role_set", {"label": label, "role": role})
+
+    def link_speaker_case(self, document_ref: str, label: str, case_ref: str) -> dict[str, Any]:
+        self.ensure_db()
+        with self.connect() as conn:
+            document = self.resolve_document(conn, document_ref)
+            present = conn.execute(
+                "SELECT 1 FROM speaker_turns WHERE document_id = ? AND label = ? LIMIT 1",
+                (document["document_id"], label),
+            ).fetchone()
+            if not present:
+                known = [
+                    row["label"]
+                    for row in conn.execute(
+                        "SELECT DISTINCT label FROM speaker_turns WHERE document_id = ? ORDER BY label",
+                        (document["document_id"],),
+                    )
+                ]
+                raise BewleyError(
+                    f"speaker label not found in document: {label}",
+                    code="NOT_FOUND",
+                    context={"known_labels": known},
+                )
+            case = self.resolve_case(conn, case_ref)
+            source_id = f"{document['document_id']}:{label}"
+            duplicate = conn.execute(
+                """
+                SELECT link_id FROM entity_links
+                WHERE is_active = 1 AND source_kind = 'speaker' AND source_id = ?
+                  AND relationship = 'is' AND target_kind = 'case' AND target_id = ?
+                """,
+                (source_id, case["case_id"]),
+            ).fetchone()
+            if duplicate:
+                raise BewleyError(
+                    "an identical active link already exists",
+                    code="ALREADY_EXISTS",
+                    context={"link_id": duplicate["link_id"]},
+                )
+        return self.append_event(
+            "entity_link_created",
+            {"link_id": uuid.uuid4().hex, "source_kind": "speaker", "source_id": source_id,
+             "relationship": "is", "target_kind": "case", "target_id": case["case_id"],
+             "memo": None},
+        )
+
+    def turn_byte_range(self, document_ref: str, turn_index: int) -> tuple[int, int]:
+        with self.connect() as conn:
+            document = self.resolve_document(conn, document_ref)
+            revision = self.current_revision(conn, document["document_id"])
+            row = conn.execute(
+                "SELECT start_byte, end_byte FROM speaker_turns WHERE document_id = ? AND revision_id = ? AND turn_index = ?",
+                (document["document_id"], revision["revision_id"], turn_index),
+            ).fetchone()
+            if row is None:
+                total = conn.execute(
+                    "SELECT COUNT(*) FROM speaker_turns WHERE document_id = ? AND revision_id = ?",
+                    (document["document_id"], revision["revision_id"]),
+                ).fetchone()[0]
+                if total == 0:
+                    raise BewleyError(
+                        "document has no speaker segmentation for its current revision",
+                        code="NOT_SEGMENTED",
+                        hint="Run `bewley speakers detect <doc>` first (again after `bewley update`).",
+                    )
+                raise BewleyError(
+                    f"turn {turn_index} out of range",
+                    code="INVALID_INPUT",
+                    context={"turns": total},
+                )
+            return row["start_byte"], row["end_byte"]
+
     def add_code(self, name: str, description: str | None = None, color: str | None = None) -> dict[str, Any]:
         with self.connect() as conn:
             if self.code_name_taken(conn, name):
@@ -1834,7 +2028,37 @@ class Project:
             "color": color,
         })
 
-    def add_annotation(self, code_ref: str, document_ref: str, scope_type: str, byte_range: tuple[int, int] | None, memo: str | None) -> dict[str, Any]:
+    def _speaker_scope_for_span(
+        self, conn: sqlite3.Connection, document_id: str, revision_id: str,
+        start: int, end: int,
+    ) -> str | None:
+        """Classify a span against the document's speaker turns, if segmented."""
+        try:
+            turns = conn.execute(
+                "SELECT label, start_byte, end_byte FROM speaker_turns WHERE document_id = ? AND revision_id = ?",
+                (document_id, revision_id),
+            ).fetchall()
+            roles = {
+                row["label"]: row["role"]
+                for row in conn.execute("SELECT label, role FROM speaker_roles")
+            }
+        except sqlite3.OperationalError:
+            return None
+        if not turns:
+            return None
+        overlapped = [t for t in turns if t["start_byte"] < end and t["end_byte"] > start]
+        if not overlapped:
+            return "unsegmented"  # header/preamble text outside any turn
+        span_roles = {roles.get(t["label"]) or "unassigned" for t in overlapped}
+        if len(span_roles) == 1:
+            return next(iter(span_roles))
+        return "mixed"
+
+    def add_annotation(
+        self, code_ref: str, document_ref: str, scope_type: str,
+        byte_range: tuple[int, int] | None, memo: str | None,
+        allow_interviewer: bool = False,
+    ) -> dict[str, Any]:
         with self.connect() as conn:
             code = self.resolve_active_code(conn, code_ref)
             document = self.resolve_document(conn, document_ref)
@@ -1869,6 +2093,22 @@ class Project:
                 "prefix_context": safe_decode(content[max(0, start - CONTEXT_BYTES):start]),
                 "suffix_context": safe_decode(content[end:end + CONTEXT_BYTES]),
             })
+            with self.connect() as conn:
+                speaker_scope = self._speaker_scope_for_span(
+                    conn, document["document_id"], revision["revision_id"], start, end
+                )
+            if speaker_scope is not None:
+                if speaker_scope == "interviewer" and not allow_interviewer:
+                    raise BewleyError(
+                        "span lies entirely within interviewer turns",
+                        code="INTERVIEWER_TEXT",
+                        context={"speaker_scope": speaker_scope},
+                        hint=(
+                            "Codes normally anchor in participant answers, not the questions. "
+                            "Pass --allow-interviewer to annotate interviewer text deliberately."
+                        ),
+                    )
+                payload["speaker_scope"] = speaker_scope
         return self.append_event("annotation_added", payload)
 
     def remove_annotation(self, annotation_id: str) -> dict[str, Any]:
@@ -2365,6 +2605,13 @@ def _entity_display(conn: sqlite3.Connection, kind: str, entity_id: str) -> str:
         row = conn.execute(query, (entity_id,)).fetchone()
         if row:
             return row["d"]
+    if kind == "speaker":
+        document_id, _, label = entity_id.partition(":")
+        row = conn.execute(
+            "SELECT current_path FROM documents WHERE document_id = ?", (document_id,)
+        ).fetchone()
+        if row:
+            return f"{label} ({row['current_path']})"
     return entity_id[:12]
 
 
@@ -2425,6 +2672,48 @@ def cmd_case_show(project: Project, ref: str) -> dict:
         "description": case["description"],
         "attributes": attributes,
         "documents": documents,
+    }
+
+
+def cmd_speakers_list(project: Project, document_ref: str) -> dict:
+    with project.connect() as conn:
+        document = project.resolve_document(conn, document_ref)
+        revision = project.current_revision(conn, document["document_id"])
+        turns = conn.execute(
+            "SELECT turn_index, label, start_byte, end_byte FROM speaker_turns WHERE document_id = ? AND revision_id = ? ORDER BY turn_index",
+            (document["document_id"], revision["revision_id"]),
+        ).fetchall()
+        roles = {
+            row["label"]: row["role"]
+            for row in conn.execute("SELECT label, role FROM speaker_roles")
+        }
+        case_links = {
+            row["source_id"]: row["name"]
+            for row in conn.execute(
+                """
+                SELECT l.source_id, c.name FROM entity_links l
+                JOIN cases c ON c.case_id = l.target_id
+                WHERE l.is_active = 1 AND l.source_kind = 'speaker' AND l.target_kind = 'case'
+                """
+            )
+        }
+    total_bytes = sum(t["end_byte"] - t["start_byte"] for t in turns) or 1
+    speakers: dict[str, dict] = {}
+    for turn in turns:
+        entry = speakers.setdefault(turn["label"], {"label": turn["label"], "turns": 0, "bytes": 0})
+        entry["turns"] += 1
+        entry["bytes"] += turn["end_byte"] - turn["start_byte"]
+    for label, entry in speakers.items():
+        entry["byte_share"] = round(entry["bytes"] / total_bytes, 3)
+        entry["role"] = roles.get(label)
+        entry["case"] = case_links.get(f"{document['document_id']}:{label}")
+    return {
+        "document_id": document["document_id"],
+        "current_path": document["current_path"],
+        "revision_id": revision["revision_id"],
+        "turn_count": len(turns),
+        "speakers": sorted(speakers.values(), key=lambda entry: -entry["bytes"]),
+        "turns": [dict(turn) for turn in turns],
     }
 
 

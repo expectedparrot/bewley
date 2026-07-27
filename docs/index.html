@@ -30,7 +30,8 @@
   <button class="nav-toggle" type="button" aria-expanded="false">Show tutorial contents</button>
   <div class="part">Foundations</div><a href="#orientation">1. The corpus and the question</a><a href="#model">2. Data model</a><a href="#install">3. Installation</a>
   <div class="part">Worked run</div><a href="#project">4. Start the project</a><a href="#opencoding">5. Model-assisted open coding</a><a href="#review">6. Review and apply</a><a href="#retry">7. When a run fails</a><a href="#refine">8. Refine the codebook</a><a href="#memo">9. Compare and memo</a><a href="#export">10. Export evidence</a>
-  <div class="part">Practice</div><a href="#integrity">11. Integrity and recovery</a><a href="#reference">12. Command map</a><a href="#agents">13. Agent interface</a>
+  <a href="#speakers">11. Interviews and speakers</a>
+  <div class="part">Practice</div><a href="#integrity">12. Integrity and recovery</a><a href="#reference">13. Command map</a><a href="#agents">14. Agent interface</a>
   <div class="small">Every output on this page was captured from one real run on the bundled Adams-letters corpus.</div>
 </nav>
 <main><article>
@@ -306,7 +307,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;How did John and Abigail Adams negotiate public duty, household responsibility, political voice, danger, and emotional intimacy during the American Revolution?&quot;
   ],
   &quot;data&quot;: {
-    &quot;question_id&quot;: &quot;8638e5d6d9a044e988e78c721ee1f538&quot;,
+    &quot;question_id&quot;: &quot;35aeea43f7be47c9a3f8f9fe47642fd7&quot;,
     &quot;text&quot;: &quot;How did John and Abigail Adams negotiate public duty, household responsibility, political voice, danger, and emotional intimacy during the American Revolution?&quot;,
     &quot;question_count&quot;: 1
   },
@@ -335,7 +336,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;corpus/1775-april-30-john-adams.txt&quot;
   ],
   &quot;data&quot;: {
-    &quot;document_id&quot;: &quot;80fba8675ac646f1942a740692279343&quot;
+    &quot;document_id&quot;: &quot;7def368b9ba44fdea1ff04f7df960bea&quot;
   },
   &quot;warnings&quot;: [],
   &quot;errors&quot;: [],
@@ -354,17 +355,17 @@ uv tool install --python 3.11 --upgrade --force \
   ],
   &quot;data&quot;: [
     {
-      &quot;document_id&quot;: &quot;80fba8675ac646f1942a740692279343&quot;,
+      &quot;document_id&quot;: &quot;7def368b9ba44fdea1ff04f7df960bea&quot;,
       &quot;current_path&quot;: &quot;corpus/1775-april-30-john-adams.txt&quot;,
       &quot;revision_count&quot;: 1
     },
     {
-      &quot;document_id&quot;: &quot;b82ed5bcc2524b448fb8068a7282e5c9&quot;,
+      &quot;document_id&quot;: &quot;828ceae25f6e485296b559857d609d9b&quot;,
       &quot;current_path&quot;: &quot;corpus/1775-august-10-abigail-adams.txt&quot;,
       &quot;revision_count&quot;: 1
     },
     {
-      &quot;document_id&quot;: &quot;e49d91f014e740e990a29ffee67af8a3&quot;,
+      &quot;document_id&quot;: &quot;649913a10913482789faf6b0379fa3f4&quot;,
       &quot;current_path&quot;: &quot;corpus/1775-december-03-john-adams.txt&quot;,
       &quot;revision_count&quot;: 1
     }
@@ -379,26 +380,26 @@ uv tool install --python 3.11 --upgrade --force \
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
 ┃ Path                                      ┃ Document ID  ┃ Revisions ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
-│ corpus/1775-april-30-john-adams.txt       │ 80fba8675ac6 │         1 │
-│ corpus/1775-august-10-abigail-adams.txt   │ b82ed5bcc252 │         1 │
-│ corpus/1775-december-03-john-adams.txt    │ e49d91f014e7 │         1 │
-│ corpus/1775-december-10-abigail-adams.txt │ 883ad0e98c7a │         1 │
-│ corpus/1775-june-11-john-adams.txt        │ 6423c8e4fd8a │         1 │
-│ corpus/1775-june-15-abigail-adams.txt     │ 169607d81495 │         1 │
-│ corpus/1775-june-18-john-adams.txt        │ f3400c727328 │         1 │
-│ corpus/1775-june-22-abigail-adams.txt     │ 5fbd2ecf8b6c │         1 │
-│ corpus/1775-may-04-abigail-adams.txt      │ 6a8264e0e989 │         1 │
-│ corpus/1775-october-21-abigail-adams.txt  │ 4f7b5b1b881e │         1 │
-│ corpus/1775-october-23-john-adams.txt     │ 21c894c81a56 │         1 │
-│ corpus/1775-september-17-john-adams.txt   │ 9a155ee6bd72 │         1 │
-│ corpus/1776-april-14-john-adams.txt       │ a060d1441bdb │         1 │
-│ corpus/1776-july-03-john-adams.txt        │ 14fc5dced744 │         1 │
-│ corpus/1776-july-11-john-adams.txt        │ 7b358b454ce0 │         1 │
-│ corpus/1776-july-13-abigail-adams.txt     │ d36b7a8354c9 │         1 │
-│ corpus/1776-june-03-abigail-adams.txt     │ 4a764f9d4e63 │         1 │
-│ corpus/1776-march-02-abigail-adams.txt    │ 605702773374 │         1 │
-│ corpus/1776-march-17-john-adams.txt       │ 7d8a69408b1e │         1 │
-│ corpus/1776-march-31-abigail-adams.txt    │ e2f8db7c0cf7 │         1 │
+│ corpus/1775-april-30-john-adams.txt       │ 7def368b9ba4 │         1 │
+│ corpus/1775-august-10-abigail-adams.txt   │ 828ceae25f6e │         1 │
+│ corpus/1775-december-03-john-adams.txt    │ 649913a10913 │         1 │
+│ corpus/1775-december-10-abigail-adams.txt │ a10865577d59 │         1 │
+│ corpus/1775-june-11-john-adams.txt        │ 26ddcdffd1f9 │         1 │
+│ corpus/1775-june-15-abigail-adams.txt     │ 1693bc5cba6b │         1 │
+│ corpus/1775-june-18-john-adams.txt        │ b38f2a2edf34 │         1 │
+│ corpus/1775-june-22-abigail-adams.txt     │ d6a4c8c9e111 │         1 │
+│ corpus/1775-may-04-abigail-adams.txt      │ e5ffef8277e1 │         1 │
+│ corpus/1775-october-21-abigail-adams.txt  │ 4d13ddcb89c4 │         1 │
+│ corpus/1775-october-23-john-adams.txt     │ e9740038b1a1 │         1 │
+│ corpus/1775-september-17-john-adams.txt   │ 29192311b745 │         1 │
+│ corpus/1776-april-14-john-adams.txt       │ 1a43a798342b │         1 │
+│ corpus/1776-july-03-john-adams.txt        │ d44d5d71c4cd │         1 │
+│ corpus/1776-july-11-john-adams.txt        │ f0b242b68e36 │         1 │
+│ corpus/1776-july-13-abigail-adams.txt     │ 7f900442e311 │         1 │
+│ corpus/1776-june-03-abigail-adams.txt     │ a01b3711817a │         1 │
+│ corpus/1776-march-02-abigail-adams.txt    │ 452a6c9dc809 │         1 │
+│ corpus/1776-march-17-john-adams.txt       │ 8f116c22b5b9 │         1 │
+│ corpus/1776-march-31-abigail-adams.txt    │ a01294663c50 │         1 │
 └───────────────────────────────────────────┴──────────────┴───────────┘</code></pre><figcaption>The same command with <code>--human</code>: the twenty tracked letters.</figcaption></figure>
     <p>Documents are the <em>what</em>; cases are the <em>who</em>. A case is a person (or organization, or site) the study is about, and it is what cross-corpus comparison hangs on later — "her letters against his" only works if the project knows which letters are hers. Create one case per correspondent, give each a typed attribute that matters to the research question, and link every letter to its author. Nothing here is inferred from file names: each link is an explicit, recorded decision.</p>
     <pre class="command"><code>bewley case create &quot;Abigail Adams&quot; --type person</code></pre>
@@ -415,7 +416,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;person&quot;
   ],
   &quot;data&quot;: {
-    &quot;case_id&quot;: &quot;42fb63e1e5ea42ea89b9ba7e391013e5&quot;,
+    &quot;case_id&quot;: &quot;b47a1fe5f3234c35864be79261fd7f82&quot;,
     &quot;name&quot;: &quot;Abigail Adams&quot;,
     &quot;case_type&quot;: &quot;person&quot;
   },
@@ -457,7 +458,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;home-front,congressional-delegate&quot;
   ],
   &quot;data&quot;: {
-    &quot;attribute_id&quot;: &quot;1f4d054fceb24bdab4311464f4636d65&quot;,
+    &quot;attribute_id&quot;: &quot;c9d7e35132994aec8716019d166e23fb&quot;,
     &quot;name&quot;: &quot;role&quot;,
     &quot;value_type&quot;: &quot;categorical&quot;,
     &quot;allowed_values&quot;: [
@@ -485,7 +486,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;author&quot;
   ],
   &quot;data&quot;: {
-    &quot;link_id&quot;: &quot;c6187d1d496a4cbea93e6967347d04f3&quot;,
+    &quot;link_id&quot;: &quot;6bb899b8e0124512aba335cc4a69de71&quot;,
     &quot;relationship&quot;: &quot;author&quot;
   },
   &quot;warnings&quot;: [],
@@ -546,7 +547,8 @@ uv tool install --python 3.11 --upgrade --force \
       &quot;unit_of_analysis&quot;: &quot;document&quot;,
       &quot;research_questions&quot;: 1,
       &quot;cases&quot;: 2,
-      &quot;unlinked_documents&quot;: 0
+      &quot;unlinked_documents&quot;: 0,
+      &quot;unassigned_speaker_labels&quot;: []
     },
     &quot;checklist&quot;: [
       &quot;Read all documents and write qualitative-analysis/corpus_summary.md.&quot;,
@@ -609,7 +611,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;saved&quot;: {
       &quot;status&quot;: &quot;ok&quot;,
       &quot;path&quot;: &quot;jobs.ep&quot;,
-      &quot;commit&quot;: &quot;26c4f54bf08a5e54b3dece39e600abbb65a38117&quot;,
+      &quot;commit&quot;: &quot;730b09ef1531e8e4424cbb7b37bb411afa9f5e68&quot;,
       &quot;branch&quot;: &quot;main&quot;,
       &quot;message&quot;: &quot;Save Jobs&quot;
     },
@@ -763,312 +765,312 @@ uv tool install --python 3.11 --upgrade --force \
     ],
     &quot;candidates&quot;: [
       {
-        &quot;candidate_id&quot;: &quot;049732259b7209db&quot;,
+        &quot;candidate_id&quot;: &quot;74203829d24ef1c3&quot;,
         &quot;code_name&quot;: &quot;daily_minutiae&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;New York has appointed an ample representation in our Congress, and has appointed a Provincial Congress.&quot;,
-        &quot;source_document_id&quot;: &quot;80fba8675ac646f1942a740692279343&quot;,
+        &quot;source_document_id&quot;: &quot;7def368b9ba44fdea1ff04f7df960bea&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-april-30-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;ba0d4b829de94b898a4a007045e5608b&quot;,
+        &quot;source_revision_id&quot;: &quot;ec2fe389889248e5a7a54ee1a41c942e&quot;,
         &quot;byte_start&quot;: &quot;162&quot;,
         &quot;byte_end&quot;: &quot;266&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;11b83dc60a6539d3&quot;,
+        &quot;candidate_id&quot;: &quot;262128b1b9c1720d&quot;,
         &quot;code_name&quot;: &quot;travel_logistics&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;Dearest Friend,--&#x27;T is with a sad heart I take my pen to write to you, because I must be the bearer of what will greatly afflict and distress you.&quot;,
-        &quot;source_document_id&quot;: &quot;b82ed5bcc2524b448fb8068a7282e5c9&quot;,
+        &quot;source_document_id&quot;: &quot;828ceae25f6e485296b559857d609d9b&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-august-10-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;ef60644a82004097a33f32b037673d01&quot;,
+        &quot;source_revision_id&quot;: &quot;f99cccff18674cb399d07e0b3d22c9ef&quot;,
         &quot;byte_start&quot;: &quot;166&quot;,
         &quot;byte_end&quot;: &quot;312&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;78377f9be41a4ca2&quot;,
+        &quot;candidate_id&quot;: &quot;e183b893c793637b&quot;,
         &quot;code_name&quot;: &quot;weather_report&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;My best Friend,--Yours of November 12th is before me.&quot;,
-        &quot;source_document_id&quot;: &quot;e49d91f014e740e990a29ffee67af8a3&quot;,
+        &quot;source_document_id&quot;: &quot;649913a10913482789faf6b0379fa3f4&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-december-03-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;30a81ee0aae54ade950d77fa79ab9a84&quot;,
+        &quot;source_revision_id&quot;: &quot;7bc8daaf7faf4465b4ae28b435161696&quot;,
         &quot;byte_start&quot;: &quot;174&quot;,
         &quot;byte_end&quot;: &quot;227&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;e7d3053ead1f8dec&quot;,
+        &quot;candidate_id&quot;: &quot;bcab1d0909998950&quot;,
         &quot;code_name&quot;: &quot;political_voice&quot;,
         &quot;description&quot;: &quot;Claims to political standing or representation by or for those excluded from it.&quot;,
         &quot;quote&quot;: &quot;But I cannot conclude without telling you we are all very angry with your House of Assembly for their instructions.&quot;,
-        &quot;source_document_id&quot;: &quot;883ad0e98c7a451cb75c29305c9c1f3b&quot;,
+        &quot;source_document_id&quot;: &quot;a10865577d5940a5addf1c15cd926ba4&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-december-10-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;8bb06eaf7e894962823033bad85be881&quot;,
+        &quot;source_revision_id&quot;: &quot;f10a5014d3834d94abf35cc8bf8e98f1&quot;,
         &quot;byte_start&quot;: &quot;5290&quot;,
         &quot;byte_end&quot;: &quot;5405&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;fcea16cad631487c&quot;,
+        &quot;candidate_id&quot;: &quot;6191fca2b382a205&quot;,
         &quot;code_name&quot;: &quot;daily_minutiae&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;I have been this morning to hear Mr.&quot;,
-        &quot;source_document_id&quot;: &quot;6423c8e4fd8a44cb8c157d1879007f88&quot;,
+        &quot;source_document_id&quot;: &quot;26ddcdffd1f9481f88bf5004195d8cf7&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-june-11-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;5481579c2ee74c0ea62218bb7741936f&quot;,
+        &quot;source_revision_id&quot;: &quot;2d54ecb025d047a58108f3514aeef760&quot;,
         &quot;byte_start&quot;: &quot;168&quot;,
         &quot;byte_end&quot;: &quot;204&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;cf672b7fc943e728&quot;,
+        &quot;candidate_id&quot;: &quot;14336b1d7ebc0e19&quot;,
         &quot;code_name&quot;: &quot;war_and_danger&quot;,
         &quot;description&quot;: &quot;Direct experience or anticipation of military violence.&quot;,
         &quot;quote&quot;: &quot;We live in continual expectation of alarms.&quot;,
-        &quot;source_document_id&quot;: &quot;169607d814954358b7091912f094ee7d&quot;,
+        &quot;source_document_id&quot;: &quot;1693bc5cba6b41bcab9a77663cadc645&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-june-15-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;1172bd65255a4798b8e10a1fc38cc24c&quot;,
+        &quot;source_revision_id&quot;: &quot;b2ab0f67ac67424495c7dfcbd1883e18&quot;,
         &quot;byte_start&quot;: &quot;1768&quot;,
         &quot;byte_end&quot;: &quot;1811&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;3b492c00c0426578&quot;,
+        &quot;candidate_id&quot;: &quot;c7e4f3984bcc5f94&quot;,
         &quot;code_name&quot;: &quot;health_and_scarcity&quot;,
         &quot;description&quot;: &quot;Illness, inoculation, or shortages of goods and money.&quot;,
         &quot;quote&quot;: &quot;Bass, and purchase me a bundle of pins and put them in your trunk for me.&quot;,
-        &quot;source_document_id&quot;: &quot;169607d814954358b7091912f094ee7d&quot;,
+        &quot;source_document_id&quot;: &quot;1693bc5cba6b41bcab9a77663cadc645&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-june-15-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;1172bd65255a4798b8e10a1fc38cc24c&quot;,
+        &quot;source_revision_id&quot;: &quot;b2ab0f67ac67424495c7dfcbd1883e18&quot;,
         &quot;byte_start&quot;: &quot;4644&quot;,
         &quot;byte_end&quot;: &quot;4717&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;ba625527dc70842b&quot;,
+        &quot;candidate_id&quot;: &quot;ccdb8314345c486d&quot;,
         &quot;code_name&quot;: &quot;travel_logistics&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;This letter, I presume, will go by the brave and amiable General Washington.&quot;,
-        &quot;source_document_id&quot;: &quot;f3400c72732846f0ae1ebfafa67b3d3e&quot;,
+        &quot;source_document_id&quot;: &quot;b38f2a2edf3441a4b434cab113a426ea&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-june-18-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;fab1c8700d3a44e8ac628200b9f0b9ad&quot;,
+        &quot;source_revision_id&quot;: &quot;a8ad3fcf746645a096d458703c2d7188&quot;,
         &quot;byte_start&quot;: &quot;140&quot;,
         &quot;byte_end&quot;: &quot;216&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;4c40b2b9f2bd957a&quot;,
+        &quot;candidate_id&quot;: &quot;d07288e83dccc22c&quot;,
         &quot;code_name&quot;: &quot;weather_report&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;I received yours of June 10th, for which I thank you.&quot;,
-        &quot;source_document_id&quot;: &quot;5fbd2ecf8b6c4854bad8a9c3ee709c2f&quot;,
+        &quot;source_document_id&quot;: &quot;d6a4c8c9e1114f0591d78e48c9ae6d37&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-june-22-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;afdebf8111b8479d82905d3334ba16f0&quot;,
+        &quot;source_revision_id&quot;: &quot;95e0adc2032146e4b5c95163fca27f52&quot;,
         &quot;byte_start&quot;: &quot;140&quot;,
         &quot;byte_end&quot;: &quot;193&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;dd7396c5c5ae3077&quot;,
+        &quot;candidate_id&quot;: &quot;4ee11f2bb2f1be18&quot;,
         &quot;code_name&quot;: &quot;information_and_delay&quot;,
         &quot;description&quot;: &quot;The struggle to get timely news and letters.&quot;,
         &quot;quote&quot;: &quot;I want very much to hear from you, how you stood your journey, and in what state you find yourself now.&quot;,
-        &quot;source_document_id&quot;: &quot;6a8264e0e98942e28987dc228517cafe&quot;,
+        &quot;source_document_id&quot;: &quot;e5ffef8277e14feb96cf2ab4d905239c&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-may-04-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;e923b466b7ed4f86b5d9eae638611eef&quot;,
+        &quot;source_revision_id&quot;: &quot;8c41339d9d154052a525d1ad9ac44d63&quot;,
         &quot;byte_start&quot;: &quot;1513&quot;,
         &quot;byte_end&quot;: &quot;1616&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;6d7a37025bed7dad&quot;,
+        &quot;candidate_id&quot;: &quot;d25a57ecc9d47ad8&quot;,
         &quot;code_name&quot;: &quot;separation_and_affection&quot;,
         &quot;description&quot;: &quot;Longing, tenderness, and the cost of being apart.&quot;,
         &quot;quote&quot;: &quot;I felt very anxious about you; though I endeavored to be very insensible and heroic, yet my heart felt like a heart of lead.&quot;,
-        &quot;source_document_id&quot;: &quot;6a8264e0e98942e28987dc228517cafe&quot;,
+        &quot;source_document_id&quot;: &quot;e5ffef8277e14feb96cf2ab4d905239c&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-may-04-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;e923b466b7ed4f86b5d9eae638611eef&quot;,
+        &quot;source_revision_id&quot;: &quot;8c41339d9d154052a525d1ad9ac44d63&quot;,
         &quot;byte_start&quot;: &quot;1617&quot;,
         &quot;byte_end&quot;: &quot;1741&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;31a0e4943cfc54c2&quot;,
+        &quot;candidate_id&quot;: &quot;7fb3b7d3011991b2&quot;,
         &quot;code_name&quot;: &quot;daily_minutiae&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;The sickness has abated here and in the neighboring towns.&quot;,
-        &quot;source_document_id&quot;: &quot;4f7b5b1b881e4a09bce550d79ab052c3&quot;,
+        &quot;source_document_id&quot;: &quot;4d13ddcb89c44ba0ac781150a3a40423&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-october-21-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;7db0fbbded53489fb8384c0d3444e1e7&quot;,
+        &quot;source_revision_id&quot;: &quot;43b6cc3a5f26428e9884cdd36609b1df&quot;,
         &quot;byte_start&quot;: &quot;168&quot;,
         &quot;byte_end&quot;: &quot;226&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;be88be234e8e4a32&quot;,
+        &quot;candidate_id&quot;: &quot;4c9c180ea4308318&quot;,
         &quot;code_name&quot;: &quot;travel_logistics&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;Yesterday yours of October 9th came to hand.&quot;,
-        &quot;source_document_id&quot;: &quot;21c894c81a564739a63cc5c02a12ce01&quot;,
+        &quot;source_document_id&quot;: &quot;e9740038b1a14382a0f0cf77478c28d4&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-october-23-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;65dbcaa2d7f446c59e6276c8e5ae6234&quot;,
+        &quot;source_revision_id&quot;: &quot;15a6929c277c493ca7df126c01328dae&quot;,
         &quot;byte_start&quot;: &quot;174&quot;,
         &quot;byte_end&quot;: &quot;218&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;943f1bc28d94c760&quot;,
+        &quot;candidate_id&quot;: &quot;767c3eb4c86cbe7e&quot;,
         &quot;code_name&quot;: &quot;public_duty&quot;,
         &quot;description&quot;: &quot;Framing congressional or military service as obligation to the country.&quot;,
         &quot;quote&quot;: &quot;Henry is made a General in Virginia, and therefore could not come.&quot;,
-        &quot;source_document_id&quot;: &quot;9a155ee6bd7247fdadedd5bf60eca19f&quot;,
+        &quot;source_document_id&quot;: &quot;29192311b745428cafbb9d918917b79b&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-september-17-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;0c5724a9ffc34f739abde735b197677e&quot;,
+        &quot;source_revision_id&quot;: &quot;2eda8f65dc054e2b8b44a1e6b77c55ed&quot;,
         &quot;byte_start&quot;: &quot;1833&quot;,
         &quot;byte_end&quot;: &quot;1899&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;03f508e198d25d0a&quot;,
+        &quot;candidate_id&quot;: &quot;04a45bca08c5bc16&quot;,
         &quot;code_name&quot;: &quot;separation_and_affection&quot;,
         &quot;description&quot;: &quot;Longing, tenderness, and the cost of being apart.&quot;,
         &quot;quote&quot;: &quot;Remember me in the tenderest language to all our little folks.&quot;,
-        &quot;source_document_id&quot;: &quot;9a155ee6bd7247fdadedd5bf60eca19f&quot;,
+        &quot;source_document_id&quot;: &quot;29192311b745428cafbb9d918917b79b&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1775-september-17-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;0c5724a9ffc34f739abde735b197677e&quot;,
+        &quot;source_revision_id&quot;: &quot;2eda8f65dc054e2b8b44a1e6b77c55ed&quot;,
         &quot;byte_start&quot;: &quot;2232&quot;,
         &quot;byte_end&quot;: &quot;2294&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;493a61fbe54e4cea&quot;,
+        &quot;candidate_id&quot;: &quot;e084bf0eae591dbd&quot;,
         &quot;code_name&quot;: &quot;political_voice&quot;,
         &quot;description&quot;: &quot;Claims to political standing or representation by or for those excluded from it.&quot;,
         &quot;quote&quot;: &quot;As to your extraordinary code of laws, I cannot but laugh.&quot;,
-        &quot;source_document_id&quot;: &quot;a060d1441bdb417bb6048b05385c53c3&quot;,
+        &quot;source_document_id&quot;: &quot;1a43a798342b4485b06a5c254fc63d95&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-april-14-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;b85f2987d1f14175ac3160038d71dc6f&quot;,
+        &quot;source_revision_id&quot;: &quot;d529de3034ad4404a2976d00e9691475&quot;,
         &quot;byte_start&quot;: &quot;3117&quot;,
         &quot;byte_end&quot;: &quot;3175&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;bab26fb27302322b&quot;,
+        &quot;candidate_id&quot;: &quot;001824dbe785fdb6&quot;,
         &quot;code_name&quot;: &quot;public_duty&quot;,
         &quot;description&quot;: &quot;Framing congressional or military service as obligation to the country.&quot;,
         &quot;quote&quot;: &quot;The second day of July, 1776, will be the most memorable epocha in the history of America.&quot;,
-        &quot;source_document_id&quot;: &quot;14fc5dced74442539cc84aababdbffc8&quot;,
+        &quot;source_document_id&quot;: &quot;d44d5d71c4cd4c60899e6e798227f0e9&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-july-03-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;a494e2a32ada4139b070067627911aa5&quot;,
+        &quot;source_revision_id&quot;: &quot;7b4d271a12984a9aa401434094b9962a&quot;,
         &quot;byte_start&quot;: &quot;2892&quot;,
         &quot;byte_end&quot;: &quot;2982&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;0fe3319fc8aa0130&quot;,
+        &quot;candidate_id&quot;: &quot;a83d6e82ab3c8064&quot;,
         &quot;code_name&quot;: &quot;weather_report&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;You seem to be situated in the place of greatest tranquillity and security of any upon the continent.&quot;,
-        &quot;source_document_id&quot;: &quot;7b358b454ce04d53aa1df98071368f0a&quot;,
+        &quot;source_document_id&quot;: &quot;f0b242b68e3643b182f1ab5e7603c7b8&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-july-11-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;bd5ea96794f8489d90254ee911b6dacc&quot;,
+        &quot;source_revision_id&quot;: &quot;01474af5c5e7470d818d2a4a1397b26e&quot;,
         &quot;byte_start&quot;: &quot;169&quot;,
         &quot;byte_end&quot;: &quot;270&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;50bfb35c4affcb50&quot;,
+        &quot;candidate_id&quot;: &quot;ae18e57bfb9220fe&quot;,
         &quot;code_name&quot;: &quot;health_and_scarcity&quot;,
         &quot;description&quot;: &quot;Illness, inoculation, or shortages of goods and money.&quot;,
         &quot;quote&quot;: &quot;I now date from Boston, where I yesterday arrived and was with all of our little ones inoculated for the small-pox.&quot;,
-        &quot;source_document_id&quot;: &quot;d36b7a8354c947468c095e0b74be906b&quot;,
+        &quot;source_document_id&quot;: &quot;7f900442e31148b69c77cc396ffdef2c&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-july-13-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;c5ebc564ac3c4632ab56d4abc8a71103&quot;,
+        &quot;source_revision_id&quot;: &quot;2ff621dbdcc54fb5b09360e7e1e66ed3&quot;,
         &quot;byte_start&quot;: &quot;362&quot;,
         &quot;byte_end&quot;: &quot;477&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;e2af52bd884e9ff9&quot;,
+        &quot;candidate_id&quot;: &quot;afd6b6f9c93609c7&quot;,
         &quot;code_name&quot;: &quot;household_responsibility&quot;,
         &quot;description&quot;: &quot;Managing the farm, prices, and family economy alone.&quot;,
         &quot;quote&quot;: &quot;The merchant complains of the farmer and the farmer of the merchant--both are extravagant.&quot;,
-        &quot;source_document_id&quot;: &quot;4a764f9d4e63429d88e8dd1fa81b8af3&quot;,
+        &quot;source_document_id&quot;: &quot;a01b3711817a4a84a397fa667fef21fa&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-june-03-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;0fece6cf9d8d455a88b59fab0d1312f0&quot;,
+        &quot;source_revision_id&quot;: &quot;b13d2568f4a04ea18a262063bee59e39&quot;,
         &quot;byte_start&quot;: &quot;2223&quot;,
         &quot;byte_end&quot;: &quot;2313&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;29801e76b0d87ce4&quot;,
+        &quot;candidate_id&quot;: &quot;0a4159056d714b68&quot;,
         &quot;code_name&quot;: &quot;daily_minutiae&quot;,
         &quot;description&quot;: &quot;Routine detail without analytic weight.&quot;,
         &quot;quote&quot;: &quot;I was greatly rejoiced at the return of your servant, to find you had safely arrived, and that you were well.&quot;,
-        &quot;source_document_id&quot;: &quot;6057027733744a2e9396fd52447a2a51&quot;,
+        &quot;source_document_id&quot;: &quot;452a6c9dc8094fa8a70422c89e17e390&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-march-02-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;34ca4c58352a461594cc8aa2f3b896a0&quot;,
+        &quot;source_revision_id&quot;: &quot;863dc63902fb4f6191ae6e1fd64d49e6&quot;,
         &quot;byte_start&quot;: &quot;176&quot;,
         &quot;byte_end&quot;: &quot;285&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;c121124d950ee1ec&quot;,
+        &quot;candidate_id&quot;: &quot;0e7dc39935fa6b64&quot;,
         &quot;code_name&quot;: &quot;war_and_danger&quot;,
         &quot;description&quot;: &quot;Direct experience or anticipation of military violence.&quot;,
         &quot;quote&quot;: &quot;By a vessel from Salem a cannonade was heard from dark till nine o&#x27;clock, last night was a week ago.&quot;,
-        &quot;source_document_id&quot;: &quot;7d8a69408b1e40178b300c1c02989b4a&quot;,
+        &quot;source_document_id&quot;: &quot;8f116c22b5b94bdfaaf4d8ba3b2289de&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-march-17-john-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;5d551fba63494c49888e8f6d154343bd&quot;,
+        &quot;source_revision_id&quot;: &quot;bc4acd4d44fd45e6b26774957e78d182&quot;,
         &quot;byte_start&quot;: &quot;1433&quot;,
         &quot;byte_end&quot;: &quot;1533&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;0b09af6818115c1e&quot;,
+        &quot;candidate_id&quot;: &quot;536c3fbb3ceee9cf&quot;,
         &quot;code_name&quot;: &quot;political_voice&quot;,
         &quot;description&quot;: &quot;Claims to political standing or representation by or for those excluded from it.&quot;,
         &quot;quote&quot;: &quot;And, by the way, in the new code of laws which I suppose it will be necessary for you to make, I desire you would remember the ladies and be more generous and favorable to them than your ancestors.&quot;,
-        &quot;source_document_id&quot;: &quot;e2f8db7c0cf746f8bca0d5a476988f95&quot;,
+        &quot;source_document_id&quot;: &quot;a01294663c504b269627f2b921f71421&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-march-31-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;0a28453a4a0d48e398fd4df54c9882a5&quot;,
+        &quot;source_revision_id&quot;: &quot;87afc43b38fe47eb92efef76b729ddf8&quot;,
         &quot;byte_start&quot;: &quot;3114&quot;,
         &quot;byte_end&quot;: &quot;3311&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
         &quot;source_results&quot;: &quot;results.ep&quot;
       },
       {
-        &quot;candidate_id&quot;: &quot;652dde7285adc8d0&quot;,
+        &quot;candidate_id&quot;: &quot;feede1ddab9788b2&quot;,
         &quot;code_name&quot;: &quot;information_and_delay&quot;,
         &quot;description&quot;: &quot;The struggle to get timely news and letters.&quot;,
         &quot;quote&quot;: &quot;I wish you would ever write me a letter half as long as I write you, and tell me, if you may, where your fleet are gone; what sort of defense Virginia can make against our common enemy; whether it is so situated as to make an able defense.&quot;,
-        &quot;source_document_id&quot;: &quot;e2f8db7c0cf746f8bca0d5a476988f95&quot;,
+        &quot;source_document_id&quot;: &quot;a01294663c504b269627f2b921f71421&quot;,
         &quot;source_document_path&quot;: &quot;corpus/1776-march-31-abigail-adams.txt&quot;,
-        &quot;source_revision_id&quot;: &quot;0a28453a4a0d48e398fd4df54c9882a5&quot;,
+        &quot;source_revision_id&quot;: &quot;87afc43b38fe47eb92efef76b729ddf8&quot;,
         &quot;byte_start&quot;: &quot;164&quot;,
         &quot;byte_end&quot;: &quot;403&quot;,
         &quot;resolve_status&quot;: &quot;exact&quot;,
@@ -1352,7 +1354,7 @@ uv tool install --python 3.11 --upgrade --force \
   ],
   &quot;data&quot;: [
     {
-      &quot;annotation_id&quot;: &quot;9031b9fcd3ae4a979e572a0cf989c810&quot;,
+      &quot;annotation_id&quot;: &quot;aaeaf9db6e5641cfbcf496a224afad13&quot;,
       &quot;code_name&quot;: &quot;political_voice&quot;,
       &quot;document_path&quot;: &quot;corpus/1775-december-10-abigail-adams.txt&quot;,
       &quot;start_line&quot;: 19,
@@ -1361,7 +1363,7 @@ uv tool install --python 3.11 --upgrade --force \
       &quot;text&quot;: &quot;But I cannot conclude without telling you we are all very angry with your House of Assembly for their instructions.&quot;
     },
     {
-      &quot;annotation_id&quot;: &quot;4c5ac82ff2f843b28f732b5c73edadeb&quot;,
+      &quot;annotation_id&quot;: &quot;96cd263f39844ccdb78a12fdf34977b6&quot;,
       &quot;code_name&quot;: &quot;political_voice&quot;,
       &quot;document_path&quot;: &quot;corpus/1776-april-14-john-adams.txt&quot;,
       &quot;start_line&quot;: 13,
@@ -1445,7 +1447,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;saved&quot;: {
       &quot;status&quot;: &quot;ok&quot;,
       &quot;path&quot;: &quot;pilot.jobs.ep&quot;,
-      &quot;commit&quot;: &quot;d2975e2a7303c7bf686cbf510ce4f52f147c3df0&quot;,
+      &quot;commit&quot;: &quot;f5554685bf32fc9bf3114ca24820e814e9fd1644&quot;,
       &quot;branch&quot;: &quot;main&quot;,
       &quot;message&quot;: &quot;Save Jobs&quot;
     },
@@ -1511,7 +1513,7 @@ uv tool install --python 3.11 --upgrade --force \
       &quot;context&quot;: {
         &quot;failures&quot;: [
           {
-            &quot;document_id&quot;: &quot;b82ed5bcc2524b448fb8068a7282e5c9&quot;,
+            &quot;document_id&quot;: &quot;828ceae25f6e485296b559857d609d9b&quot;,
             &quot;model&quot;: &quot;gpt-4.1-mini&quot;,
             &quot;error&quot;: &quot;answer does not contain a JSON array&quot;
           }
@@ -1556,7 +1558,7 @@ uv tool install --python 3.11 --upgrade --force \
     &quot;saved&quot;: {
       &quot;status&quot;: &quot;ok&quot;,
       &quot;path&quot;: &quot;retry.jobs.ep&quot;,
-      &quot;commit&quot;: &quot;0ebb4873808f34adcc7e63597ea6f86ca60f1b27&quot;,
+      &quot;commit&quot;: &quot;33bc625f55e4126a00f873e5fd7707d9e4ad80a5&quot;,
       &quot;branch&quot;: &quot;main&quot;,
       &quot;message&quot;: &quot;Save Jobs&quot;
     },
@@ -1672,10 +1674,11 @@ bewley annotate apply waiting_for_news corpus/1775-may-04-abigail-adams.txt \
     &quot;I want very much to hear from you, how you stood your journey, and in what state you find yourself now. I felt very anxious about you; though I endeavored to be very insensible and heroic, yet my heart felt like a heart of lead.&quot;
   ],
   &quot;data&quot;: {
-    &quot;annotation_id&quot;: &quot;56aeabc8b689410588336a1b8b1101ea&quot;,
+    &quot;annotation_id&quot;: &quot;ecf7c7d1eb7a47d1a59f47848eda64bb&quot;,
     &quot;scope_type&quot;: &quot;span&quot;,
     &quot;start_line&quot;: 9,
     &quot;end_line&quot;: 9,
+    &quot;speaker_scope&quot;: null,
     &quot;annotated_text&quot;: &quot;I want very much to hear from you, how you stood your journey, and in what state you find yourself now. I felt very anxious about you; though I endeavored to be very insensible and heroic, yet my heart felt like a heart of lead.&quot;
   },
   &quot;warnings&quot;: [],
@@ -1697,7 +1700,7 @@ bewley annotate apply waiting_for_news corpus/1775-may-04-abigail-adams.txt \
     &quot;information_and_delay&quot;
   ],
   &quot;data&quot;: {
-    &quot;event_id&quot;: &quot;caeba8663032446da8546042e4e9b811&quot;
+    &quot;event_id&quot;: &quot;9814aababa904fe3b73a9821f218b686&quot;
   },
   &quot;warnings&quot;: [],
   &quot;errors&quot;: [],
@@ -1715,7 +1718,7 @@ bewley annotate apply waiting_for_news corpus/1775-may-04-abigail-adams.txt \
     &quot;information_and_delay&quot;
   ],
   &quot;data&quot;: {
-    &quot;code_id&quot;: &quot;6dc4a368eb5349ee9e36e123d631bc20&quot;,
+    &quot;code_id&quot;: &quot;6dd7f69aa66c41c7a1b039df18dcd195&quot;,
     &quot;name&quot;: &quot;information_and_delay&quot;,
     &quot;status&quot;: &quot;active&quot;,
     &quot;active_annotations&quot;: 3,
@@ -1749,19 +1752,19 @@ bewley code set-core separation_and_affection</code></pre>
   &quot;data&quot;: [
     {
       &quot;canonical_name&quot;: &quot;home_front&quot;,
-      &quot;code_id&quot;: &quot;8e70780e239a4fbaa165f38644a07713&quot;,
+      &quot;code_id&quot;: &quot;3ea67eaf3a5847709c2958d7d5c7121d&quot;,
       &quot;description&quot;: &quot;The war as lived at home&quot;,
       &quot;annotations&quot;: 0,
       &quot;children&quot;: [
         {
           &quot;canonical_name&quot;: &quot;health_and_scarcity&quot;,
-          &quot;code_id&quot;: &quot;226e95f8eeab43c4bdbc71c54f1b4ff5&quot;,
+          &quot;code_id&quot;: &quot;9a5b468914a640ac93d3845b046640dc&quot;,
           &quot;description&quot;: &quot;Illness, inoculation, or shortages of goods and money.&quot;,
           &quot;annotations&quot;: 2
         },
         {
           &quot;canonical_name&quot;: &quot;household_responsibility&quot;,
-          &quot;code_id&quot;: &quot;32f48fac7d15479d8569eb2b70da1a7a&quot;,
+          &quot;code_id&quot;: &quot;303c4f91a0374e478c3177544899c907&quot;,
           &quot;description&quot;: &quot;Managing the farm, prices, and family economy alone.&quot;,
           &quot;annotations&quot;: 1
         }
@@ -1769,31 +1772,31 @@ bewley code set-core separation_and_affection</code></pre>
     },
     {
       &quot;canonical_name&quot;: &quot;information_and_delay&quot;,
-      &quot;code_id&quot;: &quot;6dc4a368eb5349ee9e36e123d631bc20&quot;,
+      &quot;code_id&quot;: &quot;6dd7f69aa66c41c7a1b039df18dcd195&quot;,
       &quot;description&quot;: &quot;The struggle to get timely news and letters.&quot;,
       &quot;annotations&quot;: 2
     },
     {
       &quot;canonical_name&quot;: &quot;political_voice&quot;,
-      &quot;code_id&quot;: &quot;f95a502099a340e29c00b344b259b9e2&quot;,
+      &quot;code_id&quot;: &quot;c4cfdeff7a994b8ba2e9377b113bf661&quot;,
       &quot;description&quot;: &quot;Claims to political standing or representation by or for those excluded from it.&quot;,
       &quot;annotations&quot;: 3
     },
     {
       &quot;canonical_name&quot;: &quot;public_duty&quot;,
-      &quot;code_id&quot;: &quot;2bfb2c38650f4c5a90465d156868250b&quot;,
+      &quot;code_id&quot;: &quot;6ae9a8b93cd0482c8a5607f09938fd79&quot;,
       &quot;description&quot;: &quot;Framing congressional or military service as obligation to the country.&quot;,
       &quot;annotations&quot;: 2
     },
     {
       &quot;canonical_name&quot;: &quot;separation_and_affection&quot;,
-      &quot;code_id&quot;: &quot;28a69b4df432423d89a322e0e76a0688&quot;,
+      &quot;code_id&quot;: &quot;c3076d540a274aad9864e016645dce42&quot;,
       &quot;description&quot;: &quot;Longing, tenderness, and the cost of being apart.&quot;,
       &quot;annotations&quot;: 2
     },
     {
       &quot;canonical_name&quot;: &quot;war_and_danger&quot;,
-      &quot;code_id&quot;: &quot;f2e82d4617b54f13b35276db640df086&quot;,
+      &quot;code_id&quot;: &quot;7544da10ed3b450b9f99e6e418da290e&quot;,
       &quot;description&quot;: &quot;Direct experience or anticipation of military violence.&quot;,
       &quot;annotations&quot;: 2
     }
@@ -1902,7 +1905,7 @@ codebook
   ],
   &quot;data&quot;: [
     {
-      &quot;document_id&quot;: &quot;9a155ee6bd7247fdadedd5bf60eca19f&quot;,
+      &quot;document_id&quot;: &quot;29192311b745428cafbb9d918917b79b&quot;,
       &quot;current_path&quot;: &quot;corpus/1775-september-17-john-adams.txt&quot;
     }
   ],
@@ -1925,7 +1928,7 @@ codebook
   ],
   &quot;data&quot;: [
     {
-      &quot;annotation_id&quot;: &quot;56aeabc8b689410588336a1b8b1101ea&quot;,
+      &quot;annotation_id&quot;: &quot;ecf7c7d1eb7a47d1a59f47848eda64bb&quot;,
       &quot;canonical_name&quot;: &quot;waiting_for_news&quot;,
       &quot;current_path&quot;: &quot;corpus/1775-may-04-abigail-adams.txt&quot;,
       &quot;start_line&quot;: 9,
@@ -1934,7 +1937,7 @@ codebook
       &quot;text&quot;: &quot;I want very much to hear from you, how you stood your journey, and in what state you find yourself now. I felt very anxious about you; though I endeavored to be very insensible and heroic, yet my heart felt like a heart of lead.&quot;
     },
     {
-      &quot;annotation_id&quot;: &quot;aa783efb454046ccb4f5c4c43ba95c5b&quot;,
+      &quot;annotation_id&quot;: &quot;366c3312adbc489e99b94c4a999e8762&quot;,
       &quot;canonical_name&quot;: &quot;separation_and_affection&quot;,
       &quot;current_path&quot;: &quot;corpus/1775-may-04-abigail-adams.txt&quot;,
       &quot;start_line&quot;: 9,
@@ -1974,7 +1977,7 @@ codebook
     &quot;Affection and complaint travel together: nearly every tender passage sits beside a demand for more letters.&quot;
   ],
   &quot;data&quot;: {
-    &quot;memo_id&quot;: &quot;fc2b9419adce44b7a6020650400339ad&quot;
+    &quot;memo_id&quot;: &quot;1d1bef319f144d7396eb52a75daacc64&quot;
   },
   &quot;warnings&quot;: [],
   &quot;errors&quot;: [],
@@ -2002,11 +2005,11 @@ codebook
   &quot;data&quot;: [
     {
       &quot;code_name&quot;: &quot;political_voice&quot;,
-      &quot;code_id&quot;: &quot;f95a502099a340e29c00b344b259b9e2&quot;,
-      &quot;document_id&quot;: &quot;883ad0e98c7a451cb75c29305c9c1f3b&quot;,
+      &quot;code_id&quot;: &quot;c4cfdeff7a994b8ba2e9377b113bf661&quot;,
+      &quot;document_id&quot;: &quot;a10865577d5940a5addf1c15cd926ba4&quot;,
       &quot;document_path&quot;: &quot;corpus/1775-december-10-abigail-adams.txt&quot;,
-      &quot;revision_id&quot;: &quot;8bb06eaf7e894962823033bad85be881&quot;,
-      &quot;annotation_id&quot;: &quot;9031b9fcd3ae4a979e572a0cf989c810&quot;,
+      &quot;revision_id&quot;: &quot;f10a5014d3834d94abf35cc8bf8e98f1&quot;,
+      &quot;annotation_id&quot;: &quot;aaeaf9db6e5641cfbcf496a224afad13&quot;,
       &quot;start_byte&quot;: 5290,
       &quot;end_byte&quot;: 5405,
       &quot;start_line&quot;: 19,
@@ -2132,8 +2135,291 @@ codebook
     <p>Before reporting a finding, read the export and confirm its excerpts are non-empty, correctly scoped, and representative. A generated narrative is an inventory to interpret, not a substitute for reading the evidence.</p>
   </section>
 
+  <section id="speakers">
+    <h2><span class="chapter">11</span> Interviews and speakers</h2>
+    <p>Everything so far treated a document as one voice. Interviews are not: part of the text is the interviewer and part is the response, and coding the interviewer's question as if the respondent said it is the classic transcript error — a theme gets attributed to a participant that was actually introduced by the question's wording. Bewley's answer is to make the document's voices explicit and then let the annotation machinery respect them.</p>
+    <div class="callout warn"><strong>Fictional demonstration data.</strong> This chapter uses a second bundled example: three invented Q&amp;A interviews "with" the Adamses, written for this tutorial and marked <code>FICTIONAL</code> in every file header. The exchanges never took place; their themes echo the genuine letters so the codes carry over.</div>
+    <p>Fetch it and set up a separate small project (same commands as chapter 4):</p>
+    <pre class="command"><code>bewley example fetch adams-interviews</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley example fetch&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;example&quot;,
+    &quot;fetch&quot;,
+    &quot;adams-interviews&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;example&quot;: &quot;adams-interviews&quot;,
+    &quot;dest&quot;: &quot;adams-interviews&quot;,
+    &quot;documents&quot;: 3,
+    &quot;files_written&quot;: [
+      &quot;README.md&quot;,
+      &quot;corpus/interview-01-abigail-adams.txt&quot;,
+      &quot;corpus/interview-02-john-adams.txt&quot;,
+      &quot;corpus/interview-03-joint.txt&quot;
+    ]
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;init-project&quot;,
+      &quot;purpose&quot;: &quot;Initialize the project inside adams-interviews/ (cd there first).&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;init&quot;
+      ],
+      &quot;mutates_state&quot;: true,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
+    <pre class="command"><code>cd adams-interviews &amp;&amp; bewley init &amp;&amp; bewley add corpus/interview-01-abigail-adams.txt   # …and the other two</code></pre>
+    <p>Segmentation is an explicit, recorded step — nothing is inferred silently. The default rule matches ALL-CAPS labels at line starts (<code>INTERVIEWER:</code>, <code>ABIGAIL ADAMS:</code>), so mixed-case header lines like <code>Title:</code> never become speakers; for transcripts with mixed-case labels, pass each one with <code>--label</code>:</p>
+    <pre class="command"><code>bewley speakers detect corpus/interview-01-abigail-adams.txt</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley speakers detect&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;speakers&quot;,
+    &quot;detect&quot;,
+    &quot;corpus/interview-01-abigail-adams.txt&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;document_id&quot;: &quot;c878577069b9481e9f5b456323686a43&quot;,
+    &quot;revision_id&quot;: &quot;19d78e776fda4d21a3cbe76a70011eb0&quot;,
+    &quot;rule&quot;: &quot;caps-labels&quot;,
+    &quot;turn_count&quot;: 8,
+    &quot;labels&quot;: [
+      &quot;ABIGAIL ADAMS&quot;,
+      &quot;INTERVIEWER&quot;
+    ]
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;assign-roles&quot;,
+      &quot;purpose&quot;: &quot;Assign each detected label a role so coding can respect the interviewer boundary.&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;speakers&quot;,
+        &quot;set-role&quot;,
+        &quot;&lt;label&gt;&quot;,
+        &quot;&lt;interviewer|participant|other&gt;&quot;
+      ],
+      &quot;mutates_state&quot;: true,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
+    <p>Detected labels are only labels; whether a voice should be coded is a judgment, so it is a separate recorded decision. Until roles are assigned, <code>bewley next</code> treats the gap as the top unresolved state:</p>
+    <pre class="command"><code>bewley next</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley next&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;next&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;schema_version&quot;: &quot;1.0&quot;,
+    &quot;ready&quot;: true,
+    &quot;stage&quot;: &quot;open_coding&quot;,
+    &quot;phase&quot;: &quot;open_coding&quot;,
+    &quot;project_exists&quot;: true,
+    &quot;counts&quot;: {
+      &quot;documents&quot;: 3,
+      &quot;codes&quot;: 0,
+      &quot;active_annotations&quot;: 0
+    },
+    &quot;study&quot;: {
+      &quot;method&quot;: null,
+      &quot;unit_of_analysis&quot;: null,
+      &quot;research_questions&quot;: 0,
+      &quot;cases&quot;: 0,
+      &quot;unlinked_documents&quot;: 3,
+      &quot;unassigned_speaker_labels&quot;: [
+        &quot;ABIGAIL ADAMS&quot;,
+        &quot;INTERVIEWER&quot;,
+        &quot;JOHN ADAMS&quot;
+      ]
+    },
+    &quot;checklist&quot;: [
+      &quot;Read all documents and write qualitative-analysis/corpus_summary.md.&quot;,
+      &quot;Run `bewley open-coding jobs --output jobs.ep --model &lt;model-name&gt;` to package the corpus.&quot;,
+      &quot;Run `ep run jobs.ep --model_list models.ep --output results.ep` (external; requires approval).&quot;,
+      &quot;Run `bewley open-coding ingest results.ep --jobs jobs.ep`.&quot;,
+      &quot;Review candidate_codes.csv, then `bewley code create &lt;name&gt;` for each keeper.&quot;
+    ],
+    &quot;primary_doc&quot;: &quot;workflow&quot;,
+    &quot;blockers&quot;: []
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: [
+    {
+      &quot;id&quot;: &quot;speakers-set-role&quot;,
+      &quot;purpose&quot;: &quot;Assign roles to detected speaker labels (ABIGAIL ADAMS, INTERVIEWER, JOHN ADAMS)&quot;,
+      &quot;command&quot;: [
+        &quot;bewley&quot;,
+        &quot;speakers&quot;,
+        &quot;set-role&quot;,
+        &quot;&lt;label&gt;&quot;,
+        &quot;&lt;interviewer|participant|other&gt;&quot;
+      ],
+      &quot;mutates_state&quot;: false,
+      &quot;requires_network&quot;: false,
+      &quot;requires_user_approval&quot;: false
+    }
+  ]
+}</code></pre></details>
+    <pre class="command"><code>bewley speakers set-role INTERVIEWER interviewer</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley speakers set-role&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;speakers&quot;,
+    &quot;set-role&quot;,
+    &quot;INTERVIEWER&quot;,
+    &quot;interviewer&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;label&quot;: &quot;INTERVIEWER&quot;,
+    &quot;role&quot;: &quot;interviewer&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>The participants get <code>participant</code> the same way. A speaker is scoped to its document — the same person can appear in many transcripts — and <em>whose</em> voice it is links to the cases from chapter 4's machinery:</p>
+    <pre class="command"><code>bewley speakers link-case corpus/interview-03-joint.txt &quot;ABIGAIL ADAMS&quot; &quot;Abigail Adams&quot;</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley speakers link-case&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;speakers&quot;,
+    &quot;link-case&quot;,
+    &quot;corpus/interview-03-joint.txt&quot;,
+    &quot;ABIGAIL ADAMS&quot;,
+    &quot;Abigail Adams&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;link_id&quot;: &quot;6ffd84ba334241a88f277086d2da973c&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <figure class="human"><pre class="human"><code>$ bewley speakers list corpus/interview-03-joint.txt --human
+           corpus/interview-03-joint.txt — 10 turns            
+┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ label         ┃ role        ┃ turns ┃ share ┃ case          ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ ABIGAIL ADAMS │ participant │     4 │   42% │ Abigail Adams │
+│ JOHN ADAMS    │ participant │     3 │   40% │ John Adams    │
+│ INTERVIEWER   │ interviewer │     3 │   18% │ -             │
+└───────────────┴─────────────┴───────┴───────┴───────────────┘</code></pre><figcaption>The joint interview: two participants and an interviewer, with roles, share of the text, and linked cases — the multi-speaker case the letters could never exercise.</figcaption></figure>
+    <p>Now the boundary does real work. Try to code a phrase that appears only in the interviewer's question — the span resolves, but bewley refuses it, because every span in a segmented document carries a <code>speaker_scope</code>:</p>
+    <pre class="command"><code>bewley annotate apply political_voice corpus/interview-01-abigail-adams.txt --quote &#x27;you asked him to &quot;remember the ladies&quot;&#x27;</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;error&quot;,
+  &quot;command&quot;: &quot;bewley annotate apply&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;annotate&quot;,
+    &quot;apply&quot;,
+    &quot;political_voice&quot;,
+    &quot;corpus/interview-01-abigail-adams.txt&quot;,
+    &quot;--quote&quot;,
+    &quot;you asked him to \&quot;remember the ladies\&quot;&quot;
+  ],
+  &quot;data&quot;: {},
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [
+    {
+      &quot;code&quot;: &quot;INTERVIEWER_TEXT&quot;,
+      &quot;message&quot;: &quot;span lies entirely within interviewer turns&quot;,
+      &quot;context&quot;: {
+        &quot;speaker_scope&quot;: &quot;interviewer&quot;
+      },
+      &quot;hint&quot;: &quot;Codes normally anchor in participant answers, not the questions. Pass --allow-interviewer to annotate interviewer text deliberately.&quot;
+    }
+  ],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>(<code>--allow-interviewer</code> exists for the deliberate case.) Code the participant's answer instead and the envelope records that the evidence is participant speech:</p>
+    <pre class="command"><code>bewley annotate apply political_voice corpus/interview-01-abigail-adams.txt --quote &quot;I expected exactly what I received&quot;</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley annotate apply&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;annotate&quot;,
+    &quot;apply&quot;,
+    &quot;political_voice&quot;,
+    &quot;corpus/interview-01-abigail-adams.txt&quot;,
+    &quot;--quote&quot;,
+    &quot;I expected exactly what I received&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;annotation_id&quot;: &quot;646c34fc7dba47408890f39f6f7f9fa6&quot;,
+    &quot;scope_type&quot;: &quot;span&quot;,
+    &quot;start_line&quot;: 34,
+    &quot;end_line&quot;: 34,
+    &quot;speaker_scope&quot;: &quot;participant&quot;,
+    &quot;annotated_text&quot;: &quot;I expected exactly what I received&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>For interviews, the most natural unit is often the whole turn — robust to re-wrapping, no quote needed. <code>--turn</code> anchors the Nth turn of the segmentation:</p>
+    <pre class="command"><code>bewley annotate apply war_and_danger corpus/interview-01-abigail-adams.txt --turn 8</code></pre>
+    <details class="output"><summary>Show command output</summary><pre><code>{
+  &quot;schema_version&quot;: &quot;2.0&quot;,
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;command&quot;: &quot;bewley annotate apply&quot;,
+  &quot;argv&quot;: [
+    &quot;bewley&quot;,
+    &quot;annotate&quot;,
+    &quot;apply&quot;,
+    &quot;war_and_danger&quot;,
+    &quot;corpus/interview-01-abigail-adams.txt&quot;,
+    &quot;--turn&quot;,
+    &quot;8&quot;
+  ],
+  &quot;data&quot;: {
+    &quot;annotation_id&quot;: &quot;4e0331cd45d147b3ba9276637c8e7e7e&quot;,
+    &quot;scope_type&quot;: &quot;span&quot;,
+    &quot;start_line&quot;: 43,
+    &quot;end_line&quot;: 46,
+    &quot;speaker_scope&quot;: &quot;participant&quot;,
+    &quot;annotated_text&quot;: &quot;ABIGAIL ADAMS: We lived in continual expectation of alarms. I heard the\ncannon at Boston from my own hill. Fear was a boarder in every house on\nthat coast; the question was only whether you let it govern the\nhousehold. I did not.&quot;
+  },
+  &quot;warnings&quot;: [],
+  &quot;errors&quot;: [],
+  &quot;next_steps&quot;: []
+}</code></pre></details>
+    <p>A span that crosses an interviewer question and a participant answer is legitimate sometimes (coding an exchange); it is recorded as <code>speaker_scope: mixed</code> with a warning rather than refused. After <code>bewley update</code> changes a transcript, rerun <code>speakers detect</code> — segmentation is tied to the exact revision it parsed.</p>
+  </section>
+
   <section id="integrity">
-    <h2><span class="chapter">11</span> Integrity and recovery</h2>
+    <h2><span class="chapter">12</span> Integrity and recovery</h2>
     <pre class="command"><code>bewley fsck</code></pre>
     <details class="output"><summary>Show command output</summary><pre><code>{
   &quot;schema_version&quot;: &quot;2.0&quot;,
@@ -2162,39 +2448,39 @@ codebook
   &quot;data&quot;: [
     {
       &quot;sequence_number&quot;: 1,
-      &quot;timestamp&quot;: &quot;2026-07-27T17:11:05Z&quot;,
+      &quot;timestamp&quot;: &quot;2026-07-27T18:46:02Z&quot;,
       &quot;event_type&quot;: &quot;project_initialized&quot;,
-      &quot;event_id&quot;: &quot;c72e4aed361a42a98207a45fdef39298&quot;
+      &quot;event_id&quot;: &quot;a91575702ce342f28f7ca0b103f2bdc9&quot;
     },
     {
       &quot;sequence_number&quot;: 2,
-      &quot;timestamp&quot;: &quot;2026-07-27T17:11:05Z&quot;,
+      &quot;timestamp&quot;: &quot;2026-07-27T18:46:02Z&quot;,
       &quot;event_type&quot;: &quot;study_configured&quot;,
-      &quot;event_id&quot;: &quot;458d67e69160419cb89c8cc552416ea8&quot;
+      &quot;event_id&quot;: &quot;50e84789802a4e8eba70587aca2d30fc&quot;
     },
     {
       &quot;sequence_number&quot;: 3,
-      &quot;timestamp&quot;: &quot;2026-07-27T17:11:05Z&quot;,
+      &quot;timestamp&quot;: &quot;2026-07-27T18:46:02Z&quot;,
       &quot;event_type&quot;: &quot;research_question_added&quot;,
-      &quot;event_id&quot;: &quot;ba51003485be44c99be70433ceb8e7ac&quot;
+      &quot;event_id&quot;: &quot;ea184835d1974b4eb87e6e4b7cd2c785&quot;
     },
     {
       &quot;sequence_number&quot;: 4,
-      &quot;timestamp&quot;: &quot;2026-07-27T17:11:05Z&quot;,
+      &quot;timestamp&quot;: &quot;2026-07-27T18:46:02Z&quot;,
       &quot;event_type&quot;: &quot;document_added&quot;,
-      &quot;event_id&quot;: &quot;62d24c735147480e9116840d025cbccd&quot;
+      &quot;event_id&quot;: &quot;f869b9a90bed4604b92b36a138e1c68e&quot;
     },
     {
       &quot;sequence_number&quot;: 5,
-      &quot;timestamp&quot;: &quot;2026-07-27T17:11:05Z&quot;,
+      &quot;timestamp&quot;: &quot;2026-07-27T18:46:03Z&quot;,
       &quot;event_type&quot;: &quot;document_added&quot;,
-      &quot;event_id&quot;: &quot;9d046b927f4846199473b8c3aa2b0cd0&quot;
+      &quot;event_id&quot;: &quot;e3c855e4860349a58964a76d136ff67f&quot;
     },
     {
       &quot;sequence_number&quot;: 6,
-      &quot;timestamp&quot;: &quot;2026-07-27T17:11:06Z&quot;,
+      &quot;timestamp&quot;: &quot;2026-07-27T18:46:03Z&quot;,
       &quot;event_type&quot;: &quot;document_added&quot;,
-      &quot;event_id&quot;: &quot;05cc343c5fcd4b558c5b853b13ec8fd5&quot;
+      &quot;event_id&quot;: &quot;c5cecb4a7c194f589d7733224d262433&quot;
     }
   … 72 further entries elided …
   ],
@@ -2228,7 +2514,8 @@ codebook
       &quot;unit_of_analysis&quot;: &quot;document&quot;,
       &quot;research_questions&quot;: 1,
       &quot;cases&quot;: 2,
-      &quot;unlinked_documents&quot;: 0
+      &quot;unlinked_documents&quot;: 0,
+      &quot;unassigned_speaker_labels&quot;: []
     },
     &quot;checklist&quot;: [
       &quot;Continue constant comparison: `bewley show snippets --code &lt;ref&gt;`.&quot;,
@@ -2260,12 +2547,13 @@ codebook
   </section>
 
   <section id="reference">
-    <h2><span class="chapter">12</span> Command map</h2>
+    <h2><span class="chapter">13</span> Command map</h2>
     <table><thead><tr><th>Need</th><th>Command family</th></tr></thead><tbody>
       <tr><td>Discover the workflow</td><td><code>version</code>, <code>guide</code>, <code>next</code>, <code>capabilities</code></td></tr>
       <tr><td>Try it on bundled data</td><td><code>example list</code>, <code>example fetch</code></td></tr>
       <tr><td>Declare the study</td><td><code>study set</code>, <code>study show</code>, <code>question add</code>, <code>question list</code></td></tr>
       <tr><td>Say who the data is about</td><td><code>case create|list|show|set|link</code>, <code>attribute define|list</code>, <code>link add|list|remove</code></td></tr>
+      <tr><td>Say who is speaking</td><td><code>speakers detect|list|set-role|link-case</code>, <code>annotate apply --turn</code></td></tr>
       <tr><td>Import or revise sources</td><td><code>add</code>, <code>add-audio</code>, <code>add-video</code>, <code>update</code>, <code>list documents</code></td></tr>
       <tr><td>Run model-assisted open coding</td><td><code>open-coding jobs</code>, external <code>ep run</code>, <code>open-coding ingest</code>, <code>open-coding apply</code></td></tr>
       <tr><td>Recover a failed run</td><td><code>open-coding jobs --from-failures</code>, multi-file <code>open-coding ingest</code></td></tr>
@@ -2280,7 +2568,7 @@ codebook
   </section>
 
   <section id="agents">
-    <h2><span class="chapter">13</span> Agent-facing JSON contract</h2>
+    <h2><span class="chapter">14</span> Agent-facing JSON contract</h2>
     <p>Bewley is designed to be driven by agents. Every command emits exactly one versioned JSON envelope by default. Branch on <code>status</code>; do not infer success from the shape of <code>data</code>.</p>
     <pre><code>{
   "schema_version": "2.0",

@@ -49,6 +49,10 @@ presentation mode and should not be used by agents parsing results.
 | `bewley link add <kind:ref> <kind:ref> --rel R [--memo M]` | Create a typed link between research entities; allowed combinations are validated. |
 | `bewley link list [--entity kind:ref]` | List active entity links, including code-to-code links. |
 | `bewley link remove <link_id>` | Deactivate an entity link (compensating event). |
+| `bewley speakers detect <doc> [--label L ...]` | Segment a transcript into speaker turns. Default rule: ALL-CAPS labels at line starts (`INTERVIEWER:`); pass `--label` explicitly for mixed-case transcripts. Rerun after `bewley update`. |
+| `bewley speakers list <doc>` | Show a document's speakers: turns, share of text, role, linked case. |
+| `bewley speakers set-role <label> <role>` | Assign `interviewer`, `participant`, or `other` to a label, project-wide. Span annotations then carry a `speaker_scope`, and interviewer-only spans are refused without `--allow-interviewer`. |
+| `bewley speakers link-case <doc> <label> <case>` | Record whose voice a document's speaker is (entity link speaker → case). |
 | `bewley example list` | List the example corpora bundled with the installed package. |
 | `bewley example fetch <name> [--dest DIR]` | Write a bundled example corpus (documents, README, license) into a new local directory. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |
@@ -95,7 +99,7 @@ presentation mode and should not be used by agents parsing results.
 
 | Command | Purpose |
 |---|---|
-| `bewley annotate apply <code> <doc> (--document \| --bytes S:E \| --lines S:E \| --quote "text" [--occurrence N]) [--memo M]` | Apply a code to a document or text span. **One scope flag is mandatory** — see note below. `--quote` anchors by the exact text itself (verbatim match or the command fails; multiple occurrences require `--occurrence`, 1-based) and is the least error-prone scope. The envelope echoes the annotated text for verification. |
+| `bewley annotate apply <code> <doc> (--document \| --bytes S:E \| --lines S:E \| --quote "text" [--occurrence N] \| --turn N) [--allow-interviewer] [--memo M]` | Apply a code to a document or text span. **One scope flag is mandatory** — see note below. `--quote` anchors by the exact text itself (verbatim match or the command fails; multiple occurrences require `--occurrence`, 1-based) and is the least error-prone scope. `--turn` anchors a whole speaker turn in a segmented transcript. Spans in segmented documents carry a `speaker_scope`; interviewer-only spans are refused without `--allow-interviewer`. The envelope echoes the annotated text for verification. |
 | `bewley annotate remove <annotation_id>` | Deactivate an annotation. |
 | `bewley annotate show <annotation_id>` | Show annotation details and the annotated text. |
 | `bewley annotate resolve <annotation_id> --bytes S:E [--memo M]` | Fix a conflicted annotation after a document revision update. |
