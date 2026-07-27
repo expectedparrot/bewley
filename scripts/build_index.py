@@ -1,0 +1,493 @@
+#!/usr/bin/env python3
+"""Render bewley's docs/index.html from the captured Adams worked run.
+
+Reads the envelopes written by scripts/adams_driver.py (run that first) and
+writes the full tutorial page. All prose lives here; all outputs come from
+the captures.
+"""
+from __future__ import annotations
+
+import html
+import json
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+RUN = REPO / "build" / "adams-run"
+CAPTURES = RUN / "captures"
+OUT = REPO / "docs" / "index.html"
+
+TRUNCATE = {
+    "04-list-documents": 3,   # list captures: keep N entries
+    "29-history": 6,
+    "11-snippets": 2,
+    "24-export-quotes": 1,
+}
+
+
+def load(name: str) -> dict:
+    data = json.loads((CAPTURES / f"{name}.json").read_text())
+    return data
+
+
+def clean(obj):
+    if isinstance(obj, str):
+        return (
+            obj.replace(str(RUN) + "/", "")
+            .replace(str(RUN), ".")
+            .replace(str(REPO), "~/bewley")
+        )
+    if isinstance(obj, list):
+        return [clean(item) for item in obj]
+    if isinstance(obj, dict):
+        return {clean(key): clean(value) for key, value in obj.items()}
+    return obj
+
+
+def render_payload(name: str) -> str:
+    payload = clean(load(name)["payload"])
+    note = ""
+    if name in TRUNCATE and isinstance(payload.get("data"), list):
+        keep = TRUNCATE[name]
+        total = len(payload["data"])
+        if total > keep:
+            payload["data"] = payload["data"][:keep]
+            note = f"\n  … {total - keep} further entries elided …"
+    text = json.dumps(payload, indent=2, ensure_ascii=False)
+    if name in TRUNCATE and isinstance(clean(load(name)["payload"]).get("data"), list):
+        text = text.rstrip()
+        if note:
+            closing = text.rfind("\n  ],")
+            if closing != -1:
+                text = text[:closing] + note + text[closing:]
+    return text
+
+
+def cap(name: str, label: str = "Show command output") -> str:
+    body = html.escape(render_payload(name))
+    return (
+        f'<details class="output"><summary>{label}</summary>'
+        f"<pre><code>{body}</code></pre></details>"
+    )
+
+
+def cmd(display: str) -> str:
+    return f'<pre class="command"><code>{html.escape(display)}</code></pre>'
+
+
+def cmdcap(display: str, name: str) -> str:
+    return cmd(display) + "\n    " + cap(name)
+
+
+def hcap(name: str, caption: str) -> str:
+    """A visible human-view block: rendered --human output, shown open."""
+    text = (CAPTURES / f"{name}.txt").read_text()
+    body = html.escape(text.rstrip())
+    return (
+        f'<figure class="human"><pre class="human"><code>{body}</code></pre>'
+        f"<figcaption>{caption}</figcaption></figure>"
+    )
+
+
+
+DIAGRAM_SVG = """<figure class="diagram" aria-label="The qualitative coding workflow from documents to exports">
+<svg viewBox="0 0 760 736" role="img" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#428a5f"/>
+    </marker>
+  </defs>
+  <style>
+    .box{fill:#edf7f1;stroke:#afd0ba;stroke-width:1.5;rx:10}
+    .boxwarn{fill:#fff7e9;stroke:#e3c78f;stroke-width:1.5}
+    .t{font:700 17px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;fill:#214d35}
+    .d{font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;fill:#556258}
+    .ch{font:700 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;fill:#428a5f;letter-spacing:.08em}
+    .edge{stroke:#428a5f;stroke-width:2;fill:none}
+    .loop{stroke:#b66b13;stroke-width:1.8;fill:none;stroke-dasharray:5 4}
+    .loopt{font:italic 12px Georgia,serif;fill:#b66b13}
+  </style>
+  <rect class="box" x="180" y="8" width="400" height="72" rx="10"/>
+  <text class="t" x="380" y="38" text-anchor="middle">Documents</text>
+  <text class="d" x="380" y="60" text-anchor="middle">the twenty letters, imported and versioned</text>
+  <text class="ch" x="560" y="28" text-anchor="end">CH. 4</text>
+  <line class="edge" x1="380" y1="80" x2="380" y2="106" marker-end="url(#arrow)"/>
+  <rect class="box boxwarn" x="180" y="110" width="400" height="88" rx="10"/>
+  <text class="t" x="380" y="140" text-anchor="middle">Proposed labels (“open coding”)</text>
+  <text class="d" x="380" y="162" text-anchor="middle">a model reads each letter and suggests labels,</text>
+  <text class="d" x="380" y="180" text-anchor="middle">each backed by an exact quotation — external, paid step</text>
+  <text class="ch" x="560" y="130" text-anchor="end">CH. 5</text>
+  <line class="edge" x1="380" y1="198" x2="380" y2="224" marker-end="url(#arrow)"/>
+  <rect class="box" x="180" y="228" width="400" height="72" rx="10"/>
+  <text class="t" x="380" y="258" text-anchor="middle">Your review</text>
+  <text class="d" x="380" y="280" text-anchor="middle">keep the useful labels, reject the rest — nothing applies itself</text>
+  <text class="ch" x="560" y="248" text-anchor="end">CH. 6</text>
+  <line class="edge" x1="380" y1="300" x2="380" y2="326" marker-end="url(#arrow)"/>
+  <rect class="box" x="180" y="330" width="400" height="88" rx="10"/>
+  <text class="t" x="380" y="360" text-anchor="middle">Codebook + tagged passages</text>
+  <text class="d" x="380" y="382" text-anchor="middle">kept labels become codes with definitions;</text>
+  <text class="d" x="380" y="400" text-anchor="middle">each kept quote becomes a tag on its exact source text</text>
+  <text class="ch" x="560" y="350" text-anchor="end">CH. 6</text>
+  <line class="edge" x1="380" y1="418" x2="380" y2="444" marker-end="url(#arrow)"/>
+  <rect class="box" x="180" y="448" width="400" height="72" rx="10"/>
+  <text class="t" x="380" y="478" text-anchor="middle">Refined codebook</text>
+  <text class="d" x="380" y="500" text-anchor="middle">merge synonyms, group related codes, link ideas</text>
+  <text class="ch" x="560" y="468" text-anchor="end">CH. 8</text>
+  <line class="edge" x1="380" y1="520" x2="380" y2="546" marker-end="url(#arrow)"/>
+  <rect class="box" x="180" y="550" width="400" height="72" rx="10"/>
+  <text class="t" x="380" y="580" text-anchor="middle">Comparison and memos</text>
+  <text class="d" x="380" y="602" text-anchor="middle">query the tagged evidence; write down what it means</text>
+  <text class="ch" x="560" y="570" text-anchor="end">CH. 9</text>
+  <path class="loop" d="M 180 586 C 90 586 90 264 176 264" marker-end="url(#arrow)"/>
+  <text class="loopt" x="84" y="420" text-anchor="middle" transform="rotate(-90 84 420)">iterate: recode as understanding sharpens</text>
+  <line class="edge" x1="380" y1="622" x2="380" y2="648" marker-end="url(#arrow)"/>
+  <rect class="box" x="180" y="652" width="400" height="72" rx="10"/>
+  <text class="t" x="380" y="682" text-anchor="middle">Exports</text>
+  <text class="d" x="380" y="704" text-anchor="middle">the interactive explorer, quote tables, plots, and theory structure</text>
+  <text class="ch" x="560" y="672" text-anchor="end">CH. 10</text>
+</svg>
+<figcaption>The whole workflow. A model drafts the labels; every judgment that matters — what counts as a code, which passages carry it, what it all means — stays with you, and every step leaves an auditable record.</figcaption>
+</figure>"""
+
+T = []
+add = T.append
+
+add("""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A worked, evidence-first tutorial: coding the Adams letters with Bewley.">
+  <title>Expected Parrot | Qualitative Coding with Bewley</title>
+  <style>
+    :root{--green:#428a5f;--dark:#214d35;--light:#edf7f1;--ink:#17201a;--muted:#667069;--paper:#f5f7f5;--panel:#fff;--rule:#dfe5e0;--amber:#b66b13;--code:#19231d;--sidebar:286px;--measure:790px;--serif:Georgia,"Times New Roman",serif;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;--mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--paper);font:16px/1.7 var(--sans)}
+    #progress{position:fixed;inset:0 auto auto 0;z-index:20;width:0;height:4px;background:#65b783}
+    nav{position:fixed;inset:0 auto 0 0;z-index:10;width:var(--sidebar);overflow:auto;padding:24px 22px 40px;color:#eef7f1;background:var(--dark);font:14px/1.35 var(--sans)}
+    .brand{display:block;margin-bottom:24px;padding:13px 14px;color:var(--ink);background:#fff;border-radius:9px;text-decoration:none}.brand strong{display:block;font:700 19px/1.15 var(--serif)}.brand small{color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    nav .book{margin:0 8px 23px;font:600 20px/1.25 var(--serif)}nav .part{margin:19px 8px 5px;color:#9fd3b2;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}nav>a:not(.brand){display:block;padding:6px 8px;color:#d5e9dc;text-decoration:none;border-radius:6px}nav>a:not(.brand):hover{color:#fff;background:#2d6244}.small{margin:28px 8px 0;color:#b7cec0;font-size:12px}.nav-toggle{display:none;width:100%;padding:10px 12px;color:#fff;background:#2d6244;border:1px solid #72a685;border-radius:7px;font:700 14px var(--sans);text-align:left;cursor:pointer}.nav-toggle:after{float:right;content:"+"}.open .nav-toggle:after{content:"−"}
+    main{margin-left:var(--sidebar)}article{max-width:920px;margin:auto;padding:48px 48px 110px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.025)}header{padding:60px 0 44px;border-bottom:3px solid var(--green)}
+    .eyebrow{color:var(--green);font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}h1,h2,h3,h4{font-family:var(--serif);font-weight:600;line-height:1.3}h1{max-width:780px;margin:14px 0 20px;font-size:clamp(40px,6vw,61px);letter-spacing:-.025em}h2{margin:78px 0 22px;padding:12px 0 8px;color:var(--green);font-size:32px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}h3{margin:40px 0 13px;font-size:23px}.dek{max-width:740px;color:var(--muted);font-size:21px;line-height:1.5}.meta{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:27px;color:var(--muted);font-size:13px}
+    p,ul,ol,table,pre,.callout,figure,details.output{max-width:var(--measure)}a{color:var(--green)}code{padding:.14em .35em;background:#f0f3f0;border-radius:4px;font:88% var(--mono)}pre{position:relative;overflow:auto;margin:18px 0 26px;padding:20px 58px 20px 22px;color:#d8e3db;background:var(--code);border-radius:8px;font:13px/1.55 var(--mono)}pre code{padding:0;color:inherit;background:none}pre.command{border-left:4px solid var(--green);background:#18231d}.syntax-program{color:#7ddc9e;font-weight:700}.syntax-option{color:#e8b86d}.syntax-string{color:#b9d8ff}.copy{position:absolute;top:10px;right:10px;padding:5px 8px;color:#d8ebe0;background:#34453b;border:0;border-radius:5px;font:11px var(--sans);cursor:pointer}.copy:hover{background:var(--green)}
+    figure.diagram{padding:24px 12px 14px}figure.human{margin:22px 0 30px;padding:0;border:0}figure.human pre.human{margin:0 0 8px;color:var(--ink);background:#fbfdfb;border:1px solid var(--rule);border-left:4px solid #9fd3b2}blockquote{max-width:var(--measure);margin:22px 0;padding:14px 22px;color:#3c463f;background:#f9fbf9;border-left:4px solid #afd0ba;font-family:var(--serif);font-size:17px;line-height:1.65}blockquote footer{margin:8px 0 0;padding:0;border:0;font:13px var(--sans);color:var(--muted)}details.output{margin:-14px 0 26px}details.output summary{color:var(--green);font-size:13px;font-weight:700;cursor:pointer}details.output[open] summary{margin-bottom:8px}details.output pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+    .chapter{font-size:.55em;vertical-align:.35em}.callout{margin:24px 0;padding:18px 22px;background:linear-gradient(135deg,#f9fbf9,var(--light));border-left:4px solid var(--green);border-radius:0 8px 8px 0}.callout.warn{background:#fff7e9;border-color:var(--amber)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:var(--measure)}.card{padding:18px;background:#fff;border:1px solid var(--rule);border-radius:8px;box-shadow:0 2px 7px rgba(0,0,0,.035)}.card h3{margin-top:0;color:var(--dark);font-size:19px}table{width:100%;margin:20px 0 28px;border-collapse:collapse;font-size:14px}th,td{padding:11px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}th{color:#fff;background:var(--green)}tbody tr:nth-child(even){background:#f7f9f7}
+    figure{margin:30px 0 36px;padding:20px;border:1px solid var(--rule);border-radius:8px}figure img{display:block;width:100%;height:auto}figcaption{margin-top:12px;color:var(--muted);font-size:13px}footer{margin-top:85px;padding-top:28px;color:var(--muted);border-top:3px solid var(--green);font-size:13px}
+    @media(max-width:960px){nav{position:static;width:auto;padding-bottom:22px}.nav-toggle{display:block}nav .part,nav>a:not(.brand),nav .small{display:none}nav.open .part{display:block}nav.open>a:not(.brand){display:inline-block}nav.open .small{display:block}nav .book{margin-bottom:14px}main{margin-left:0}article{padding:28px 24px 80px}.brand{max-width:270px}}@media(max-width:650px){.grid{grid-template-columns:1fr}h2{font-size:28px}table{display:block;overflow-x:auto}pre{padding-right:44px}}@media print{nav,#progress,.copy,.nav-toggle{display:none!important}main{margin:0}article{max-width:none;padding:0}h2{break-before:page}pre{white-space:pre-wrap;color:#000;background:#eee}}
+  </style>
+</head>
+<body>
+<div id="progress"></div>
+<nav aria-label="Tutorial contents">
+  <a class="brand" href="https://www.expectedparrot.com/"><strong>Expected Parrot</strong><small>Open-source research tools</small></a>
+  <div class="book">Qualitative Coding<br>with Bewley</div>
+  <button class="nav-toggle" type="button" aria-expanded="false">Show tutorial contents</button>
+  <div class="part">Foundations</div><a href="#orientation">1. The corpus and the question</a><a href="#model">2. Data model</a><a href="#install">3. Installation</a>
+  <div class="part">Worked run</div><a href="#project">4. Start the project</a><a href="#opencoding">5. Model-assisted open coding</a><a href="#review">6. Review and apply</a><a href="#retry">7. When a run fails</a><a href="#refine">8. Refine the codebook</a><a href="#memo">9. Compare and memo</a><a href="#export">10. Export evidence</a>
+  <div class="part">Practice</div><a href="#integrity">11. Integrity and recovery</a><a href="#reference">12. Command map</a><a href="#agents">13. Agent interface</a>
+  <div class="small">Every output on this page was captured from one real run on the bundled Adams-letters corpus.</div>
+</nav>
+<main><article>
+  <header>
+    <div class="eyebrow">Expected Parrot · An evidence-first tutorial</div>
+    <h1>Auditable qualitative coding</h1>
+    <p class="dek">Twenty letters between John and Abigail Adams go from raw text to a traceable codebook, exact excerpts, analytic memos, and an interactive evidence explorer — with the path from every claim back to its source preserved.</p>
+    <div class="meta"><span>Tool: <strong><a href="https://github.com/expectedparrot/bewley">Bewley</a></strong></span><span>Method: <strong>thematic and grounded-theory analysis</strong></span><span>License: <strong>MIT</strong></span></div>
+    <p class="callout"><strong>See the finished product first.</strong> The <a href="adams-report.html">interactive HTML explorer</a> on this site was generated by the exact run this tutorial walks through; the corpus ships with the repository at <code>examples/adams-letters/</code>, so the whole page is reproducible.</p>
+  </header>
+""")
+
+# ── 1. Orientation ─────────────────────────────────────────────────────────
+add("""
+  <section id="orientation">
+    <h2><span class="chapter">01</span> The corpus and the question</h2>
+    <p>The worked example is twenty letters exchanged by John and Abigail Adams between April 1775 and July 1776, selected from the public-domain <em>Familiar Letters</em> edition (Project Gutenberg ebook 34123) and bundled with the repository. The research question the codebook must serve:</p>
+    <p class="callout">How did John and Abigail Adams negotiate public duty, household responsibility, political voice, danger, and emotional intimacy during the American Revolution?</p>
+    <p>This is the kind of material the codebook has to do justice to — Abigail Adams, writing from Braintree on 31 March 1776:</p>
+    <blockquote>“…in the new code of laws which I suppose it will be necessary for you to make, I desire you would remember the ladies and be more generous and favorable to them than your ancestors. Do not put such unlimited power into the hands of the husbands. Remember, all men would be tyrants if they could. If particular care and attention is not paid to the ladies, we are determined to foment a rebellion, and will not hold ourselves bound by any laws in which we have no voice or representation.”
+    <footer>corpus/1776-march-31-abigail-adams.txt, line 19 — the span the tutorial will code as <code>political_voice</code></footer></blockquote>
+    <h3>What qualitative coding is</h3>
+    <p>If you have never done this before: qualitative coding is reading a body of text carefully and <em>tagging</em> passages with short labels that name what is going on in them. The labels are called <strong>codes</strong> — an unfortunate collision with both computer code and Abigail's "code of laws"; here a code is just a named idea, like <code>political_voice</code>, with a one-sentence definition of when it applies. The set of codes plus their definitions is the <strong>codebook</strong>. Each individual tag — this code, attached to this exact passage — is an <strong>annotation</strong>. The passage above will carry a <code>political_voice</code> annotation, because it is a claim to political standing by someone excluded from it.</p>
+    <p>Why bother? Because once passages are tagged, questions about twenty letters become answerable and checkable: <em>which letters talk about both duty and affection? does the danger theme appear more in her letters or his? what exactly is the evidence for that claim?</em> The discipline is that every code has a written definition and every claim traces back to exact quoted text — not to an impression left after reading.</p>
+    <p>The workflow this tutorial walks through, end to end:</p>
+    [[DIAGRAM]]
+    <p>Two terms worth knowing because the tradition uses them and this page inherits them: <strong>open coding</strong> is the first pass, where labels are invented from the material itself rather than chosen from a preset list — here a language model drafts that pass and you judge it. A <strong>memo</strong> is a dated analytic note recording why you interpreted something the way you did. Everything else is introduced where it appears.</p>
+    <p>Bewley's role is to make all of this <em>accountable</em>: every code has a written definition, every annotation is anchored to exact bytes of a specific document revision, and every change to either is an append-only event you can audit later.</p>
+    <div class="grid">
+      <div class="card"><h3>Evidence stays exact</h3><p>Annotations point to a whole document, an inclusive line range, or an exact byte span.</p></div>
+      <div class="card"><h3>History is append-only</h3><p>Edits and undo operations become events. Earlier analytic decisions remain inspectable.</p></div>
+      <div class="card"><h3>Codes can evolve</h3><p>Rename, merge, split, nest, and link codes as distinctions sharpen — merges absorb their sources without losing provenance.</p></div>
+      <div class="card"><h3>Model work stays external</h3><p>Bewley packages open-coding jobs as EDSL objects; the paid <code>ep run</code> step is yours to authorize.</p></div>
+    </div>
+    <p class="callout"><strong>What will differ in your run.</strong> Every output on this page is a real captured envelope from one run. IDs are generated per project, and one step — the external model call — is replaced here by a deterministic fixture so the page is reproducible without paid inference; that substitution is labeled where it happens in <a href="#opencoding">chapter 5</a>. In a real run, only the model's answer content differs.</p>
+  </section>
+""")
+
+# ── 2. Data model ──────────────────────────────────────────────────────────
+add("""
+  <section id="model">
+    <h2><span class="chapter">02</span> The local data model</h2>
+    <table><thead><tr><th>Object</th><th>Role</th><th>Why it matters</th></tr></thead><tbody>
+      <tr><td>Document</td><td>A versioned UTF-8 source</td><td>Preserves the material being interpreted.</td></tr>
+      <tr><td>Code</td><td>A named analytic category</td><td>Makes the codebook explicit and revisable.</td></tr>
+      <tr><td>Annotation</td><td>A code attached to evidence</td><td>Connects an interpretation to an exact passage.</td></tr>
+      <tr><td>Memo</td><td>An analytic note</td><td>Records comparisons, hypotheses, and exceptions.</td></tr>
+      <tr><td>Event</td><td>An append-only state change</td><td>Provides history, audit, and non-destructive undo.</td></tr>
+    </tbody></table>
+    <div class="callout"><strong>Source of truth.</strong> Events and immutable objects live under <code>.bewley/</code>. The SQLite index is derived state and can be rebuilt with <code>bewley rebuild-index</code>.</div>
+  </section>
+""")
+
+# ── 3. Installation ────────────────────────────────────────────────────────
+INSTALL_CMD = cmd(
+    "python -m pip install --user --upgrade uv\n"
+    "uv tool install --python 3.11 --upgrade --force \\\n"
+    '  --with-executables-from "edsl @ git+https://github.com/expectedparrot/edsl.git@main" \\\n'
+    '  "bewley @ git+https://github.com/expectedparrot/bewley.git@main"'
+)
+add(f"""
+  <section id="install">
+    <h2><span class="chapter">03</span> Installation</h2>
+    <p>Install Bewley and EDSL's <code>ep</code> executable into one isolated tool environment:</p>
+    {INSTALL_CMD}
+    <p>Verify the build and its contract versions:</p>
+    {cmdcap("bewley version", "01-version")}
+    <p>For local development, clone the repository, <code>pip install -e .</code>, and run <code>PYTHONPATH=src python -m pytest tests/</code>.</p>
+    <div class="callout warn"><strong>Working-directory rule.</strong> Bewley has no <code>--cwd</code> option. Run every project command from the directory containing <code>.bewley/</code>.</div>
+  </section>
+""")
+
+# ── 4. Start the project ───────────────────────────────────────────────────
+add(f"""
+  <section id="project">
+    <h2><span class="chapter">04</span> Start the project</h2>
+    <p>Copy the corpus into the project so paths stay stable, then initialize and import. Reproducing this run exactly:</p>
+    {cmd('''mkdir adams-letters && cd adams-letters
+cp -r <bewley-repo>/examples/adams-letters/corpus corpus''')}
+    {cmdcap("bewley init", "02-init")}
+    {cmdcap("bewley add corpus/1775-april-30-john-adams.txt", "03-add")}
+    <p>Add the remaining nineteen letters the same way (an agent loops; a person tabs). Then confirm what the project tracks. Agents read the JSON envelope; for a person, <code>--human</code> renders the same answer as a table:</p>
+    {cmdcap("bewley list documents", "04-list-documents")}
+    {hcap("04h-list-documents", "The same command with <code>--human</code>: the twenty tracked letters.")}
+    {cmdcap("bewley status", "05-status")}
+    <p><code>bewley next</code> reads the state on disk — not conversational memory — and recommends the single next action. With documents but no codes, it points at open coding:</p>
+    {cmdcap("bewley next", "06-next")}
+  </section>
+""")
+
+# ── 5. Open coding ─────────────────────────────────────────────────────────
+add(f"""
+  <section id="opencoding">
+    <h2><span class="chapter">05</span> Model-assisted open coding</h2>
+    <p>Open coding — the first, label-inventing pass over the corpus — is the tedious part, and it is what a language model drafts here: for every letter, propose a handful of candidate codes, each with a one-sentence definition and a <em>verbatim</em> supporting quotation. Proposals are all they are; nothing enters the codebook until a person has judged them in the next chapter.</p>
+    <p>The mechanics use EDSL, Expected Parrot's library for structured model work. One command bundles each letter's current text together with the coding prompt into a portable <code>Jobs</code> file (one "scenario" per letter) — and, because the run command should be executable exactly as suggested, <code>--model</code> also writes a <code>models.ep</code> file naming the model with an adequate answer-length budget:</p>
+    {cmdcap("bewley open-coding jobs --output jobs.ep --model gpt-4.1-mini", "07-jobs")}
+    <p>Note the envelope's shape: twenty scenarios, one expected model call each, <code>inference: external</code>, and a <code>next_steps</code> action that is runnable verbatim and flagged as requiring network access and your approval. Bewley never executes the packaged work itself.</p>
+    {cmd("ep auth login    # once per workspace; then ep check before paid runs")}
+    {cmd("ep run jobs.ep --model_list models.ep --output results.ep")}
+    <div class="callout"><strong>Fixture substitution happens here.</strong> To keep this page reproducible without paid inference, <code>results.ep</code> in this run is a deterministic fixture Results object (built with the same EDSL API the tests use) containing plausible answers for all twenty scenarios. Everything before and after this point is the real machinery; in a real run only the answers' content differs.</div>
+    <p>The run's answers come back as a <code>Results</code> file. Ingestion audits it against the originating Jobs — every letter × every model, with the Jobs as the denominator so a letter that never returned cannot hide — locates every quoted passage at its exact position in the letter, and writes the proposals to a review file. It does <em>not</em> create codes or annotations:</p>
+    {cmdcap("bewley open-coding ingest results.ep --jobs jobs.ep", "08-ingest")}
+    <p>Twenty results yielded 24 candidates, every quotation resolved exactly, and nothing was missing or duplicated. Had any quote failed to resolve, it would be itemized in <code>unresolved_details</code>, never silently dropped.</p>
+  </section>
+""")
+
+# ── 6. Review and apply ────────────────────────────────────────────────────
+add(f"""
+  <section id="review">
+    <h2><span class="chapter">06</span> Review, then apply</h2>
+    <p>The candidate CSV is the human checkpoint, and <code>open-coding candidates</code> is how you read it — the full review queue of everything the model proposed, before any judgment:</p>
+    {cmdcap("bewley open-coding candidates", "08b-candidates")}
+    {hcap("08h-candidates", "The complete review queue: all 24 proposals across 10 codes, each with its definition and verbatim quote. The seven analytic codes serve the research question; <code>daily_minutiae</code>, <code>travel_logistics</code>, and <code>weather_report</code> are topic labels without analytic weight.")}
+    <p>In this run the review kept 14 of the 24 candidates and deleted the topic-label rows. Review means editing the CSV: delete rejected rows, keep the rest.</p>
+    <p><code>apply</code> is where proposals become the real thing: each surviving label is created as a code (carrying its definition into the codebook), and each surviving quote becomes an annotation — the label tagged onto that exact stretch of the letter. Preview first:</p>
+    {cmdcap("bewley open-coding apply --dry-run", "09-apply-dry-run")}
+    {cmdcap("bewley open-coding apply", "10-apply")}
+    <p>Only rows whose quotation resolved to exactly one location are applied; anything skipped is itemized with a reason — an unresolved quote, a stale revision, an already-applied row — never guessed. Re-running is idempotent. The evidence is now queryable:</p>
+    {cmdcap("bewley show snippets --code political_voice", "11-snippets")}
+    <p>And this is what the coded evidence actually looks like — the point of the whole exercise. With <code>--human</code>, each snippet is the verbatim passage under its code:</p>
+    {hcap("11h-snippets", "The <code>political_voice</code> evidence: Abigail's demand, John's laughing dismissal, and her anger at the Assembly — each anchored to exact lines.")}
+    {hcap("11h-codes", "The applied codebook with the model-proposed, reviewer-kept definitions and their evidence counts.")}
+  </section>
+""")
+
+# ── 7. Retry ───────────────────────────────────────────────────────────────
+add(f"""
+  <section id="retry">
+    <h2><span class="chapter">07</span> When a run fails</h2>
+    <p>Model runs fail: answers truncate, calls error, scenarios go missing. Bewley fails closed — and recovers with retry-only spend rather than a full re-run. To show the mechanics, this run packages a two-document pilot and hands it a Results file in which one answer is truncated prose:</p>
+    {cmdcap("bewley open-coding jobs --output pilot.jobs.ep --pilot 2 --model gpt-4.1-mini --force", "12-pilot-jobs")}
+    {cmdcap("bewley open-coding ingest run1.results.ep --jobs pilot.jobs.ep --output retry-demo.csv", "13-ingest-fails")}
+    <p>No CSV was written; the error names the failing document and suggests the recovery. <code>--from-failures</code> repackages only the scenarios lacking a valid answer, using the originating Jobs as the denominator:</p>
+    {cmdcap("bewley open-coding jobs --from-failures run1.results.ep --jobs pilot.jobs.ep --output retry.jobs.ep --model gpt-4.1-mini --force", "14-from-failures")}
+    <p>After the retry runs externally, pass <em>both</em> Results files to ingest. Rows merge by stable (scenario, model) identity — first valid answer wins — and every retained candidate is attributed to the file that supplied it:</p>
+    {cmdcap("bewley open-coding ingest run1.results.ep run2.results.ep --jobs pilot.jobs.ep --output retry-demo.csv", "15-merged-ingest")}
+    <p><code>retained_by_source</code> shows one candidate from each file: the retry is separately attributable and never masquerades as a clean first run.</p>
+  </section>
+""")
+
+# ── 8. Refine ──────────────────────────────────────────────────────────────
+ANNOTATE_CMD = cmdcap("""bewley code create waiting_for_news \\
+  --description "Waiting anxiously for letters that do not come"
+bewley annotate apply waiting_for_news corpus/1775-may-04-abigail-adams.txt \\
+  --lines 9:9""", "16-annotate-lines")
+STRUCTURE_CMD = cmd("""bewley code create home_front --description "The war as lived at home"
+bewley code set-parent household_responsibility home_front
+bewley code set-parent health_and_scarcity home_front
+bewley code link separation_and_affection information_and_delay intensified_by \\
+  --memo "Delayed letters repeatedly sharpen the pain of separation."
+bewley code set-core separation_and_affection""")
+add(f"""
+  <section id="refine">
+    <h2><span class="chapter">08</span> Refine the codebook</h2>
+    <p>A first-pass codebook is never the final one: rereading tagged evidence changes your mind about the categories themselves, and the tool has to make changing your mind cheap and traceable. Suppose reading the delay excerpts suggests a distinction worth testing — <em>waiting</em> as its own idea, separate from slow information. Create the candidate code and tag Abigail's plea by hand (lines are 1-based and inclusive; byte spans are also accepted):</p>
+    {ANNOTATE_CMD}
+    <p>Comparison shows the distinction never earns its keep: waiting <em>is</em> the delay theme. Merge it away — the target absorbs the source's evidence, while the absorbed annotation keeps its original code for provenance:</p>
+    {cmdcap("bewley code merge waiting_for_news --into information_and_delay", "17-merge")}
+    {cmdcap("bewley code show information_and_delay", "18-code-show")}
+    <p>The count includes the absorbed annotation and <code>absorbs</code> names the merged source. Two more structuring moves as the account takes shape: parent-child grouping for "is a kind of" relations, and typed links for analytic claims like <em>X is intensified by Y</em>. Finally, choosing one <em>core</em> code declares what the whole account is organized around (grounded theorists call this the core category):</p>
+    {STRUCTURE_CMD}
+    {cmdcap("bewley code list --tree", "19-code-tree")}
+    {hcap("19h-code-tree", "The refined codebook: <code>home_front</code> now parents the household and scarcity codes; every code keeps its definition and counts.")}
+    <p><code>coverage</code> answers "how much of the corpus does this category actually touch" — with <code>--breakdown</code> so a parent's inclusive rollup cannot hide divergent children:</p>
+    {cmdcap("bewley code coverage home_front --breakdown", "20-coverage")}
+  </section>
+""")
+
+# ── 9. Compare and memo ────────────────────────────────────────────────────
+MEMO_CMD = cmdcap(
+    'bewley memo add --code separation_and_affection \\\n'
+    '  "Affection and complaint travel together: nearly every tender passage sits beside a demand for more letters."',
+    "23-memo",
+)
+add(f"""
+  <section id="memo">
+    <h2><span class="chapter">09</span> Compare across the corpus, then write it down</h2>
+    <p>The analytic engine of qualitative work is comparison: set passages that share a tag beside each other, look at where two themes coincide and where one appears without the other, and let the differences sharpen the categories (the tradition calls this <em>constant comparison</em>). Boolean queries retrieve that evidence across the corpus. Both keyword (<code>AND OR NOT</code>) and symbolic (<code>&amp; | !</code>) operators work; quote the expression so the shell does not interpret them. Document mode asks which letters contain both themes anywhere:</p>
+    {cmdcap('bewley query "public_duty & separation_and_affection"', "21-query-document")}
+    <p>Annotation mode is stricter: terms must be satisfied by <em>overlapping</em> spans. The 4 May 1775 letter matches because the line-level annotation absorbed from <code>waiting_for_news</code> overlaps the <em>heart of lead</em> sentence — note the absorbed annotation still reports its original code name:</p>
+    {cmdcap('bewley query "information_and_delay & separation_and_affection" --mode annotation', "22-query-annotation")}
+    {hcap("22h-query-annotation", "The overlapping evidence itself: Abigail's plea for letters and her “heart of lead,” in the same passage of the 4 May 1775 letter.")}
+    <p>Queries return evidence, not conclusions. The interpretation belongs in a memo:</p>
+    {MEMO_CMD}
+  </section>
+""")
+
+# ── 10. Export ─────────────────────────────────────────────────────────────
+add(f"""
+  <section id="export">
+    <h2><span class="chapter">10</span> Export evidence and theory</h2>
+    <p>Exports are regenerated views of the ledger. Quote tables carry document, revision, byte range, and exact text, so downstream reports can verify every excerpt:</p>
+    {cmdcap("bewley export quotes --code political_voice --format jsonl", "24-export-quotes")}
+    {cmdcap('bewley export html --output adams-report.html --title "Adams letters — coded corpus"', "25-export-html")}
+    <p>That command produced the <a href="adams-report.html">explorer linked from the header</a> — search and filter every coded excerpt in this run. Theory structure exports as JSON or a Mermaid diagram, and <code>bewley codegen theory-explorer</code> generates an interactive D3 renderer:</p>
+    {cmdcap("bewley export theory --format mermaid --output theory.mmd", "26-export-theory")}
+    {cmdcap("bewley export plots --output-dir plots", "27-export-plots")}
+    <h3>Descriptive plots, not findings</h3>
+    <p>Plots audit the shape of the coding work — which codes dominate, which documents received disproportionate attention, which codes co-occur. They are prompts to return to the evidence, not statistical tests. These are the plots from this run:</p>
+    <figure>
+      <img src="plots/code-prevalence.svg" alt="Horizontal bars comparing annotation and document counts per code in the Adams letters run.">
+      <figcaption><strong>Code prevalence.</strong> Dark bars count annotations; light bars count distinct documents. A large gap flags repeated coding within few sources.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/document-density.svg" alt="Horizontal bars showing annotation and distinct-code counts by letter.">
+      <figcaption><strong>Coding density.</strong> Uneven density prompts a check of sampling, document length, and analyst attention.</figcaption>
+    </figure>
+    <figure>
+      <img src="plots/code-cooccurrence.svg" alt="Matrix counting the letters in which each pair of codes appears.">
+      <figcaption><strong>Code co-occurrence.</strong> Cells count documents containing both codes — comparisons to inspect, not relationships established.</figcaption>
+    </figure>
+    <p>Before reporting a finding, read the export and confirm its excerpts are non-empty, correctly scoped, and representative. A generated narrative is an inventory to interpret, not a substitute for reading the evidence.</p>
+  </section>
+""")
+
+# ── 11. Integrity ──────────────────────────────────────────────────────────
+add(f"""
+  <section id="integrity">
+    <h2><span class="chapter">11</span> Integrity and recovery</h2>
+    {cmdcap("bewley fsck", "28-fsck")}
+    {cmdcap("bewley history", "29-history")}
+    <p>Undo appends a compensating event (<code>bewley undo &lt;event_id&gt;</code>); nothing is deleted. If the SQLite index is ever damaged, <code>bewley rebuild-index</code> reconstructs it from the event log alone. With annotations in place, <code>next</code> now recommends the analysis phase:</p>
+    {cmdcap("bewley next", "30-next-final")}
+    <p>Run <code>fsck</code> before handing artifacts downstream. If a source document changes, review conflicted annotations against the new revision rather than silently accepting shifted text.</p>
+  </section>
+""")
+
+# ── 12. Command map ────────────────────────────────────────────────────────
+add("""
+  <section id="reference">
+    <h2><span class="chapter">12</span> Command map</h2>
+    <table><thead><tr><th>Need</th><th>Command family</th></tr></thead><tbody>
+      <tr><td>Discover the workflow</td><td><code>version</code>, <code>guide</code>, <code>next</code>, <code>capabilities</code></td></tr>
+      <tr><td>Import or revise sources</td><td><code>add</code>, <code>add-audio</code>, <code>add-video</code>, <code>update</code>, <code>list documents</code></td></tr>
+      <tr><td>Run model-assisted open coding</td><td><code>open-coding jobs</code>, external <code>ep run</code>, <code>open-coding ingest</code>, <code>open-coding apply</code></td></tr>
+      <tr><td>Recover a failed run</td><td><code>open-coding jobs --from-failures</code>, multi-file <code>open-coding ingest</code></td></tr>
+      <tr><td>Build the codebook</td><td><code>code create|rename|merge|split|set-parent|link|set-core</code></td></tr>
+      <tr><td>Attach and inspect evidence</td><td><code>annotate apply|show|remove|resolve</code>, <code>show snippets</code></td></tr>
+      <tr><td>Compare cases</td><td><code>query</code>, <code>code coverage</code></td></tr>
+      <tr><td>Record interpretation</td><td><code>memo add|list|show|edit</code></td></tr>
+      <tr><td>Publish artifacts</td><td><code>export quotes|html|plots|theory|narrative</code>, <code>codegen theory-explorer</code></td></tr>
+      <tr><td>Verify and recover</td><td><code>fsck</code>, <code>rebuild-index</code>, <code>history</code>, <code>undo</code></td></tr>
+    </tbody></table>
+    <p>Exact options and defaults belong to <code>bewley &lt;command&gt; --help</code>; the embedded reference is <code>bewley docs show commands</code>. <code>add-audio</code>/<code>add-video</code> call the OpenAI transcription API directly — external paid calls whose envelopes carry a cost warning.</p>
+  </section>
+""")
+
+# ── 13. Agent interface ────────────────────────────────────────────────────
+add("""
+  <section id="agents">
+    <h2><span class="chapter">13</span> Agent-facing JSON contract</h2>
+    <p>Bewley is designed to be driven by agents. Every command emits exactly one versioned JSON envelope by default. Branch on <code>status</code>; do not infer success from the shape of <code>data</code>.</p>
+    <pre><code>{
+  "schema_version": "2.0",
+  "status": "ok",
+  "command": "bewley status",
+  "argv": ["bewley", "status"],
+  "data": {"documents": 20, "codes": 8},
+  "warnings": [],
+  "errors": [],
+  "next_steps": []
+}</code></pre>
+    <p>Failures set <code>status</code> to <code>"error"</code>, populate <code>errors</code> with structured objects — ambiguous references list their candidate matches — and exit nonzero. Suggested actions use argv arrays and declare whether they mutate state, require network access, or require user approval.</p>
+    <pre class="command"><code>bewley guide          # the lifecycle and the ep-run execution boundary
+bewley next           # the single highest-priority next action, from artifact state
+bewley capabilities   # the versioned contract and bundled JSON Schemas
+bewley agent schema envelope</code></pre>
+    <div class="callout"><strong>Human output is opt-in.</strong> Use <code>--human</code> or <code>-H</code> only for terminal presentation. Agents should consume the default envelope, and the repository's <code>AGENTS.md</code> is the operating contract.</div>
+  </section>
+
+  <footer>
+    <p><strong>Bewley</strong> is an open-source Expected Parrot research tool, released under the MIT License. Source and issue tracking are available on <a href="https://github.com/expectedparrot/bewley">GitHub</a>. The Adams letters are public-domain material from Project Gutenberg ebook 34123; see <code>examples/adams-letters/README.md</code> for source and redistribution terms.</p>
+  </footer>
+</article></main>
+<script>
+  const nav=document.querySelector("nav"),toggle=document.querySelector(".nav-toggle");
+  toggle.addEventListener("click",()=>{const open=nav.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open))});
+  document.querySelectorAll("details.output").forEach(d=>{const s=d.querySelector("summary");d.addEventListener("toggle",()=>{s.textContent=d.open?"Hide command output":"Show command output"})});
+  document.querySelectorAll("pre.command code, pre:not(.command) code").forEach(code=>{
+    if(code.closest("details"))return;
+    const text=code.textContent;
+    if(!/^(?:bewley|ep|git|python|uv|mkdir|cp|cd|pip)\\b/.test(text.trim()))return;
+    code.parentElement.classList.add("command");
+    const pattern=/(--[\w-]+)|("[^"]*"|'[^']*')|\\b(bewley|ep|git|python|uv|mkdir|cp|cd|pip)\\b/g;
+    const fragment=document.createDocumentFragment();
+    let position=0;
+    for(const match of text.matchAll(pattern)){
+      fragment.append(document.createTextNode(text.slice(position,match.index)));
+      const span=document.createElement("span");
+      span.className=match[1]?"syntax-option":match[2]?"syntax-string":"syntax-program";
+      span.textContent=match[0];
+      fragment.append(span);
+      position=match.index+match[0].length;
+    }
+    fragment.append(document.createTextNode(text.slice(position)));
+    code.replaceChildren(fragment);
+  });
+  document.querySelectorAll("pre").forEach(pre=>{if(pre.closest("details"))return;const button=document.createElement("button");button.className="copy";button.type="button";button.textContent="Copy";button.addEventListener("click",async()=>{await navigator.clipboard.writeText(pre.querySelector("code").innerText);button.textContent="Copied";setTimeout(()=>button.textContent="Copy",1200)});pre.appendChild(button)});
+  addEventListener("scroll",()=>{const max=document.documentElement.scrollHeight-innerHeight;document.querySelector("#progress").style.width=(max?scrollY/max*100:0)+"%"},{passive:true});
+</script>
+</body>
+</html>
+""")
+
+OUT.write_text("".join(T).replace("[[DIAGRAM]]", DIAGRAM_SVG))
+print("wrote", OUT, OUT.stat().st_size, "bytes")
