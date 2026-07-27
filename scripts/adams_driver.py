@@ -16,6 +16,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -59,7 +60,7 @@ def bewley_human(*args: str, capture: str, cwd: Path | None = None) -> str:
     )
     assert completed.returncode == 0, f"failed: {args}\n{completed.stdout}\n{completed.stderr}"
     (CAPTURES / f"{capture}.txt").write_text(
-        "$ bewley " + " ".join(args) + " --human\n" + completed.stdout
+        "$ bewley " + shlex.join(args) + " --human\n" + completed.stdout
     )
     return completed.stdout
 
@@ -79,7 +80,7 @@ def bewley(*args: str, expect_fail: bool = False, capture: str | None = None, cw
         assert completed.returncode == 0, f"failed: {args}\n{completed.stdout}\n{completed.stderr}"
     payload = json.loads(completed.stdout)
     if capture:
-        argv_display = "bewley " + " ".join(args)
+        argv_display = "bewley " + shlex.join(args)
         (CAPTURES / f"{capture}.json").write_text(
             json.dumps({"argv_display": argv_display, "payload": payload}, indent=2, ensure_ascii=False)
         )
@@ -149,6 +150,23 @@ def main() -> None:
             bewley("add", f"corpus/{name}")
     bewley("list", "documents", capture="04-list-documents")
     bewley_human("list", "documents", capture="04h-list-documents")
+
+    # ── Cases: who the letters belong to ───────────────────────────────────
+    bewley("case", "create", "Abigail Adams", "--type", "person", capture="04b-case-create")
+    bewley("case", "create", "John Adams", "--type", "person")
+    bewley("attribute", "define", "role", "--type", "categorical",
+           "--values", "home-front,congressional-delegate", capture="04c-attribute-define")
+    bewley("case", "set", "Abigail Adams", "role", "home-front")
+    bewley("case", "set", "John Adams", "role", "congressional-delegate")
+    bewley("case", "link", "Abigail Adams", "corpus/1775-may-04-abigail-adams.txt",
+           "--as", "author", capture="04d-case-link")
+    for name in sorted(texts):
+        if name == "1775-may-04-abigail-adams.txt":
+            continue
+        author = "Abigail Adams" if "abigail" in name else "John Adams"
+        bewley("case", "link", author, f"corpus/{name}", "--as", "author")
+    bewley_human("case", "list", capture="04h-cases")
+
     bewley("status", capture="05-status")
     bewley("next", capture="06-next")
 
@@ -273,6 +291,7 @@ def main() -> None:
     bewley("code", "list", "--tree", capture="19-code-tree")
     bewley_human("code", "list", "--tree", capture="19h-code-tree")
     bewley("code", "coverage", "home_front", "--breakdown", capture="20-coverage")
+    bewley_human("case", "show", "Abigail Adams", capture="20h-case-show")
 
     # ── Chapter: compare and memo ──────────────────────────────────────────
     bewley("query", "public_duty & separation_and_affection", capture="21-query-document")

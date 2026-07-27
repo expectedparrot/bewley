@@ -7,6 +7,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -246,10 +247,62 @@ _SCHEMA_SQL = """
                   status TEXT NOT NULL DEFAULT 'active',
                   created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS cases (
+                  case_id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  case_type TEXT,
+                  description TEXT,
+                  status TEXT NOT NULL DEFAULT 'active',
+                  created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS attribute_definitions (
+                  attribute_id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  value_type TEXT NOT NULL,
+                  allowed_values TEXT
+                );
+                CREATE TABLE IF NOT EXISTS attribute_values (
+                  case_id TEXT NOT NULL,
+                  attribute_id TEXT NOT NULL,
+                  value TEXT,
+                  special TEXT,
+                  PRIMARY KEY (case_id, attribute_id)
+                );
+                CREATE TABLE IF NOT EXISTS entity_links (
+                  link_id TEXT PRIMARY KEY,
+                  source_kind TEXT NOT NULL,
+                  source_id TEXT NOT NULL,
+                  relationship TEXT NOT NULL,
+                  target_kind TEXT NOT NULL,
+                  target_id TEXT NOT NULL,
+                  memo TEXT,
+                  created_at TEXT NOT NULL,
+                  is_active INTEGER NOT NULL DEFAULT 1
+                );
+                CREATE INDEX IF NOT EXISTS idx_entity_links_source ON entity_links (source_kind, source_id);
+                CREATE INDEX IF NOT EXISTS idx_entity_links_target ON entity_links (target_kind, target_id);
                 """
 
 # Study manifest fields stored in project_settings under "study.<field>".
 STUDY_FIELDS = ("method", "unit_of_analysis", "purpose")
+
+ATTRIBUTE_VALUE_TYPES = ("text", "number", "boolean", "date", "categorical")
+ATTRIBUTE_SPECIALS = ("missing", "unknown", "not_applicable", "confidential")
+
+# Allowed (source_kind, relationship, target_kind) combinations for entity
+# links (RFC 001). Grows by design change, not at runtime.
+LINK_RULES = {
+    ("case", "author", "document"),
+    ("case", "participant", "document"),
+    ("case", "subject", "document"),
+    ("case", "site", "document"),
+    ("case", "other", "document"),
+    ("memo", "supports", "code"),
+    ("memo", "challenges", "code"),
+    ("annotation", "supports", "question"),
+    ("annotation", "challenges", "question"),
+    ("code", "elaborates", "question"),
+}
 
 
 class Project:
@@ -737,9 +790,55 @@ class Project:
                 (payload["link_id"], payload["source_code_id"], payload["target_code_id"],
                  payload["relationship"], payload.get("memo"), event["timestamp"]),
             )
+            # Dual-materialize into entity_links so link queries have one
+            # place to look (RFC 001); the code_links table stays authoritative
+            # for the code-link commands.
+            conn.execute(
+                """
+                INSERT INTO entity_links (link_id, source_kind, source_id, relationship, target_kind, target_id, memo, created_at, is_active)
+                VALUES (?, 'code', ?, ?, 'code', ?, ?, ?, 1)
+                """,
+                (payload["link_id"], payload["source_code_id"], payload["relationship"],
+                 payload["target_code_id"], payload.get("memo"), event["timestamp"]),
+            )
             return
         if etype == "code_link_removed":
             conn.execute("UPDATE code_links SET is_active = 0 WHERE link_id = ?", (payload["link_id"],))
+            conn.execute("UPDATE entity_links SET is_active = 0 WHERE link_id = ?", (payload["link_id"],))
+            return
+        if etype == "case_created":
+            conn.execute(
+                "INSERT INTO cases (case_id, name, case_type, description, status, created_at) VALUES (?, ?, ?, ?, 'active', ?)",
+                (payload["case_id"], payload["name"], payload.get("case_type"),
+                 payload.get("description"), event["timestamp"]),
+            )
+            return
+        if etype == "attribute_defined":
+            conn.execute(
+                "INSERT INTO attribute_definitions (attribute_id, name, value_type, allowed_values) VALUES (?, ?, ?, ?)",
+                (payload["attribute_id"], payload["name"], payload["value_type"],
+                 json.dumps(payload["allowed_values"]) if payload.get("allowed_values") else None),
+            )
+            return
+        if etype == "attribute_value_set":
+            conn.execute(
+                "INSERT OR REPLACE INTO attribute_values (case_id, attribute_id, value, special) VALUES (?, ?, ?, ?)",
+                (payload["case_id"], payload["attribute_id"], payload.get("value"), payload.get("special")),
+            )
+            return
+        if etype == "entity_link_created":
+            conn.execute(
+                """
+                INSERT INTO entity_links (link_id, source_kind, source_id, relationship, target_kind, target_id, memo, created_at, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """,
+                (payload["link_id"], payload["source_kind"], payload["source_id"],
+                 payload["relationship"], payload["target_kind"], payload["target_id"],
+                 payload.get("memo"), event["timestamp"]),
+            )
+            return
+        if etype == "entity_link_removed":
+            conn.execute("UPDATE entity_links SET is_active = 0 WHERE link_id = ?", (payload["link_id"],))
             return
         if etype == "core_category_set":
             conn.execute(
@@ -1438,6 +1537,245 @@ class Project:
             "research_question_added", {"question_id": uuid.uuid4().hex, "text": text}
         )
 
+    def resolve_case(self, conn: sqlite3.Connection, ref: str) -> sqlite3.Row:
+        rows = conn.execute(
+            """
+            SELECT * FROM cases
+            WHERE status = 'active'
+              AND (case_id = ? OR name = ? COLLATE NOCASE
+                   OR case_id LIKE ? OR name LIKE ? COLLATE NOCASE)
+            """,
+            (ref, ref, ref + "%", ref + "%"),
+        ).fetchall()
+        unique = {row["case_id"]: row for row in rows}
+        if len(unique) == 1:
+            return next(iter(unique.values()))
+        if not unique:
+            raise BewleyError(
+                f"unknown case reference: {ref}",
+                code="NOT_FOUND",
+                context={"ref": ref},
+                hint="Run `bewley case list` to see defined cases.",
+            )
+        raise BewleyError(
+            f"ambiguous case reference: {ref}",
+            code="AMBIGUOUS_CASE",
+            context={
+                "ref": ref,
+                "matches": sorted((row["case_id"], row["name"]) for row in unique.values()),
+            },
+            hint="Refer to the case by its full case_id or exact name.",
+        )
+
+    def create_case(self, name: str, case_type: str | None = None, description: str | None = None) -> dict[str, Any]:
+        name = name.strip()
+        if not name:
+            raise BewleyError("case name must be non-empty", code="INVALID_INPUT")
+        self.ensure_db()
+        with self.connect() as conn:
+            existing = conn.execute(
+                "SELECT case_id FROM cases WHERE status = 'active' AND name = ?", (name,)
+            ).fetchone()
+            if existing:
+                raise BewleyError(f"case name already exists: {name}", code="ALREADY_EXISTS")
+        return self.append_event(
+            "case_created",
+            {"case_id": uuid.uuid4().hex, "name": name, "case_type": case_type, "description": description},
+        )
+
+    def define_attribute(
+        self, name: str, value_type: str, allowed_values: list[str] | None = None
+    ) -> dict[str, Any]:
+        name = name.strip()
+        if not name:
+            raise BewleyError("attribute name must be non-empty", code="INVALID_INPUT")
+        if value_type not in ATTRIBUTE_VALUE_TYPES:
+            raise BewleyError(
+                f"unknown attribute type: {value_type}",
+                code="INVALID_INPUT",
+                context={"allowed_types": list(ATTRIBUTE_VALUE_TYPES)},
+            )
+        if value_type == "categorical" and not allowed_values:
+            raise BewleyError(
+                "categorical attributes require --values", code="INVALID_INPUT"
+            )
+        if value_type != "categorical" and allowed_values:
+            raise BewleyError(
+                "--values is only valid for categorical attributes", code="INVALID_INPUT"
+            )
+        self.ensure_db()
+        with self.connect() as conn:
+            existing = conn.execute(
+                "SELECT attribute_id FROM attribute_definitions WHERE name = ?", (name,)
+            ).fetchone()
+            if existing:
+                raise BewleyError(f"attribute already defined: {name}", code="ALREADY_EXISTS")
+        return self.append_event(
+            "attribute_defined",
+            {"attribute_id": uuid.uuid4().hex, "name": name, "value_type": value_type,
+             "allowed_values": allowed_values},
+        )
+
+    def _validate_attribute_value(self, definition: sqlite3.Row, value: str) -> str:
+        value_type = definition["value_type"]
+        if value_type == "number":
+            try:
+                float(value)
+            except ValueError:
+                raise BewleyError(f"not a number: {value}", code="INVALID_INPUT")
+        elif value_type == "boolean":
+            if value.lower() not in ("true", "false"):
+                raise BewleyError("boolean values must be true or false", code="INVALID_INPUT")
+            value = value.lower()
+        elif value_type == "date":
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                raise BewleyError("dates must be YYYY-MM-DD", code="INVALID_INPUT")
+        elif value_type == "categorical":
+            allowed = json.loads(definition["allowed_values"] or "[]")
+            if value not in allowed:
+                raise BewleyError(
+                    f"value not in allowed set: {value}",
+                    code="INVALID_INPUT",
+                    context={"allowed_values": allowed},
+                )
+        return value
+
+    def set_case_attribute(
+        self, case_ref: str, attribute_name: str, value: str | None = None, special: str | None = None
+    ) -> dict[str, Any]:
+        if (value is None) == (special is None):
+            raise BewleyError(
+                "provide exactly one of a value or --special", code="INVALID_INPUT",
+                context={"specials": list(ATTRIBUTE_SPECIALS)},
+            )
+        if special is not None and special not in ATTRIBUTE_SPECIALS:
+            raise BewleyError(
+                f"unknown special state: {special}", code="INVALID_INPUT",
+                context={"specials": list(ATTRIBUTE_SPECIALS)},
+            )
+        self.ensure_db()
+        with self.connect() as conn:
+            case = self.resolve_case(conn, case_ref)
+            definition = conn.execute(
+                "SELECT * FROM attribute_definitions WHERE name = ? OR attribute_id = ?",
+                (attribute_name, attribute_name),
+            ).fetchone()
+            if definition is None:
+                raise BewleyError(
+                    f"unknown attribute: {attribute_name}",
+                    code="NOT_FOUND",
+                    hint="Define it first with `bewley attribute define <name> --type <type>`.",
+                )
+            if value is not None:
+                value = self._validate_attribute_value(definition, value)
+        payload: dict[str, Any] = {"case_id": case["case_id"], "attribute_id": definition["attribute_id"]}
+        if value is not None:
+            payload["value"] = value
+        else:
+            payload["special"] = special
+        return self.append_event("attribute_value_set", payload)
+
+    def resolve_entity(self, conn: sqlite3.Connection, kind: str, ref: str) -> str:
+        """Resolve an entity reference of a given kind to its id."""
+        if kind == "document":
+            return self.resolve_document(conn, ref)["document_id"]
+        if kind == "code":
+            return self.resolve_code(conn, ref)["code_id"]
+        if kind == "case":
+            return self.resolve_case(conn, ref)["case_id"]
+        if kind in ("memo", "annotation", "question"):
+            table, id_col = {
+                "memo": ("memos", "memo_id"),
+                "annotation": ("annotations", "annotation_id"),
+                "question": ("research_questions", "question_id"),
+            }[kind]
+            rows = conn.execute(
+                f"SELECT {id_col} AS id FROM {table} WHERE {id_col} = ? OR {id_col} LIKE ?",
+                (ref, ref + "%"),
+            ).fetchall()
+            ids = {row["id"] for row in rows}
+            if len(ids) == 1:
+                return next(iter(ids))
+            code = "NOT_FOUND" if not ids else f"AMBIGUOUS_{kind.upper()}"
+            raise BewleyError(
+                f"{'unknown' if not ids else 'ambiguous'} {kind} reference: {ref}",
+                code=code,
+                context={"ref": ref, "matches": sorted(ids)},
+            )
+        raise BewleyError(
+            f"unknown entity kind: {kind}",
+            code="INVALID_INPUT",
+            context={"allowed_kinds": ["document", "code", "case", "memo", "annotation", "question"]},
+        )
+
+    def create_entity_link(
+        self,
+        source_kind: str,
+        source_ref: str,
+        relationship: str,
+        target_kind: str,
+        target_ref: str,
+        memo: str | None = None,
+    ) -> dict[str, Any]:
+        if (source_kind, relationship, target_kind) not in LINK_RULES:
+            raise BewleyError(
+                f"link not allowed: {source_kind} -{relationship}-> {target_kind}",
+                code="INVALID_INPUT",
+                context={"allowed": sorted(" -".join([s, f"{r}-> {t}"]) for s, r, t in LINK_RULES)},
+                hint="Code-to-code relationships use `bewley code link`.",
+            )
+        self.ensure_db()
+        with self.connect() as conn:
+            source_id = self.resolve_entity(conn, source_kind, source_ref)
+            target_id = self.resolve_entity(conn, target_kind, target_ref)
+            duplicate = conn.execute(
+                """
+                SELECT link_id FROM entity_links
+                WHERE is_active = 1 AND source_kind = ? AND source_id = ?
+                  AND relationship = ? AND target_kind = ? AND target_id = ?
+                """,
+                (source_kind, source_id, relationship, target_kind, target_id),
+            ).fetchone()
+            if duplicate:
+                raise BewleyError(
+                    "an identical active link already exists",
+                    code="ALREADY_EXISTS",
+                    context={"link_id": duplicate["link_id"]},
+                )
+        return self.append_event(
+            "entity_link_created",
+            {"link_id": uuid.uuid4().hex, "source_kind": source_kind, "source_id": source_id,
+             "relationship": relationship, "target_kind": target_kind, "target_id": target_id,
+             "memo": memo},
+        )
+
+    def remove_entity_link(self, link_ref: str) -> dict[str, Any]:
+        self.ensure_db()
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT link_id FROM entity_links WHERE is_active = 1 AND (link_id = ? OR link_id LIKE ?)",
+                (link_ref, link_ref + "%"),
+            ).fetchall()
+            ids = {row["link_id"] for row in rows}
+            if not ids:
+                raise BewleyError(f"unknown link reference: {link_ref}", code="NOT_FOUND")
+            if len(ids) > 1:
+                raise BewleyError(
+                    f"ambiguous link reference: {link_ref}",
+                    code="AMBIGUOUS_LINK",
+                    context={"matches": sorted(ids)},
+                )
+            link_id = next(iter(ids))
+            mirror = conn.execute(
+                "SELECT link_id FROM code_links WHERE link_id = ?", (link_id,)
+            ).fetchone()
+            if mirror:
+                raise BewleyError(
+                    "this is a code-to-code link", code="INVALID_INPUT",
+                    hint=f"Remove it with `bewley code unlink {link_id}`.",
+                )
+        return self.append_event("entity_link_removed", {"link_id": link_id})
+
     def add_code(self, name: str, description: str | None = None, color: str | None = None) -> dict[str, Any]:
         with self.connect() as conn:
             if self.code_name_taken(conn, name):
@@ -2013,6 +2351,136 @@ def cmd_study_show(project: Project) -> dict:
         "purpose": settings.get("purpose"),
         "research_questions": questions,
     }
+
+
+def _entity_display(conn: sqlite3.Connection, kind: str, entity_id: str) -> str:
+    query = {
+        "document": ("SELECT current_path AS d FROM documents WHERE document_id = ?"),
+        "code": ("SELECT canonical_name AS d FROM codes WHERE code_id = ?"),
+        "case": ("SELECT name AS d FROM cases WHERE case_id = ?"),
+        "question": ("SELECT text AS d FROM research_questions WHERE question_id = ?"),
+    }.get(kind)
+    if query:
+        row = conn.execute(query, (entity_id,)).fetchone()
+        if row:
+            return row["d"]
+    return entity_id[:12]
+
+
+def cmd_case_list(project: Project) -> list[dict]:
+    with project.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT c.case_id, c.name, c.case_type,
+                   (SELECT COUNT(*) FROM entity_links l
+                    WHERE l.is_active = 1 AND l.source_kind = 'case'
+                      AND l.source_id = c.case_id AND l.target_kind = 'document') documents,
+                   (SELECT COUNT(*) FROM attribute_values v WHERE v.case_id = c.case_id) attributes
+            FROM cases c WHERE c.status = 'active' ORDER BY c.name
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def cmd_case_show(project: Project, ref: str) -> dict:
+    with project.connect() as conn:
+        case = project.resolve_case(conn, ref)
+        attributes = [
+            {
+                "name": row["name"],
+                "value": row["value"],
+                "special": row["special"],
+            }
+            for row in conn.execute(
+                """
+                SELECT d.name, v.value, v.special
+                FROM attribute_values v JOIN attribute_definitions d ON d.attribute_id = v.attribute_id
+                WHERE v.case_id = ? ORDER BY d.name
+                """,
+                (case["case_id"],),
+            )
+        ]
+        documents = [
+            {
+                "relationship": row["relationship"],
+                "current_path": row["current_path"],
+                "document_id": row["document_id"],
+            }
+            for row in conn.execute(
+                """
+                SELECT l.relationship, d.current_path, d.document_id
+                FROM entity_links l JOIN documents d ON d.document_id = l.target_id
+                WHERE l.is_active = 1 AND l.source_kind = 'case' AND l.source_id = ?
+                  AND l.target_kind = 'document'
+                ORDER BY d.current_path
+                """,
+                (case["case_id"],),
+            )
+        ]
+    return {
+        "case_id": case["case_id"],
+        "name": case["name"],
+        "case_type": case["case_type"],
+        "description": case["description"],
+        "attributes": attributes,
+        "documents": documents,
+    }
+
+
+def cmd_attribute_list(project: Project) -> list[dict]:
+    with project.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT d.attribute_id, d.name, d.value_type, d.allowed_values,
+                   (SELECT COUNT(*) FROM attribute_values v WHERE v.attribute_id = d.attribute_id) cases
+            FROM attribute_definitions d ORDER BY d.name
+            """
+        ).fetchall()
+    return [
+        {
+            "attribute_id": row["attribute_id"],
+            "name": row["name"],
+            "value_type": row["value_type"],
+            "allowed_values": json.loads(row["allowed_values"]) if row["allowed_values"] else None,
+            "cases": row["cases"],
+        }
+        for row in rows
+    ]
+
+
+def cmd_link_list(project: Project, entity: str | None = None) -> list[dict]:
+    with project.connect() as conn:
+        params: tuple = ()
+        where = "l.is_active = 1"
+        if entity:
+            if ":" not in entity:
+                raise BewleyError(
+                    "entity filters use kind:ref, e.g. case:\"Abigail Adams\"",
+                    code="INVALID_INPUT",
+                )
+            kind, ref = entity.split(":", 1)
+            entity_id = project.resolve_entity(conn, kind, ref)
+            where += (
+                " AND ((l.source_kind = ? AND l.source_id = ?)"
+                " OR (l.target_kind = ? AND l.target_id = ?))"
+            )
+            params = (kind, entity_id, kind, entity_id)
+        rows = conn.execute(
+            f"SELECT * FROM entity_links l WHERE {where} ORDER BY l.created_at, l.link_id",
+            params,
+        ).fetchall()
+        return [
+            {
+                "link_id": row["link_id"],
+                "source_kind": row["source_kind"],
+                "source": _entity_display(conn, row["source_kind"], row["source_id"]),
+                "relationship": row["relationship"],
+                "target_kind": row["target_kind"],
+                "target": _entity_display(conn, row["target_kind"], row["target_id"]),
+                "memo": row["memo"],
+            }
+            for row in rows
+        ]
 
 
 def cmd_list_documents(project: Project) -> list[dict]:

@@ -273,6 +273,13 @@ add(f"""
     <p>Add the remaining nineteen letters the same way (an agent loops; a person tabs). Then confirm what the project tracks. Agents read the JSON envelope; for a person, <code>--human</code> renders the same answer as a table:</p>
     {cmdcap("bewley list documents", "04-list-documents")}
     {hcap("04h-list-documents", "The same command with <code>--human</code>: the twenty tracked letters.")}
+    <p>Documents are the <em>what</em>; cases are the <em>who</em>. A case is a person (or organization, or site) the study is about, and it is what cross-corpus comparison hangs on later — "her letters against his" only works if the project knows which letters are hers. Create one case per correspondent, give each a typed attribute that matters to the research question, and link every letter to its author. Nothing here is inferred from file names: each link is an explicit, recorded decision.</p>
+    {cmdcap('bewley case create "Abigail Adams" --type person', "04b-case-create")}
+    <p>The same for John. Attributes are defined once, project-wide, with a declared type — here a categorical <code>role</code> whose two values are the study's central contrast — and then set per case (<code>bewley case set "Abigail Adams" role home-front</code>). An attribute can also be set to an explicit special state (<code>missing</code>, <code>unknown</code>, <code>not_applicable</code>, <code>confidential</code>) so a blank never has to be guessed at:</p>
+    {cmdcap('bewley attribute define role --type categorical --values "home-front,congressional-delegate"', "04c-attribute-define")}
+    <p>Linking is a typed relationship — <code>author</code> here, but a focus-group participant or an organization a document merely discusses would be <code>participant</code> or <code>subject</code>:</p>
+    {cmdcap('bewley case link "Abigail Adams" corpus/1775-may-04-abigail-adams.txt --as author', "04d-case-link")}
+    {hcap("04h-cases", "After linking all twenty letters: two cases, ten documents each, one attribute apiece.")}
     {cmdcap("bewley status", "05-status")}
     <p><code>bewley next</code> reads the state on disk — not conversational memory — and recommends the single next action. With documents but no codes, it points at open coding:</p>
     {cmdcap("bewley next", "06-next")}
@@ -367,7 +374,9 @@ MEMO_CMD = cmdcap(
 add(f"""
   <section id="memo">
     <h2><span class="chapter">09</span> Compare across the corpus, then write it down</h2>
-    <p>The analytic engine of qualitative work is comparison: set passages that share a tag beside each other, look at where two themes coincide and where one appears without the other, and let the differences sharpen the categories (the tradition calls this <em>constant comparison</em>). Boolean queries retrieve that evidence across the corpus. Both keyword (<code>AND OR NOT</code>) and symbolic (<code>&amp; | !</code>) operators work; quote the expression so the shell does not interpret them. Document mode asks which letters contain both themes anywhere:</p>
+    <p>The analytic engine of qualitative work is comparison: set passages that share a tag beside each other, look at where two themes coincide and where one appears without the other, and let the differences sharpen the categories (the tradition calls this <em>constant comparison</em>). The cases from <a href="#project">chapter 4</a> supply one axis of comparison — whose letters carry a theme. <code>case show</code> gathers a correspondent's side of the corpus in one place:</p>
+    {hcap("20h-case-show", "Abigail's side of the comparison: her role attribute and her ten letters, ready to read against John's.")}
+    <p>Boolean queries retrieve evidence across the whole corpus. Both keyword (<code>AND OR NOT</code>) and symbolic (<code>&amp; | !</code>) operators work; quote the expression so the shell does not interpret them. Document mode asks which letters contain both themes anywhere:</p>
     {cmdcap('bewley query "public_duty & separation_and_affection"', "21-query-document")}
     <p>Annotation mode is stricter: terms must be satisfied by <em>overlapping</em> spans. The 4 May 1775 letter matches because the line-level annotation absorbed from <code>waiting_for_news</code> overlaps the <em>heart of lead</em> sentence — note the absorbed annotation still reports its original code name:</p>
     {cmdcap('bewley query "information_and_delay & separation_and_affection" --mode annotation', "22-query-annotation")}
@@ -445,6 +454,7 @@ add("""
       <tr><td>Discover the workflow</td><td><code>version</code>, <code>guide</code>, <code>next</code>, <code>capabilities</code></td></tr>
       <tr><td>Try it on bundled data</td><td><code>example list</code>, <code>example fetch</code></td></tr>
       <tr><td>Declare the study</td><td><code>study set</code>, <code>study show</code>, <code>question add</code>, <code>question list</code></td></tr>
+      <tr><td>Say who the data is about</td><td><code>case create|list|show|set|link</code>, <code>attribute define|list</code>, <code>link add|list|remove</code></td></tr>
       <tr><td>Import or revise sources</td><td><code>add</code>, <code>add-audio</code>, <code>add-video</code>, <code>update</code>, <code>list documents</code></td></tr>
       <tr><td>Run model-assisted open coding</td><td><code>open-coding jobs</code>, external <code>ep run</code>, <code>open-coding ingest</code>, <code>open-coding apply</code></td></tr>
       <tr><td>Recover a failed run</td><td><code>open-coding jobs --from-failures</code>, multi-file <code>open-coding ingest</code></td></tr>

@@ -33,6 +33,7 @@ from bewley.commands.history import history_command, undo_command
 from bewley.commands.memos import app as memo_app
 from bewley.commands.open_coding import app as open_coding_app
 from bewley.commands.project import fsck_command, init_command, rebuild_index_command, status_command
+from bewley.commands.cases import attribute_app, case_app, link_app
 from bewley.commands.query import query_command
 from bewley.commands.study import question_app, study_app
 
@@ -80,6 +81,9 @@ app.add_typer(docs_app, name="docs")
 app.add_typer(example_app, name="example")
 app.add_typer(study_app, name="study")
 app.add_typer(question_app, name="question")
+app.add_typer(case_app, name="case")
+app.add_typer(attribute_app, name="attribute")
+app.add_typer(link_app, name="link")
 
 # Codegen
 app.add_typer(codegen_app, name="codegen")

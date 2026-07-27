@@ -99,7 +99,10 @@ def _study_state(project: "Project | None") -> dict:
     """Study manifest summary; empty defaults for pre-study project indexes."""
     import sqlite3
 
-    state = {"method": None, "unit_of_analysis": None, "research_questions": 0}
+    state = {
+        "method": None, "unit_of_analysis": None, "research_questions": 0,
+        "cases": 0, "unlinked_documents": 0,
+    }
     if project is None:
         return state
     with project.connect() as conn:
@@ -110,6 +113,19 @@ def _study_state(project: "Project | None") -> dict:
                 state[row["key"].removeprefix("study.")] = row["value"]
             state["research_questions"] = conn.execute(
                 "SELECT COUNT(*) FROM research_questions"
+            ).fetchone()[0]
+            state["cases"] = conn.execute(
+                "SELECT COUNT(*) FROM cases WHERE status = 'active'"
+            ).fetchone()[0]
+            state["unlinked_documents"] = conn.execute(
+                """
+                SELECT COUNT(*) FROM documents d
+                WHERE d.archived_at IS NULL AND NOT EXISTS (
+                    SELECT 1 FROM entity_links l
+                    WHERE l.is_active = 1 AND l.target_kind = 'document'
+                      AND l.target_id = d.document_id AND l.source_kind = 'case'
+                )
+                """
             ).fetchone()[0]
         except sqlite3.OperationalError:
             pass
@@ -142,6 +158,11 @@ def _phase_state(project: "Project | None", project_exists: bool) -> dict:
             steps = [{
                 "label": "Record the research question",
                 "command": 'bewley question add "<question>"',
+            }] + steps
+        elif study["cases"] > 0 and study["unlinked_documents"] > 0:
+            steps = [{
+                "label": f"Link the {study['unlinked_documents']} remaining document(s) to cases",
+                "command": 'bewley case link "<case>" corpus/<file> --as author',
             }] + steps
     return {
         "phase": phase,

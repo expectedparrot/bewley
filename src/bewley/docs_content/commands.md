@@ -39,6 +39,16 @@ presentation mode and should not be used by agents parsing results.
 | `bewley study show` | Show the study manifest and recorded research questions. |
 | `bewley question add "<text>"` | Record a research question. Prints the `question_id`. |
 | `bewley question list` | List recorded research questions. |
+| `bewley case create <name> [--type T] [--description D]` | Create a case (person, organization, site, event). Prints the `case_id`. |
+| `bewley case list` | List active cases with linked-document and attribute counts. |
+| `bewley case show <ref>` | Show a case: attributes and linked documents. |
+| `bewley case set <ref> <attribute> [<value>] [--special S]` | Set a typed attribute value, or an explicit special state: missing, unknown, not_applicable, confidential. |
+| `bewley case link <ref> <doc> --as <relationship>` | Link a case to a document as author, participant, subject, site, or other. |
+| `bewley attribute define <name> --type T [--values V1,V2]` | Define a project-wide typed attribute (text, number, boolean, date, categorical). |
+| `bewley attribute list` | List attribute definitions and how many cases carry each. |
+| `bewley link add <kind:ref> <kind:ref> --rel R [--memo M]` | Create a typed link between research entities; allowed combinations are validated. |
+| `bewley link list [--entity kind:ref]` | List active entity links, including code-to-code links. |
+| `bewley link remove <link_id>` | Deactivate an entity link (compensating event). |
 | `bewley example list` | List the example corpora bundled with the installed package. |
 | `bewley example fetch <name> [--dest DIR]` | Write a bundled example corpus (documents, README, license) into a new local directory. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |
