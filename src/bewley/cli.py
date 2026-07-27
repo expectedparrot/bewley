@@ -34,6 +34,7 @@ from bewley.commands.memos import app as memo_app
 from bewley.commands.open_coding import app as open_coding_app
 from bewley.commands.project import fsck_command, init_command, rebuild_index_command, status_command
 from bewley.commands.query import query_command
+from bewley.commands.study import question_app, study_app
 
 app = typer.Typer(
     name="bewley",
@@ -77,6 +78,8 @@ app.add_typer(memo_app, name="memo")
 # Docs
 app.add_typer(docs_app, name="docs")
 app.add_typer(example_app, name="example")
+app.add_typer(study_app, name="study")
+app.add_typer(question_app, name="question")
 
 # Codegen
 app.add_typer(codegen_app, name="codegen")

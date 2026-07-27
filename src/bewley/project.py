@@ -240,7 +240,16 @@ _SCHEMA_SQL = """
                   value TEXT NOT NULL,
                   updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS research_questions (
+                  question_id TEXT PRIMARY KEY,
+                  text TEXT NOT NULL,
+                  status TEXT NOT NULL DEFAULT 'active',
+                  created_at TEXT NOT NULL
+                );
                 """
+
+# Study manifest fields stored in project_settings under "study.<field>".
+STUDY_FIELDS = ("method", "unit_of_analysis", "purpose")
 
 
 class Project:
@@ -736,6 +745,20 @@ class Project:
             conn.execute(
                 "INSERT OR REPLACE INTO project_settings (key, value, updated_at) VALUES ('core_category_code_id', ?, ?)",
                 (payload["code_id"], event["timestamp"]),
+            )
+            return
+        if etype == "study_configured":
+            for field in STUDY_FIELDS:
+                if payload.get(field) is not None:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO project_settings (key, value, updated_at) VALUES (?, ?, ?)",
+                        (f"study.{field}", payload[field], event["timestamp"]),
+                    )
+            return
+        if etype == "research_question_added":
+            conn.execute(
+                "INSERT INTO research_questions (question_id, text, status, created_at) VALUES (?, ?, 'active', ?)",
+                (payload["question_id"], payload["text"], event["timestamp"]),
             )
             return
         if etype == "undo_recorded":
@@ -1383,6 +1406,38 @@ class Project:
         ).fetchone()
         return row is not None
 
+    def configure_study(
+        self,
+        method: str | None = None,
+        unit_of_analysis: str | None = None,
+        purpose: str | None = None,
+    ) -> dict[str, Any]:
+        payload = {
+            field: value
+            for field, value in (
+                ("method", method),
+                ("unit_of_analysis", unit_of_analysis),
+                ("purpose", purpose),
+            )
+            if value is not None and value.strip()
+        }
+        if not payload:
+            raise BewleyError(
+                "study set requires at least one of --method, --unit, --purpose",
+                code="INVALID_INPUT",
+            )
+        self.ensure_db()
+        return self.append_event("study_configured", payload)
+
+    def add_research_question(self, text: str) -> dict[str, Any]:
+        text = text.strip()
+        if not text:
+            raise BewleyError("question text must be non-empty", code="INVALID_INPUT")
+        self.ensure_db()
+        return self.append_event(
+            "research_question_added", {"question_id": uuid.uuid4().hex, "text": text}
+        )
+
     def add_code(self, name: str, description: str | None = None, color: str | None = None) -> dict[str, Any]:
         with self.connect() as conn:
             if self.code_name_taken(conn, name):
@@ -1931,6 +1986,33 @@ def cmd_status(project: Project) -> dict:
         ann_count = conn.execute("SELECT COUNT(*) FROM annotations WHERE is_active = 1").fetchone()[0]
         conflict_count = conn.execute("SELECT COUNT(*) FROM annotations WHERE is_active = 1 AND anchor_status = 'conflicted'").fetchone()[0]
     return {"documents": doc_count, "revisions": rev_count, "codes": code_count, "active_annotations": ann_count, "conflicted_annotations": conflict_count}
+
+
+def cmd_study_show(project: Project) -> dict:
+    settings: dict[str, str] = {}
+    questions: list[dict] = []
+    with project.connect() as conn:
+        try:
+            settings = {
+                row["key"].removeprefix("study."): row["value"]
+                for row in conn.execute(
+                    "SELECT key, value FROM project_settings WHERE key LIKE 'study.%'"
+                )
+            }
+            questions = [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT question_id, text, status, created_at FROM research_questions ORDER BY created_at, question_id"
+                )
+            ]
+        except sqlite3.OperationalError:
+            pass  # pre-study project index; rebuild-index or any study command creates the table
+    return {
+        "method": settings.get("method"),
+        "unit_of_analysis": settings.get("unit_of_analysis"),
+        "purpose": settings.get("purpose"),
+        "research_questions": questions,
+    }
 
 
 def cmd_list_documents(project: Project) -> list[dict]:

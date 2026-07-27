@@ -95,6 +95,27 @@ def _next_steps_for_phase(phase: str) -> list[dict]:
     ]
 
 
+def _study_state(project: "Project | None") -> dict:
+    """Study manifest summary; empty defaults for pre-study project indexes."""
+    import sqlite3
+
+    state = {"method": None, "unit_of_analysis": None, "research_questions": 0}
+    if project is None:
+        return state
+    with project.connect() as conn:
+        try:
+            for row in conn.execute(
+                "SELECT key, value FROM project_settings WHERE key IN ('study.method', 'study.unit_of_analysis')"
+            ):
+                state[row["key"].removeprefix("study.")] = row["value"]
+            state["research_questions"] = conn.execute(
+                "SELECT COUNT(*) FROM research_questions"
+            ).fetchone()[0]
+        except sqlite3.OperationalError:
+            pass
+    return state
+
+
 def _phase_state(project: "Project | None", project_exists: bool) -> dict:
     phase = _infer_phase(project)
     counts: dict = {}
@@ -107,11 +128,27 @@ def _phase_state(project: "Project | None", project_exists: bool) -> dict:
                     "SELECT COUNT(*) FROM annotations WHERE is_active = 1"
                 ).fetchone()[0],
             }
+    study = _study_state(project)
+    steps = _next_steps_for_phase(phase)
+    # Declaring the study design comes before model-assisted coding, but never
+    # blocks it: the suggestion is prepended, not substituted.
+    if project and phase in (_PHASE_CORPUS, _PHASE_OPEN_CODING):
+        if not study["method"]:
+            steps = [{
+                "label": "Declare the study design",
+                "command": "bewley study set --method <method> --unit <unit-of-analysis>",
+            }] + steps
+        elif study["research_questions"] == 0:
+            steps = [{
+                "label": "Record the research question",
+                "command": 'bewley question add "<question>"',
+            }] + steps
     return {
         "phase": phase,
         "project_exists": project_exists,
         "counts": counts,
+        "study": study,
         "checklist": _PHASE_CHECKLISTS.get(phase, []),
-        "recommended_next_steps": _next_steps_for_phase(phase),
+        "recommended_next_steps": steps,
         "primary_doc": _PHASE_DOCS.get(phase, "overview"),
     }

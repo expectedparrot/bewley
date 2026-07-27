@@ -136,6 +136,13 @@ def main() -> None:
     bewley("example", "fetch", "adams-letters", capture="01b-fetch", cwd=TUTORIAL)
     texts = {p.name: p.read_text(encoding="utf-8") for p in sorted((RUN / "corpus").glob("*.txt"))}
     bewley("init", capture="02-init")
+    bewley("study", "set", "--method", "grounded-theory", "--unit", "document",
+           capture="02b-study-set")
+    bewley("question", "add",
+           "How did John and Abigail Adams negotiate public duty, household responsibility, "
+           "political voice, danger, and emotional intimacy during the American Revolution?",
+           capture="02c-question-add")
+    bewley_human("study", "show", capture="02h-study")
     bewley("add", "corpus/1775-april-30-john-adams.txt", capture="03-add")
     for name in sorted(texts):
         if name != "1775-april-30-john-adams.txt":

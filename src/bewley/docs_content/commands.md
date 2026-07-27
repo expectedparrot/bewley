@@ -35,6 +35,10 @@ presentation mode and should not be used by agents parsing results.
 | `bewley docs list` | List embedded documentation topics. |
 | `bewley docs show <topic>` | Show one embedded documentation topic. |
 | `bewley docs search <query>` | Search across the embedded documentation. |
+| `bewley study set [--method M] [--unit U] [--purpose P]` | Declare or update the study design (partial updates allowed). Suggested methods: grounded-theory, reflexive-ta, content-analysis, framework. |
+| `bewley study show` | Show the study manifest and recorded research questions. |
+| `bewley question add "<text>"` | Record a research question. Prints the `question_id`. |
+| `bewley question list` | List recorded research questions. |
 | `bewley example list` | List the example corpora bundled with the installed package. |
 | `bewley example fetch <name> [--dest DIR]` | Write a bundled example corpus (documents, README, license) into a new local directory. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |

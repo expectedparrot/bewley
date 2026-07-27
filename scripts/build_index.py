@@ -200,7 +200,7 @@ add("""<!doctype html>
 add("""
   <section id="orientation">
     <h2><span class="chapter">01</span> The corpus and the question</h2>
-    <p>The worked example is twenty letters exchanged by John and Abigail Adams between April 1775 and July 1776, selected from the public-domain <em>Familiar Letters</em> edition (Project Gutenberg ebook 34123) and bundled with the repository. The research question the codebook must serve:</p>
+    <p>The worked example is twenty letters exchanged by John and Abigail Adams between April 1775 and July 1776, selected from the public-domain <em>Familiar Letters</em> edition (Project Gutenberg ebook 34123) and bundled with the package. The research question the codebook must serve — stated here, and recorded in the project itself in <a href="#project">chapter 4</a>:</p>
     <p class="callout">How did John and Abigail Adams negotiate public duty, household responsibility, political voice, danger, and emotional intimacy during the American Revolution?</p>
     <p>This is the kind of material the codebook has to do justice to — Abigail Adams, writing from Braintree on 31 March 1776:</p>
     <blockquote>“…in the new code of laws which I suppose it will be necessary for you to make, I desire you would remember the ladies and be more generous and favorable to them than your ancestors. Do not put such unlimited power into the hands of the husbands. Remember, all men would be tyrants if they could. If particular care and attention is not paid to the ladies, we are determined to foment a rebellion, and will not hold ourselves bound by any laws in which we have no voice or representation.”
@@ -265,6 +265,10 @@ add(f"""
     <p>Step into that directory — every later command runs from here — and initialize the project:</p>
     {cmd("cd adams-letters")}
     {cmdcap("bewley init", "02-init")}
+    <p>Before importing anything, record what the study <em>is</em>. <a href="#corpus">Chapter 1</a> stated a research question in prose; these two commands make it part of the project, so the method and the question live in the same auditable record as the coding they govern — and <code>bewley next</code> can point at the gap when they are missing:</p>
+    {cmdcap("bewley study set --method grounded-theory --unit document", "02b-study-set")}
+    {cmdcap('bewley question add "How did John and Abigail Adams negotiate public duty, household responsibility, political voice, danger, and emotional intimacy during the American Revolution?"', "02c-question-add")}
+    {hcap("02h-study", "The study manifest: the declared method, the unit of analysis, and the question every code in this tutorial must ultimately serve.")}
     {cmdcap("bewley add corpus/1775-april-30-john-adams.txt", "03-add")}
     <p>Add the remaining nineteen letters the same way (an agent loops; a person tabs). Then confirm what the project tracks. Agents read the JSON envelope; for a person, <code>--human</code> renders the same answer as a table:</p>
     {cmdcap("bewley list documents", "04-list-documents")}
@@ -440,6 +444,7 @@ add("""
     <table><thead><tr><th>Need</th><th>Command family</th></tr></thead><tbody>
       <tr><td>Discover the workflow</td><td><code>version</code>, <code>guide</code>, <code>next</code>, <code>capabilities</code></td></tr>
       <tr><td>Try it on bundled data</td><td><code>example list</code>, <code>example fetch</code></td></tr>
+      <tr><td>Declare the study</td><td><code>study set</code>, <code>study show</code>, <code>question add</code>, <code>question list</code></td></tr>
       <tr><td>Import or revise sources</td><td><code>add</code>, <code>add-audio</code>, <code>add-video</code>, <code>update</code>, <code>list documents</code></td></tr>
       <tr><td>Run model-assisted open coding</td><td><code>open-coding jobs</code>, external <code>ep run</code>, <code>open-coding ingest</code>, <code>open-coding apply</code></td></tr>
       <tr><td>Recover a failed run</td><td><code>open-coding jobs --from-failures</code>, multi-file <code>open-coding ingest</code></td></tr>
