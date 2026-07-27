@@ -1,50 +1,50 @@
 {
-  "generated_at": "2026-07-27T01:56:04Z",
+  "generated_at": "2026-07-27T02:10:44Z",
   "codes": [
     {
-      "code_id": "406e8464d0a6433282817ff62239cb4c",
+      "code_id": "a51f94de868e40b5849e5e0e19c71b3d",
       "canonical_name": "political_voice",
       "annotations": 3,
       "documents": 3
     },
     {
-      "code_id": "351a9c68d7a94f5a8b252fcde2eef78e",
+      "code_id": "bf2a9804cfb44c0b8d2cc7758f488df5",
       "canonical_name": "health_and_scarcity",
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "f24cc36deacc46e4b62e8c56beb4bf94",
+      "code_id": "7218223bd872494c9f542cae8af288dc",
       "canonical_name": "information_and_delay",
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "9dac2170e69646188c66916001cc2f52",
+      "code_id": "37981970ba31493783494333fb4dde25",
       "canonical_name": "public_duty",
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "30fb309b51d9418fbb5db2d652288f7c",
+      "code_id": "16d0e603b45d48f8b92b1a665f6ca262",
       "canonical_name": "separation_and_affection",
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "efef2e4550bb4c7d91aa9aa9bd95ea8c",
+      "code_id": "9a2b51fb4a904780a418b9af077ab034",
       "canonical_name": "war_and_danger",
       "annotations": 2,
       "documents": 2
     },
     {
-      "code_id": "1d4e453129ec4b5685e178d7add6d816",
+      "code_id": "c1bd83c1365e4fc8a3ae5cb8aaf72430",
       "canonical_name": "household_responsibility",
       "annotations": 1,
       "documents": 1
     },
     {
-      "code_id": "5b8aa10c92d84487881900c10d11a510",
+      "code_id": "07a9fb79ed054c03962a20dee8b07b56",
       "canonical_name": "home_front",
       "annotations": 0,
       "documents": 0
@@ -52,121 +52,121 @@
   ],
   "documents": [
     {
-      "document_id": "eee66702429641478496f15fdd08fb4e",
+      "document_id": "1c82d52ab45d4eb79e9ce9fc570ab07a",
       "current_path": "corpus/1775-may-04-abigail-adams.txt",
       "annotations": 3,
       "codes": 3
     },
     {
-      "document_id": "ef086eb714d14f3dab3714b16b4118d3",
+      "document_id": "5b0c1849603843c4b6769344f023b737",
       "current_path": "corpus/1775-june-15-abigail-adams.txt",
       "annotations": 2,
       "codes": 2
     },
     {
-      "document_id": "87b7a527e35941338e3e4110e7149677",
+      "document_id": "089b345ea7ea4d76bc2519191ba71d2d",
       "current_path": "corpus/1775-september-17-john-adams.txt",
       "annotations": 2,
       "codes": 2
     },
     {
-      "document_id": "31e7482c13cf44b1bb73948d69c70662",
+      "document_id": "47f8751fc1be497e930349191872d249",
       "current_path": "corpus/1776-march-31-abigail-adams.txt",
       "annotations": 2,
       "codes": 2
     },
     {
-      "document_id": "e24ff101267a491196a1e728dac16a9f",
+      "document_id": "66dff983d3964ee1917d43d8d7ad3efa",
       "current_path": "corpus/1775-december-10-abigail-adams.txt",
       "annotations": 1,
       "codes": 1
     },
     {
-      "document_id": "ba8f3bfd67bd493ebb413b3b80033c20",
+      "document_id": "638a699f14134d3da1634204e0511948",
       "current_path": "corpus/1776-april-14-john-adams.txt",
       "annotations": 1,
       "codes": 1
     },
     {
-      "document_id": "c67f9d556cd647aa8183b2a1ca3efc87",
+      "document_id": "b1f4cf27e50740e58c6066f179b11201",
       "current_path": "corpus/1776-july-03-john-adams.txt",
       "annotations": 1,
       "codes": 1
     },
     {
-      "document_id": "7ef0236ad4c04263adb2d2701759a22c",
+      "document_id": "9b94a7726c494544a684a71bcd2460e8",
       "current_path": "corpus/1776-july-13-abigail-adams.txt",
       "annotations": 1,
       "codes": 1
     },
     {
-      "document_id": "2883831996514b66a2e51faae13cf2a1",
+      "document_id": "dfdb48be8e8644569caa91dbd19c3c1a",
       "current_path": "corpus/1776-june-03-abigail-adams.txt",
       "annotations": 1,
       "codes": 1
     },
     {
-      "document_id": "4aaf318e64f845e4ae8b33cefd9631d6",
+      "document_id": "b0ec9db88ee34e68a70cb53183182df3",
       "current_path": "corpus/1776-march-17-john-adams.txt",
       "annotations": 1,
       "codes": 1
     },
     {
-      "document_id": "da6947ae6dd64ddc8f6a56856ec8f7e0",
+      "document_id": "5241ac6fec1e4d2fa3174f70b0997736",
       "current_path": "corpus/1775-april-30-john-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "5ec5bc7049c84a469d4365fc65dee6dc",
+      "document_id": "d74238e6a4dc4bd499cb5f0c82f8eb9a",
       "current_path": "corpus/1775-august-10-abigail-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "ae9d5781a0e742d0a20e29af46cfade5",
+      "document_id": "b77fe8d697f9421983ec6be816821cd3",
       "current_path": "corpus/1775-december-03-john-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "b622bd41841046abb0fc18ae6d82b8c3",
+      "document_id": "c84cd2f690f242a799cb1dd4043cfe59",
       "current_path": "corpus/1775-june-11-john-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "d71190e4a4684f83ac2af7f6124a322c",
+      "document_id": "e6f5d3cb023f4d58a070ad0e4a0cc043",
       "current_path": "corpus/1775-june-18-john-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "539ea4a19542462fb5cb429a9970d19d",
+      "document_id": "7a94e1ab04f446d9a95f5d3919a60bb8",
       "current_path": "corpus/1775-june-22-abigail-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "011214cf70e447729395daf349914035",
+      "document_id": "9d6ef1525ba0433ebed3ad6534776eaf",
       "current_path": "corpus/1775-october-21-abigail-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "9f13bb1802554b99a98278f90f3952b3",
+      "document_id": "6cd69eb8ad994691a52e472e623d8b37",
       "current_path": "corpus/1775-october-23-john-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "24aea7f7398b4d2c9661bf7a633ba1c9",
+      "document_id": "a5d83ae3292b448abb4d97eead7e3802",
       "current_path": "corpus/1776-july-11-john-adams.txt",
       "annotations": 0,
       "codes": 0
     },
     {
-      "document_id": "954cb08035fe4c3dbf4583a1444eaeec",
+      "document_id": "172aa3e583c4415fba1a1aa450b157b9",
       "current_path": "corpus/1776-march-02-abigail-adams.txt",
       "annotations": 0,
       "codes": 0
@@ -174,74 +174,74 @@
   ],
   "cooccurrence": [
     {
-      "left_id": "1d4e453129ec4b5685e178d7add6d816",
-      "right_id": "1d4e453129ec4b5685e178d7add6d816",
-      "documents": 1
-    },
-    {
-      "left_id": "30fb309b51d9418fbb5db2d652288f7c",
-      "right_id": "30fb309b51d9418fbb5db2d652288f7c",
+      "left_id": "16d0e603b45d48f8b92b1a665f6ca262",
+      "right_id": "16d0e603b45d48f8b92b1a665f6ca262",
       "documents": 2
     },
     {
-      "left_id": "30fb309b51d9418fbb5db2d652288f7c",
-      "right_id": "7b20a62867f54b36824006c0ce481cfd",
+      "left_id": "16d0e603b45d48f8b92b1a665f6ca262",
+      "right_id": "37981970ba31493783494333fb4dde25",
       "documents": 1
     },
     {
-      "left_id": "30fb309b51d9418fbb5db2d652288f7c",
-      "right_id": "9dac2170e69646188c66916001cc2f52",
+      "left_id": "16d0e603b45d48f8b92b1a665f6ca262",
+      "right_id": "7218223bd872494c9f542cae8af288dc",
       "documents": 1
     },
     {
-      "left_id": "30fb309b51d9418fbb5db2d652288f7c",
-      "right_id": "f24cc36deacc46e4b62e8c56beb4bf94",
+      "left_id": "16d0e603b45d48f8b92b1a665f6ca262",
+      "right_id": "7ab005f80f7e4c5caedd598113183d95",
       "documents": 1
     },
     {
-      "left_id": "351a9c68d7a94f5a8b252fcde2eef78e",
-      "right_id": "351a9c68d7a94f5a8b252fcde2eef78e",
+      "left_id": "37981970ba31493783494333fb4dde25",
+      "right_id": "37981970ba31493783494333fb4dde25",
       "documents": 2
     },
     {
-      "left_id": "351a9c68d7a94f5a8b252fcde2eef78e",
-      "right_id": "efef2e4550bb4c7d91aa9aa9bd95ea8c",
+      "left_id": "7218223bd872494c9f542cae8af288dc",
+      "right_id": "7218223bd872494c9f542cae8af288dc",
+      "documents": 2
+    },
+    {
+      "left_id": "7218223bd872494c9f542cae8af288dc",
+      "right_id": "7ab005f80f7e4c5caedd598113183d95",
       "documents": 1
     },
     {
-      "left_id": "406e8464d0a6433282817ff62239cb4c",
-      "right_id": "406e8464d0a6433282817ff62239cb4c",
+      "left_id": "7218223bd872494c9f542cae8af288dc",
+      "right_id": "a51f94de868e40b5849e5e0e19c71b3d",
+      "documents": 1
+    },
+    {
+      "left_id": "7ab005f80f7e4c5caedd598113183d95",
+      "right_id": "7ab005f80f7e4c5caedd598113183d95",
+      "documents": 1
+    },
+    {
+      "left_id": "9a2b51fb4a904780a418b9af077ab034",
+      "right_id": "9a2b51fb4a904780a418b9af077ab034",
+      "documents": 2
+    },
+    {
+      "left_id": "9a2b51fb4a904780a418b9af077ab034",
+      "right_id": "bf2a9804cfb44c0b8d2cc7758f488df5",
+      "documents": 1
+    },
+    {
+      "left_id": "a51f94de868e40b5849e5e0e19c71b3d",
+      "right_id": "a51f94de868e40b5849e5e0e19c71b3d",
       "documents": 3
     },
     {
-      "left_id": "406e8464d0a6433282817ff62239cb4c",
-      "right_id": "f24cc36deacc46e4b62e8c56beb4bf94",
-      "documents": 1
-    },
-    {
-      "left_id": "7b20a62867f54b36824006c0ce481cfd",
-      "right_id": "7b20a62867f54b36824006c0ce481cfd",
-      "documents": 1
-    },
-    {
-      "left_id": "7b20a62867f54b36824006c0ce481cfd",
-      "right_id": "f24cc36deacc46e4b62e8c56beb4bf94",
-      "documents": 1
-    },
-    {
-      "left_id": "9dac2170e69646188c66916001cc2f52",
-      "right_id": "9dac2170e69646188c66916001cc2f52",
+      "left_id": "bf2a9804cfb44c0b8d2cc7758f488df5",
+      "right_id": "bf2a9804cfb44c0b8d2cc7758f488df5",
       "documents": 2
     },
     {
-      "left_id": "efef2e4550bb4c7d91aa9aa9bd95ea8c",
-      "right_id": "efef2e4550bb4c7d91aa9aa9bd95ea8c",
-      "documents": 2
-    },
-    {
-      "left_id": "f24cc36deacc46e4b62e8c56beb4bf94",
-      "right_id": "f24cc36deacc46e4b62e8c56beb4bf94",
-      "documents": 2
+      "left_id": "c1bd83c1365e4fc8a3ae5cb8aaf72430",
+      "right_id": "c1bd83c1365e4fc8a3ae5cb8aaf72430",
+      "documents": 1
     }
   ]
 }

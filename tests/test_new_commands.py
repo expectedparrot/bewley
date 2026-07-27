@@ -187,3 +187,34 @@ class TestOpenCodingApply:
     def test_legacy_codegen_open_coding_is_gone(self, project: BewleyProject) -> None:
         envelope = _json_err(project, "codegen", "open-coding")
         assert envelope["errors"][0]["code"] == "CLI_USAGE"
+
+
+class TestOpenCodingCandidates:
+    def test_candidates_lists_review_queue(self, project: BewleyProject) -> None:
+        import csv as _csv
+
+        target = project.root / "qualitative-analysis" / "candidate_codes.csv"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fieldnames = [
+            "candidate_id", "code_name", "description", "quote", "source_document_id",
+            "source_document_path", "source_revision_id", "byte_start", "byte_end",
+            "resolve_status", "source_results",
+        ]
+        with target.open("w", newline="", encoding="utf-8") as handle:
+            writer = _csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerow({
+                "candidate_id": "c1", "code_name": "trust", "description": "d",
+                "quote": "a quote", "source_document_id": "x", "source_document_path": "corpus/a.txt",
+                "source_revision_id": "r", "byte_start": 0, "byte_end": 7,
+                "resolve_status": "exact", "source_results": "results.ep",
+            })
+        data = _json_ok(project, "open-coding", "candidates")
+        assert data["candidate_count"] == 1
+        assert data["proposed_codes"] == [{"code_name": "trust", "candidates": 1}]
+        code, stdout, _ = project.cli("open-coding", "candidates", "--human")
+        assert code == 0 and "trust" in stdout
+
+    def test_candidates_requires_ingest_first(self, project: BewleyProject) -> None:
+        envelope = _json_err(project, "open-coding", "candidates")
+        assert envelope["errors"][0]["code"] == "NOT_FOUND"

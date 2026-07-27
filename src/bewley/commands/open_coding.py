@@ -492,6 +492,77 @@ def ingest_command(
         print(f"Wrote {len(rows)} candidates to: {target}")
 
 
+@app.command("candidates")
+def candidates_command(
+    input_csv: Path = typer.Option(
+        Path("qualitative-analysis/candidate_codes.csv"), "--input", "-i",
+        help="Candidate CSV produced by `open-coding ingest`.",
+    ),
+    human: bool = HumanOption,
+) -> None:
+    """List the proposed candidate codes awaiting review.
+
+    This is the review queue: read it, delete rejected rows from the CSV,
+    then run `open-coding apply`.
+    """
+    json_flag = should_emit_json(human)
+    command = "open-coding candidates"
+    project = get_project(command, json_flag)
+    source = _path(project.root, input_csv)
+    try:
+        if not source.exists():
+            raise BewleyError(
+                f"{source} does not exist", code="NOT_FOUND",
+                hint="Run `bewley open-coding ingest` first.",
+            )
+        with source.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        by_code: dict[str, int] = {}
+        for row in rows:
+            by_code[row["code_name"]] = by_code.get(row["code_name"], 0) + 1
+        data = {
+            "input": str(source),
+            "candidate_count": len(rows),
+            "proposed_codes": [
+                {"code_name": name, "candidates": count}
+                for name, count in sorted(by_code.items())
+            ],
+            "candidates": rows,
+        }
+    except (BewleyError, OSError) as exc:
+        err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
+        fail(command, err, json_flag)
+        return
+    next_action = action(
+        "apply-reviewed-candidates",
+        "After deleting rejected rows from the CSV, preview the application",
+        ["bewley", "open-coding", "apply", "--dry-run"],
+        mutates_state=False,
+    )
+    if json_flag:
+        finish(command, data, next_actions=[next_action])
+        return
+    from rich.table import Table
+
+    from bewley.commands.common import rich_console
+
+    table = Table(
+        title=f"{len(rows)} candidates across {len(by_code)} proposed codes",
+        show_header=True, header_style="bold green",
+    )
+    table.add_column("Code", no_wrap=True)
+    table.add_column("Description", overflow="fold", max_width=28)
+    table.add_column("Quote", overflow="fold")
+    table.add_column("Document", no_wrap=True)
+    for row in sorted(rows, key=lambda item: (item["code_name"], item["source_document_path"])):
+        quote = row["quote"]
+        if len(quote) > 110:
+            quote = quote[:110].rsplit(" ", 1)[0] + " …"
+        document = Path(row["source_document_path"]).name.replace("-adams.txt", "")
+        table.add_row(row["code_name"], row["description"], quote, document)
+    rich_console().print(table)
+
+
 @app.command("apply")
 def apply_command(
     input_csv: Path = typer.Option(
