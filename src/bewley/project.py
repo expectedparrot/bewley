@@ -2034,15 +2034,34 @@ def cmd_show_video(project: Project, ref: str) -> dict:
 def cmd_code_list(project: Project, *, tree: bool = False) -> list[dict]:
     with project.connect() as conn:
         rows = conn.execute("SELECT * FROM codes WHERE status = 'active' ORDER BY canonical_name").fetchall()
+        counts = {
+            row["code_id"]: (row["annotations"], row["documents"])
+            for row in conn.execute(
+                "SELECT code_id, COUNT(*) AS annotations, COUNT(DISTINCT document_id) AS documents "
+                "FROM annotations WHERE is_active = 1 GROUP BY code_id"
+            )
+        }
     if not tree:
-        return [{"code_id": row["code_id"], "canonical_name": row["canonical_name"], "status": row["status"]} for row in rows]
+        return [{
+            "code_id": row["code_id"],
+            "canonical_name": row["canonical_name"],
+            "description": row["description"],
+            "status": row["status"],
+            "annotations": counts.get(row["code_id"], (0, 0))[0],
+            "documents": counts.get(row["code_id"], (0, 0))[1],
+        } for row in rows]
     by_parent: dict[str | None, list] = {}
     for row in rows:
         by_parent.setdefault(row["parent_code_id"], []).append(row)
     def _build_tree(parent_id: str | None) -> list[dict]:
         result = []
         for child in by_parent.get(parent_id, []):
-            node = {"canonical_name": child["canonical_name"], "code_id": child["code_id"]}
+            node = {
+                "canonical_name": child["canonical_name"],
+                "code_id": child["code_id"],
+                "description": child["description"],
+                "annotations": counts.get(child["code_id"], (0, 0))[0],
+            }
             children = _build_tree(child["code_id"])
             if children:
                 node["children"] = children
@@ -2266,7 +2285,15 @@ def cmd_query(project: Project, expr: str, mode: str | None) -> list[dict]:
         rows = project.query_documents(expr)
         return [{"document_id": row["document_id"], "current_path": row["current_path"]} for row in rows]
     rows = project.query_annotations(expr)
-    return [{"annotation_id": row["annotation_id"], "canonical_name": row["canonical_name"], "current_path": row["current_path"], "start_line": row["start_line"], "end_line": row["end_line"], "anchor_status": row["anchor_status"]} for row in rows]
+    return [{
+        "annotation_id": row["annotation_id"],
+        "canonical_name": row["canonical_name"],
+        "current_path": row["current_path"],
+        "start_line": row["start_line"],
+        "end_line": row["end_line"],
+        "anchor_status": row["anchor_status"],
+        "text": row["exact_text"] if row["scope_type"] == "span" else "<document>",
+    } for row in rows]
 
 
 def cmd_history(project: Project, document: str | None, code: str | None, annotation: str | None) -> list[dict]:

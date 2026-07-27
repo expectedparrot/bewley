@@ -5,7 +5,7 @@ from typing import List, Optional
 import typer
 
 from ..project import BewleyError, cmd_code_list, cmd_code_show, cmd_code_coverage, cmd_code_links
-from .common import HumanOption, QuietOption, fail, finish, get_project, should_emit_json
+from .common import rich_console, HumanOption, QuietOption, fail, finish, get_project, should_emit_json
 from .documents import list_app
 
 app = typer.Typer(help="Code management.")
@@ -43,16 +43,39 @@ def _code_list_impl(command: str, tree: bool, human: bool) -> None:
     if json_flag:
         finish(command, result)
     else:
+        console = rich_console()
         if tree:
-            def _print_tree(nodes: list, indent: int = 0) -> None:
+            from rich.tree import Tree
+
+            root = Tree("[bold green]codebook[/bold green]")
+
+            def _add(branch, nodes: list) -> None:
                 for node in nodes:
-                    typer.echo(f"{'  ' * indent}{node['canonical_name']}")
+                    label = f"[bold]{node['canonical_name']}[/bold]"
+                    if node.get("annotations"):
+                        label += f"  [dim]({node['annotations']} annotations)[/dim]"
+                    if node.get("description"):
+                        label += f"\n[dim]{node['description']}[/dim]"
+                    child = branch.add(label)
                     if "children" in node:
-                        _print_tree(node["children"], indent + 1)
-            _print_tree(result)
+                        _add(child, node["children"])
+
+            _add(root, result)
+            console.print(root)
         else:
+            from rich.table import Table
+
+            table = Table(title=f"{len(result)} codes", show_header=True, header_style="bold green")
+            table.add_column("Code", no_wrap=True)
+            table.add_column("Description", overflow="fold")
+            table.add_column("Annotations", justify="right")
+            table.add_column("Documents", justify="right")
             for row in result:
-                typer.echo(f"{row['code_id']}\t{row['canonical_name']}\t{row['status']}")
+                table.add_row(
+                    row["canonical_name"], row.get("description") or "—",
+                    str(row.get("annotations", 0)), str(row.get("documents", 0)),
+                )
+            console.print(table)
 
 
 @app.command("list")

@@ -12,6 +12,13 @@ from ..project import BewleyError, Project
 
 
 HumanOption = typer.Option(False, "--human", "-H", help="Human-readable output instead of JSON.")
+
+
+def rich_console():
+    """A Console for --human rendering (fixed width so captures are stable)."""
+    from rich.console import Console
+
+    return Console(width=96, highlight=False)
 QuietOption = typer.Option(False, "--quiet", help="Suppress non-error output.")
 
 

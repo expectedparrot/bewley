@@ -11,7 +11,7 @@ from ..project import (
     cmd_list_documents, cmd_show_document, cmd_show_audio, cmd_show_video, cmd_show_snippets,
     DEFAULT_EXTRACT_AUDIO_BITRATE_KBPS, DEFAULT_VIDEO_CHUNK_OVERLAP_SECONDS,
 )
-from .common import HumanOption, QuietOption, fail, finish, get_project, should_emit_json
+from .common import rich_console, HumanOption, QuietOption, fail, finish, get_project, should_emit_json
 
 app = typer.Typer(help="Document management.")
 
@@ -153,8 +153,15 @@ def list_documents(human: bool = HumanOption) -> None:
     if json_flag:
         finish(command, result)
     else:
+        from rich.table import Table
+
+        table = Table(title=f"{len(result)} documents", show_header=True, header_style="bold green")
+        table.add_column("Path", overflow="fold")
+        table.add_column("Document ID", no_wrap=True)
+        table.add_column("Revisions", justify="right")
         for row in result:
-            typer.echo(f"{row['document_id']}\t{row['current_path']}\t{row['revision_count']}")
+            table.add_row(row["current_path"], row["document_id"][:12], str(row["revision_count"]))
+        rich_console().print(table)
 
 
 @show_app.command("document")
@@ -262,5 +269,18 @@ def show_snippets(
     if json_flag:
         finish(command, result)
     else:
+        from rich.panel import Panel
+
+        console = rich_console()
+        console.print(f"[bold green]{len(result)} snippet(s)[/bold green]")
         for row in result:
-            typer.echo(f"{row['annotation_id']}\t{row['code_name']}\t{row['document_path']}\t{row['start_line']}\t{row['end_line']}\t{row['anchor_status']}\t{row['text']}")
+            lines = ""
+            if row["start_line"] is not None:
+                lines = f" · lines {row['start_line']}–{row['end_line']}"
+            status = "" if row["anchor_status"] == "clean" else f" · [yellow]{row['anchor_status']}[/yellow]"
+            console.print(Panel(
+                row["text"],
+                title=f"[bold]{row['code_name']}[/bold]",
+                subtitle=f"{row['document_path']}{lines}{status}",
+                border_style="green",
+            ))

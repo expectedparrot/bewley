@@ -5,7 +5,7 @@ from typing import Optional
 import typer
 
 from ..project import BewleyError, DEFAULT_QUERY_MODE, cmd_query
-from .common import HumanOption, fail, finish, get_project, should_emit_json
+from .common import rich_console, HumanOption, fail, finish, get_project, should_emit_json
 
 app = typer.Typer(help="Query annotations.")
 
@@ -29,9 +29,27 @@ def query_command(
     if json_flag:
         finish(command, result)
     else:
+        console = rich_console()
         if selected_mode == "document":
+            from rich.table import Table
+
+            table = Table(title=f"{len(result)} matching document(s)", show_header=True, header_style="bold green")
+            table.add_column("Path", overflow="fold")
+            table.add_column("Document ID", no_wrap=True)
             for row in result:
-                typer.echo(f"{row['document_id']}\t{row['current_path']}")
+                table.add_row(row["current_path"], row["document_id"][:12])
+            console.print(table)
         else:
+            from rich.panel import Panel
+
+            console.print(f"[bold green]{len(result)} matching annotation(s)[/bold green]")
             for row in result:
-                typer.echo(f"{row['annotation_id']}\t{row['canonical_name']}\t{row['current_path']}\t{row['start_line']}\t{row['end_line']}\t{row['anchor_status']}")
+                lines = ""
+                if row["start_line"] is not None:
+                    lines = f" · lines {row['start_line']}–{row['end_line']}"
+                console.print(Panel(
+                    row.get("text") or "<document>",
+                    title=f"[bold]{row['canonical_name']}[/bold]",
+                    subtitle=f"{row['current_path']}{lines}",
+                    border_style="green",
+                ))
