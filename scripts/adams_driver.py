@@ -227,16 +227,24 @@ def main() -> None:
     candidates_path = RUN / "qualitative-analysis" / "candidate_codes.csv"
     with candidates_path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
-        fieldnames = handle.name and list(rows[0].keys())
-    kept = [row for row in rows if row["code_name"] in descriptions]
-    with candidates_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(kept)
-    (CAPTURES / "review-note.json").write_text(json.dumps({
-        "candidates": len(rows), "kept": len(kept), "rejected": len(rows) - len(kept),
-        "rejected_codes": sorted({r["code_name"] for r in rows if r["code_name"] not in descriptions}),
-    }, indent=2))
+    reject_reasons = {
+        "daily_minutiae": "Routine detail without analytic weight.",
+        "travel_logistics": "Topic label; says nothing about the research question.",
+        "weather_report": "Topic label; says nothing about the research question.",
+    }
+    reject_captured = False
+    for row in rows:
+        if row["code_name"] in reject_reasons:
+            args = ("open-coding", "review", row["candidate_id"],
+                    "--decision", "reject", "--reason", reject_reasons[row["code_name"]])
+            if not reject_captured:
+                bewley(*args, capture="08d-review-reject")
+                reject_captured = True
+            else:
+                bewley(*args)
+    bewley("open-coding", "review", "--all-remaining", "--decision", "accept",
+           capture="08e-review-accept")
+    bewley_human("open-coding", "candidates", capture="08i-candidates-decided")
 
     bewley("open-coding", "apply", "--dry-run", capture="09-apply-dry-run")
     bewley("open-coding", "apply", capture="10-apply")
@@ -409,7 +417,8 @@ def main() -> None:
         shutil.copyfile(plot, REPO / "docs" / "plots" / plot.name)
 
     print("captures:", len(list(CAPTURES.glob("*.json"))))
-    print("kept candidates:", len(kept), "of", len(rows))
+    rejected = sum(1 for row in rows if row["code_name"] in reject_reasons)
+    print("review decisions:", len(rows) - rejected, "accepted,", rejected, "rejected")
 
 
 if __name__ == "__main__":

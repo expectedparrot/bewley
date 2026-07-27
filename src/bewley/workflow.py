@@ -31,10 +31,10 @@ _PHASE_CHECKLISTS: dict[str, list[str]] = {
         "Run `bewley open-coding jobs --output jobs.ep --model <model-name>` to package the corpus.",
         "Run `ep run jobs.ep --model_list models.ep --output results.ep` (external; requires approval).",
         "Run `bewley open-coding ingest results.ep --jobs jobs.ep`.",
-        "Review candidate_codes.csv, then `bewley code create <name>` for each keeper.",
+        "Review the queue: `bewley open-coding candidates`, then record decisions with `bewley open-coding review`.",
     ],
     _PHASE_ANNOTATING: [
-        "Review candidate_codes.csv, deleting rejected rows.",
+        "Record review decisions: `bewley open-coding review <candidate-id> --decision accept|reject|map|adjust`.",
         "Preview: `bewley open-coding apply --dry-run`, then apply: `bewley open-coding apply`.",
         "Annotate by hand where needed: `bewley annotate apply <code> <doc_id> --bytes S:E`.",
         "Build hierarchy: `bewley code set-parent <child> <parent>`.",

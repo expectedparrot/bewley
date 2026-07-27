@@ -295,7 +295,18 @@ _SCHEMA_SQL = """
                   label TEXT PRIMARY KEY,
                   role TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS review_decisions (
+                  candidate_id TEXT PRIMARY KEY,
+                  decision TEXT NOT NULL,
+                  reason TEXT,
+                  map_to TEXT,
+                  byte_start INTEGER,
+                  byte_end INTEGER,
+                  decided_at TEXT NOT NULL
+                );
                 """
+
+REVIEW_DECISIONS = ("accept", "reject", "map", "adjust")
 
 # Study manifest fields stored in project_settings under "study.<field>".
 STUDY_FIELDS = ("method", "unit_of_analysis", "purpose")
@@ -882,6 +893,14 @@ class Project:
             conn.execute(
                 "INSERT OR REPLACE INTO speaker_roles (label, role) VALUES (?, ?)",
                 (payload["label"], payload["role"]),
+            )
+            return
+        if etype == "review_decision_recorded":
+            conn.execute(
+                "INSERT OR REPLACE INTO review_decisions (candidate_id, decision, reason, map_to, byte_start, byte_end, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (payload["candidate_id"], payload["decision"], payload.get("reason"),
+                 payload.get("map_to"), payload.get("byte_start"), payload.get("byte_end"),
+                 event["timestamp"]),
             )
             return
         if etype == "core_category_set":
@@ -1970,6 +1989,49 @@ class Project:
                     context={"turns": total},
                 )
             return row["start_byte"], row["end_byte"]
+
+    def record_review_decision(
+        self,
+        candidate_id: str,
+        decision: str,
+        reason: str | None = None,
+        map_to: str | None = None,
+        byte_range: tuple[int, int] | None = None,
+    ) -> dict[str, Any]:
+        if decision not in REVIEW_DECISIONS:
+            raise BewleyError(
+                f"unknown review decision: {decision}",
+                code="INVALID_INPUT",
+                context={"allowed_decisions": list(REVIEW_DECISIONS)},
+            )
+        if decision == "map" and not (map_to and map_to.strip()):
+            raise BewleyError("map decisions require --to <code>", code="INVALID_INPUT")
+        if decision == "adjust" and byte_range is None:
+            raise BewleyError("adjust decisions require --bytes S:E", code="INVALID_INPUT")
+        if decision != "map" and map_to:
+            raise BewleyError("--to is only valid with --decision map", code="INVALID_INPUT")
+        if decision != "adjust" and byte_range:
+            raise BewleyError("--bytes is only valid with --decision adjust", code="INVALID_INPUT")
+        self.ensure_db()
+        payload: dict[str, Any] = {"candidate_id": candidate_id, "decision": decision}
+        if reason:
+            payload["reason"] = reason
+        if map_to:
+            payload["map_to"] = map_to.strip()
+        if byte_range:
+            payload["byte_start"], payload["byte_end"] = byte_range
+        return self.append_event("review_decision_recorded", payload)
+
+    def review_decisions(self) -> dict[str, dict[str, Any]]:
+        """Latest recorded decision per candidate id."""
+        with self.connect() as conn:
+            try:
+                return {
+                    row["candidate_id"]: dict(row)
+                    for row in conn.execute("SELECT * FROM review_decisions")
+                }
+            except sqlite3.OperationalError:
+                return {}
 
     def add_code(self, name: str, description: str | None = None, color: str | None = None) -> dict[str, Any]:
         with self.connect() as conn:

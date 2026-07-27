@@ -81,6 +81,11 @@ def cmdcap(display: str, name: str) -> str:
     return cmd(display) + "\n    " + cap(name)
 
 
+def cmdcap_auto(name: str) -> str:
+    """cmdcap whose display comes from the capture's own argv (for per-run ids)."""
+    return cmdcap(load(name)["argv_display"], name)
+
+
 def hcap(name: str, caption: str) -> str:
     """A visible human-view block: rendered --human output, shown open."""
     text = (CAPTURES / f"{name}.txt").read_text()
@@ -314,8 +319,13 @@ add(f"""
     <p>The candidate CSV is the human checkpoint, and <code>open-coding candidates</code> is how you read it — the full review queue of everything the model proposed, before any judgment:</p>
     {cmdcap("bewley open-coding candidates", "08b-candidates")}
     {hcap("08h-candidates", "The complete review queue: all 24 proposals across 10 codes, each with its definition and verbatim quote. The seven analytic codes serve the research question; <code>daily_minutiae</code>, <code>travel_logistics</code>, and <code>weather_report</code> are topic labels without analytic weight.")}
-    <p>In this run the review kept 14 of the 24 candidates and deleted the topic-label rows. Review means editing the CSV: delete rejected rows, keep the rest. Deleting a row does not erase the record — every ingest appends the full proposal set to <code>qualitative-analysis/ingest_log.jsonl</code>, and apply appends its outcomes to <code>apply_log.jsonl</code>, so proposed-versus-kept stays auditable (the review-outcomes plot in <a href="#export">chapter 10</a> is drawn from exactly these logs).</p>
-    <p><code>apply</code> is where proposals become the real thing: each surviving label is created as a code (carrying its definition into the codebook), and each surviving quote becomes an annotation — the label tagged onto that exact stretch of the letter. Preview first:</p>
+    <p>Review means recording a judgment about each candidate — and the judgment itself is part of the analysis, so it is recorded as an event: who decided, what, and <em>why</em>. Reject the topic labels with their reasons (one shown; the other nine rejections use the same form):</p>
+    {cmdcap_auto("08d-review-reject")}
+    <p>Then accept everything still undecided in one stroke:</p>
+    {cmdcap("bewley open-coding review --all-remaining --decision accept", "08e-review-accept")}
+    <p>Two other decisions exist for the in-between cases: <code>--decision map --to &lt;code&gt;</code> applies a candidate under a different (perhaps existing) code instead of rejecting a near-duplicate, and <code>--decision adjust --bytes S:E</code> corrects a proposal's span — including repairing one whose quote failed to resolve. The queue now shows every verdict:</p>
+    {hcap("08i-candidates-decided", "The decided queue: every candidate carries its verdict. Nothing was deleted — the rejected proposals and their reasons are part of the record. (Editing the CSV directly still works as a fallback; apply warns and treats remaining rows as accepted.)")}
+    <p><code>apply</code> executes the decisions: accepted candidates become codes (carrying their definitions into the codebook) and exact-span annotations; rejected ones are skipped with their recorded reasons; anything undecided would be itemized and skipped, fail-closed. Preview first:</p>
     {cmdcap("bewley open-coding apply --dry-run", "09-apply-dry-run")}
     {cmdcap("bewley open-coding apply", "10-apply")}
     <p>Only rows whose quotation resolved to exactly one location are applied; anything skipped is itemized with a reason — an unresolved quote, a stale revision, an already-applied row — never guessed. Re-running is idempotent. The evidence is now queryable:</p>

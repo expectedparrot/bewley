@@ -144,8 +144,9 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 | `bewley open-coding jobs [--output jobs.ep] [--summary F] [--pilot N] [--model M] [--max-tokens N] [--from-failures R --jobs J]` | Package current document revisions as EDSL Jobs; with `--model`, also write models.ep so the suggested `ep run` is executable verbatim; with `--from-failures`, repackage only scenarios lacking a valid answer. |
 | `ep run jobs.ep --model M --output results.ep` | Execute the package using the EDSL `ep` CLI. |
 | `bewley open-coding ingest results.ep [retry.ep ...] [--jobs jobs.ep] [--output F] [--allow-partial]` | Audit coverage (scenarios × models) across one or more Results files, merging retries by stable identity with per-row source attribution; resolve exact quotes and write a reviewable candidate-code CSV with unresolved quotes itemized. |
-| `bewley open-coding candidates [--input F]` | List the proposed candidate codes awaiting review; `--human` renders the review queue as a table. |
-| `bewley open-coding apply [--input F] [--dry-run]` | Apply reviewed candidate rows as codes and exact-span annotations; skipped rows are itemized with reasons, never guessed. |
+| `bewley open-coding candidates [--input F]` | List the proposed candidate codes awaiting review, with any recorded decisions; `--human` renders the review queue as a table. |
+| `bewley open-coding review (<candidate-id> \| --all-remaining) --decision accept\|reject\|map\|adjust [--reason R] [--to CODE] [--bytes S:E] [--input F]` | Record a review decision as an event: who decided, what, and why enter the audit trail. `map` applies the candidate as a different code; `adjust` overrides its byte span (including repairing a non-exact resolution). Candidate ids accept a unique prefix. |
+| `bewley open-coding apply [--input F] [--dry-run]` | Execute the recorded review decisions: accepted/mapped/adjusted candidates become codes and exact-span annotations; rejected ones are skipped with their reasons; undecided ones are itemized, fail-closed. With no recorded decisions, rows present in the CSV are treated as accepted (legacy review-by-deletion) with a warning. |
 
 ## Codegen (legacy and visualization)
 

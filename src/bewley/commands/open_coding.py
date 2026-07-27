@@ -536,8 +536,8 @@ def candidates_command(
 ) -> None:
     """List the proposed candidate codes awaiting review.
 
-    This is the review queue: read it, delete rejected rows from the CSV,
-    then run `open-coding apply`.
+    This is the review queue: read it, record decisions with
+    `open-coding review`, then run `open-coding apply`.
     """
     json_flag = should_emit_json(human)
     command = "open-coding candidates"
@@ -551,12 +551,19 @@ def candidates_command(
             )
         with source.open(newline="", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
+        decisions = project.review_decisions()
+        for row in rows:
+            verdict = decisions.get(row.get("candidate_id", ""))
+            row["decision"] = verdict["decision"] if verdict else ""
+            row["decision_reason"] = (verdict.get("reason") or "") if verdict else ""
         by_code: dict[str, int] = {}
         for row in rows:
             by_code[row["code_name"]] = by_code.get(row["code_name"], 0) + 1
+        undecided = sum(1 for row in rows if not row["decision"])
         data = {
             "input": str(source),
             "candidate_count": len(rows),
+            "undecided_count": undecided,
             "proposed_codes": [
                 {"code_name": name, "candidates": count}
                 for name, count in sorted(by_code.items())
@@ -568,8 +575,13 @@ def candidates_command(
         fail(command, err, json_flag)
         return
     next_action = action(
+        "review-candidates",
+        "Record accept/reject/map/adjust decisions for the queue",
+        ["bewley", "open-coding", "review", "<candidate-id>", "--decision", "<decision>"],
+        mutates_state=True,
+    ) if undecided else action(
         "apply-reviewed-candidates",
-        "After deleting rejected rows from the CSV, preview the application",
+        "Every candidate is decided; preview the application",
         ["bewley", "open-coding", "apply", "--dry-run"],
         mutates_state=False,
     )
@@ -588,13 +600,120 @@ def candidates_command(
     table.add_column("Description", overflow="fold", max_width=28)
     table.add_column("Quote", overflow="fold")
     table.add_column("Document", no_wrap=True)
+    table.add_column("Decision", no_wrap=True)
     for row in sorted(rows, key=lambda item: (item["code_name"], item["source_document_path"])):
         quote = row["quote"]
         if len(quote) > 110:
             quote = quote[:110].rsplit(" ", 1)[0] + " …"
         document = Path(row["source_document_path"]).name.replace("-adams.txt", "")
-        table.add_row(row["code_name"], row["description"], quote, document)
+        table.add_row(row["code_name"], row["description"], quote, document, row["decision"] or "-")
     rich_console().print(table)
+
+
+@app.command("review")
+def review_command(
+    candidate_ref: Optional[str] = typer.Argument(
+        None, help="Candidate id from the review queue (unique prefix accepted)."
+    ),
+    decision: str = typer.Option(..., "--decision", help="accept | reject | map | adjust"),
+    reason: Optional[str] = typer.Option(None, "--reason", help="Why — recorded in the audit trail."),
+    map_to: Optional[str] = typer.Option(None, "--to", help="With --decision map: apply as this code instead."),
+    bytes_range: Optional[str] = typer.Option(None, "--bytes", help="With --decision adjust: corrected byte span START:END."),
+    all_remaining: bool = typer.Option(
+        False, "--all-remaining",
+        help="Record this decision for every candidate that does not have one yet.",
+    ),
+    input_csv: Path = typer.Option(
+        Path("qualitative-analysis/candidate_codes.csv"), "--input", "-i",
+        help="Candidate CSV produced by `open-coding ingest`.",
+    ),
+    human: bool = HumanOption,
+) -> None:
+    """Record a review decision for open-coding candidates.
+
+    Decisions are events: who decided, what, and why survive in the audit
+    trail, and `open-coding apply` executes them. Rejected proposals keep
+    their reasons instead of vanishing with a deleted CSV row.
+    """
+    json_flag = should_emit_json(human)
+    command = "open-coding review"
+    project = get_project(command, json_flag)
+    source = _path(project.root, input_csv)
+    try:
+        if (candidate_ref is None) == (not all_remaining):
+            raise BewleyError(
+                "provide a candidate id or --all-remaining (not both)", code="INVALID_INPUT"
+            )
+        if not source.exists():
+            raise BewleyError(
+                f"{source} does not exist", code="NOT_FOUND",
+                hint="Run `bewley open-coding ingest` first.",
+            )
+        with source.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        from bewley.project import parse_byte_range
+
+        byte_pair = parse_byte_range(bytes_range) if bytes_range else None
+        existing = project.review_decisions()
+        if all_remaining:
+            targets = [
+                row["candidate_id"] for row in rows
+                if row.get("candidate_id") and row["candidate_id"] not in existing
+            ]
+            if not targets:
+                raise BewleyError("every candidate already has a decision", code="INVALID_INPUT")
+        else:
+            matches = sorted({
+                row["candidate_id"] for row in rows
+                if row.get("candidate_id", "").startswith(candidate_ref)
+            })
+            if not matches:
+                raise BewleyError(
+                    f"unknown candidate id: {candidate_ref}", code="NOT_FOUND",
+                    hint="Ids are in `bewley open-coding candidates`.",
+                )
+            if len(matches) > 1:
+                raise BewleyError(
+                    f"ambiguous candidate id: {candidate_ref}",
+                    code="AMBIGUOUS_CANDIDATE",
+                    context={"matches": matches},
+                )
+            targets = matches
+        for target in targets:
+            project.record_review_decision(
+                target, decision, reason=reason, map_to=map_to, byte_range=byte_pair
+            )
+        undecided = [
+            row["candidate_id"] for row in rows
+            if row.get("candidate_id")
+            and row["candidate_id"] not in existing
+            and row["candidate_id"] not in targets
+        ]
+        data = {
+            "decision": decision,
+            "recorded": targets,
+            "recorded_count": len(targets),
+            "undecided_remaining": len(undecided),
+        }
+    except (BewleyError, OSError) as exc:
+        err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
+        fail(command, err, json_flag)
+        return
+    next_action = action(
+        "apply-decisions",
+        "Preview applying the recorded decisions",
+        ["bewley", "open-coding", "apply", "--dry-run"],
+        mutates_state=False,
+    ) if not data["undecided_remaining"] else action(
+        "continue-review",
+        f"Decide the remaining {data['undecided_remaining']} candidate(s)",
+        ["bewley", "open-coding", "candidates"],
+        mutates_state=False,
+    )
+    if json_flag:
+        finish(command, data, next_actions=[next_action])
+    else:
+        print(f"{decision}: {len(targets)} candidate(s); {data['undecided_remaining']} undecided remaining")
 
 
 @app.command("apply")
@@ -611,9 +730,12 @@ def apply_command(
 ) -> None:
     """Apply reviewed candidate rows as real codes and exact-span annotations.
 
-    Only rows whose quotation resolved to exactly one location are applied.
-    Everything skipped is itemized with a reason; nothing is guessed. Delete
-    the rows you rejected during review before running this command.
+    Review decisions recorded with `open-coding review` drive what happens:
+    accepted (and mapped/adjusted) candidates apply, rejected ones are skipped
+    with their reason, and undecided ones are itemized, fail-closed. If no
+    decisions exist, rows present in the CSV are treated as accepted (the
+    legacy review-by-deletion workflow) with a warning. Only quotations that
+    resolved to exactly one location are applied; nothing is guessed.
     """
     json_flag = should_emit_json(human)
     command = "open-coding apply"
@@ -624,6 +746,16 @@ def apply_command(
             raise BewleyError(f"{source} does not exist", code="NOT_FOUND")
         with source.open(newline="", encoding="utf-8") as handle:
             candidates = list(csv.DictReader(handle))
+        decisions = project.review_decisions()
+        has_decisions = any(row.get("candidate_id", "") in decisions for row in candidates)
+        apply_warnings: list[str] = []
+        if not has_decisions:
+            apply_warnings.append(
+                "no review decisions recorded for these candidates; rows present in the CSV "
+                "are treated as accepted (review-by-deletion). Prefer `bewley open-coding review` "
+                "so rejections and their reasons enter the audit trail."
+            )
+        decision_counts = {"accepted": 0, "rejected": 0, "mapped": 0, "adjusted": 0, "undecided": 0}
         skipped_details: list[dict[str, Any]] = []
         plan: list[dict[str, Any]] = []
         codes_to_create: dict[str, str] = {}
@@ -652,7 +784,37 @@ def apply_command(
                 if not code_name:
                     skip("missing_code_name")
                     continue
-                if row.get("resolve_status") != "exact" or not row.get("byte_start") or not row.get("byte_end"):
+                row_bytes: tuple[str, str] = (row.get("byte_start", ""), row.get("byte_end", ""))
+                human_adjusted = False
+                if has_decisions:
+                    verdict = decisions.get(candidate_id)
+                    if verdict is None:
+                        decision_counts["undecided"] += 1
+                        skip("undecided")
+                        continue
+                    if verdict["decision"] == "reject":
+                        decision_counts["rejected"] += 1
+                        skipped_details.append({
+                            "candidate_id": candidate_id,
+                            "code_name": code_name,
+                            "reason": "rejected",
+                            "review_reason": verdict.get("reason"),
+                        })
+                        continue
+                    if verdict["decision"] == "map":
+                        decision_counts["mapped"] += 1
+                        code_name = verdict["map_to"]
+                    elif verdict["decision"] == "adjust":
+                        # Human-supplied bytes override the ingest resolution,
+                        # including a non-exact resolve_status being repaired.
+                        decision_counts["adjusted"] += 1
+                        human_adjusted = True
+                        row_bytes = (str(verdict["byte_start"]), str(verdict["byte_end"]))
+                    else:
+                        decision_counts["accepted"] += 1
+                if not human_adjusted and (
+                    row.get("resolve_status") != "exact" or not row_bytes[0] or not row_bytes[1]
+                ):
                     skip(f"unresolved_quote:{row.get('resolve_status') or 'missing'}")
                     continue
                 document_ref = row.get("source_document_id", "")
@@ -667,7 +829,7 @@ def apply_command(
                     # a newer revision invalidates them rather than being guessed.
                     skip("stale_revision")
                     continue
-                start, end = int(row["byte_start"]), int(row["byte_end"])
+                start, end = int(row_bytes[0]), int(row_bytes[1])
                 known_code_id = code_ids.get(code_name)
                 if known_code_id is not None and (
                     known_code_id, document["document_id"], start, end
@@ -689,20 +851,29 @@ def apply_command(
             for code_name, description in codes_to_create.items():
                 project.add_code(code_name, description=description or None)
                 created_codes.append(code_name)
+            applied_items: list[dict[str, str]] = []
             for item in plan:
-                project.add_annotation(
-                    item["code_name"], item["document_ref"], "span",
-                    (item["byte_start"], item["byte_end"]), None,
-                )
+                try:
+                    project.add_annotation(
+                        item["code_name"], item["document_ref"], "span",
+                        (item["byte_start"], item["byte_end"]), None,
+                    )
+                except BewleyError as exc:
+                    skipped_details.append({
+                        "candidate_id": item["candidate_id"],
+                        "code_name": item["code_name"],
+                        "reason": f"apply_failed:{exc.code}",
+                    })
+                    continue
                 applied += 1
+                applied_items.append(
+                    {"candidate_id": item["candidate_id"], "code_name": item["code_name"]}
+                )
             with (source.parent / "apply_log.jsonl").open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps({
                     "applied_at": utcnow(),
                     "input": str(source),
-                    "applied": [
-                        {"candidate_id": item["candidate_id"], "code_name": item["code_name"]}
-                        for item in plan
-                    ],
+                    "applied": applied_items,
                     "created_codes": created_codes,
                     "skipped": skipped_details,
                 }) + "\n")
@@ -715,6 +886,8 @@ def apply_command(
             "annotations_applied": applied,
             "skipped": len(skipped_details),
             "skipped_details": skipped_details,
+            "review_mode": "decisions" if has_decisions else "csv-rows",
+            "decisions": decision_counts,
         }
     except (BewleyError, OSError) as exc:
         err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
@@ -732,7 +905,7 @@ def apply_command(
         mutates_state=True,
     )
     if json_flag:
-        finish(command, data, next_actions=[next_action])
+        finish(command, data, warnings=apply_warnings or None, next_actions=[next_action])
     else:
         verb = "Would apply" if dry_run else "Applied"
         print(f"{verb} {len(plan)} annotations ({len(skipped_details)} skipped) from {source}")
