@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 import json
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,10 @@ INK = "#1a1a1a"
 MUTED = "#666666"
 GRID = "#e4e4e4"
 AMBER = "#b0803f"
+
+# Two annotations "co-occur" when their line ranges fall within this many
+# lines of each other in the same document.
+PROXIMITY_LINES = 5
 
 # Distinguishable code colors for multi-code plots; codes beyond the palette
 # share the final gray.
@@ -53,24 +58,15 @@ def plot_data(project: Project) -> dict[str, Any]:
             ORDER BY annotations DESC, d.current_path
             """
         ).fetchall()
-        pairs = conn.execute(
-            """
-            SELECT a.code_id left_id, b.code_id right_id, COUNT(DISTINCT a.document_id) documents
-            FROM annotations a
-            JOIN annotations b ON b.document_id = a.document_id
-              AND b.code_id >= a.code_id AND b.is_active = 1
-            WHERE a.is_active = 1
-            GROUP BY a.code_id, b.code_id
-            """
-        ).fetchall()
         # Annotations keep the code they were created under; merged codes
         # resolve to their terminal target so plots agree with `code list`.
         resolution = project.merge_resolution_map(conn)
         matrix_counts: dict[tuple[str, str], int] = {}
         positions: list[dict[str, Any]] = []
+        spans_by_document: dict[str, list[dict[str, Any]]] = {}
         for row in conn.execute(
             """
-            SELECT code_id, document_id, start_byte
+            SELECT code_id, document_id, start_byte, end_byte, start_line, end_line
             FROM annotations WHERE is_active = 1
             ORDER BY document_id, start_byte
             """
@@ -84,17 +80,103 @@ def plot_data(project: Project) -> dict[str, Any]:
                     "code_id": code_id,
                     "start_byte": row["start_byte"],
                 })
+                spans_by_document.setdefault(row["document_id"], []).append({
+                    "code_id": code_id,
+                    "start_byte": row["start_byte"], "end_byte": row["end_byte"],
+                    "start_line": row["start_line"], "end_line": row["end_line"],
+                })
         matrix = [
             {"code_id": code_id, "document_id": document_id, "annotations": count}
             for (code_id, document_id), count in sorted(matrix_counts.items())
         ]
+        # Span-level co-occurrence: pairs of differently-coded annotations in
+        # the same document within PROXIMITY_LINES of each other. Document-level
+        # membership saturates on short documents; proximity carries signal.
+        pair_counts: dict[tuple[str, str], int] = {}
+        for spans in spans_by_document.values():
+            for index, left in enumerate(spans):
+                for right in spans[index + 1:]:
+                    if left["code_id"] == right["code_id"]:
+                        continue
+                    if (left["end_line"] is None or right["end_line"] is None):
+                        continue
+                    near = not (
+                        left["end_line"] + PROXIMITY_LINES < right["start_line"]
+                        or right["end_line"] + PROXIMITY_LINES < left["start_line"]
+                    )
+                    if near:
+                        pair = tuple(sorted((left["code_id"], right["code_id"])))
+                        pair_counts[pair] = pair_counts.get(pair, 0) + 1
+        pairs = [
+            {"left_id": left_id, "right_id": right_id, "pairs": count}
+            for (left_id, right_id), count in sorted(pair_counts.items())
+        ]
+        # Effective per-document text length: full bytes, minus interviewer
+        # turns when the document is segmented (#3 phase 3 denominators).
+        interviewer_spans: dict[str, list[list[int]]] = {}
+        try:
+            roles = {
+                row["label"]: row["role"]
+                for row in conn.execute("SELECT label, role FROM speaker_roles")
+            }
+            for row in conn.execute(
+                """
+                SELECT t.document_id, t.label, t.start_byte, t.end_byte
+                FROM speaker_turns t
+                JOIN document_revisions r ON r.revision_id = t.revision_id AND r.is_current = 1
+                """
+            ):
+                if roles.get(row["label"]) == "interviewer":
+                    interviewer_spans.setdefault(row["document_id"], []).append(
+                        [row["start_byte"], row["end_byte"]]
+                    )
+        except sqlite3.OperationalError:
+            pass
+        documents_data = []
+        effective_lengths: dict[str, int] = {}
+        for row in documents:
+            entry = dict(row)
+            excluded = sum(end - start for start, end in interviewer_spans.get(row["document_id"], []))
+            entry["effective_bytes"] = max(0, int(row["byte_length"] or 0) - excluded)
+            effective_lengths[row["document_id"]] = entry["effective_bytes"]
+            documents_data.append(entry)
+        # Coverage share: bytes covered by each code's span annotations
+        # (overlaps deduped per code per document) over effective corpus bytes.
+        corpus_bytes = sum(effective_lengths.values()) or 1
+        covered: dict[str, int] = {}
+        for document_id, spans in spans_by_document.items():
+            by_code: dict[str, list[tuple[int, int]]] = {}
+            for span in spans:
+                by_code.setdefault(span["code_id"], []).append(
+                    (span["start_byte"], span["end_byte"])
+                )
+            for code_id, ranges in by_code.items():
+                merged_total = 0
+                current_start, current_end = None, None
+                for start, end in sorted(ranges):
+                    if current_end is None or start > current_end:
+                        if current_end is not None:
+                            merged_total += current_end - current_start
+                        current_start, current_end = start, end
+                    else:
+                        current_end = max(current_end, end)
+                if current_end is not None:
+                    merged_total += current_end - current_start
+                covered[code_id] = covered.get(code_id, 0) + merged_total
+        codes_data = []
+        for row in codes:
+            entry = dict(row)
+            entry["coverage_share"] = round(covered.get(row["code_id"], 0) / corpus_bytes, 4)
+            codes_data.append(entry)
     return {
         "generated_at": utcnow(),
-        "codes": [dict(row) for row in codes],
-        "documents": [dict(row) for row in documents],
-        "cooccurrence": [dict(row) for row in pairs],
+        "proximity_lines": PROXIMITY_LINES,
+        "codes": codes_data,
+        "documents": documents_data,
+        "cooccurrence": pairs,
         "matrix": matrix,
         "annotation_positions": positions,
+        "interviewer_spans": interviewer_spans,
         "events": _analytic_events(project),
         "review": _review_outcomes(project),
     }
@@ -170,9 +252,9 @@ def code_prevalence_svg(data: dict[str, Any]) -> str:
             f'<text class="label" x="{left - 10}" y="{y + 15}" text-anchor="end">{html.escape(row["canonical_name"])}</text>',
             f'<rect x="{left}" y="{y}" width="{annotation_width:.1f}" height="18" rx="2" fill="{GREEN}"/>',
             f'<rect x="{left}" y="{y + 19}" width="{document_width:.1f}" height="5" rx="2" fill="{GREEN_LIGHT}"/>',
-            f'<text class="value" x="{left + annotation_width + 7:.1f}" y="{y + 14}">{row["annotations"]} annotations · {row["documents"]} documents</text>',
+            f'<text class="value" x="{left + annotation_width + 7:.1f}" y="{y + 14}">{row["annotations"]} annotations · {row["documents"]} documents · {row.get("coverage_share", 0):.1%} of text</text>',
         ])
-    return _svg(width, height, "Code prevalence", "".join(parts), "Annotation and document counts for each active code.")
+    return _svg(width, height, "Code prevalence", "".join(parts), "Annotation counts, document counts, and share of effective corpus text covered, for each active code. Counts and coverage disagree when a code is rare but deep, or pervasive but thin.")
 
 
 def document_density_svg(data: dict[str, Any]) -> str:
@@ -200,8 +282,8 @@ def cooccurrence_svg(data: dict[str, Any]) -> str:
     labels = [row["canonical_name"] for row in codes]
     lookup: dict[tuple[str, str], int] = {}
     for row in data["cooccurrence"]:
-        lookup[(row["left_id"], row["right_id"])] = int(row["documents"])
-        lookup[(row["right_id"], row["left_id"])] = int(row["documents"])
+        lookup[(row["left_id"], row["right_id"])] = int(row["pairs"])
+        lookup[(row["right_id"], row["left_id"])] = int(row["pairs"])
     maximum = max((lookup.get((a, b), 0) for a in ids for b in ids), default=1) or 1
     cell, left, top = 38, 220, 210
     width, height = left + len(ids) * cell + 38, top + len(ids) * cell + 35
@@ -218,7 +300,9 @@ def cooccurrence_svg(data: dict[str, Any]) -> str:
             parts.append(f'<rect x="{x}" y="{y}" width="{cell - 2}" height="{cell - 2}" rx="2" fill="{GREEN}" opacity="{opacity:.2f}"/>')
             if value:
                 parts.append(f'<text class="label" x="{x + (cell - 2) / 2}" y="{y + 23}" text-anchor="middle">{value}</text>')
-    return _svg(width, height, "Code co-occurrence by document", "".join(parts), "Number of documents in which each pair of codes appears.")
+    proximity = data.get("proximity_lines", PROXIMITY_LINES)
+    return _svg(width, height, f"Code co-occurrence within {proximity} lines", "".join(parts),
+                f"Pairs of differently-coded annotations whose spans fall within {proximity} lines of each other in the same document. Proximity, not mere shared document membership.")
 
 
 def _short_doc_label(path: str) -> str:
@@ -347,6 +431,12 @@ def annotation_positions_svg(data: dict[str, Any]) -> str:
         bar_w = track_w * (length / max_length) if length else track_w * 0.02
         parts.append(f'<text class="label" x="{left - 10}" y="{y + 14}" text-anchor="end">{html.escape(_short_doc_label(document["current_path"]))}</text>')
         parts.append(f'<rect x="{left}" y="{y + 3}" width="{bar_w:.1f}" height="14" rx="2" fill="{GRID}"/>')
+        for span_start, span_end in data.get("interviewer_spans", {}).get(document["document_id"], []):
+            if not length:
+                continue
+            shade_x = left + min(span_start / length, 1.0) * bar_w
+            shade_w = max(1.0, (span_end - span_start) / length * bar_w)
+            parts.append(f'<rect x="{shade_x:.1f}" y="{y + 3}" width="{shade_w:.1f}" height="14" fill="#bdbdbd"/>')
         for annotation in by_document.get(document["document_id"], []):
             position = int(annotation["start_byte"]) / (length or 1)
             x = left + min(position, 0.995) * bar_w
@@ -360,7 +450,7 @@ def annotation_positions_svg(data: dict[str, Any]) -> str:
         parts.append(f'<text class="value" x="{x + 18}" y="{y}">{html.escape(code["canonical_name"])}</text>')
     return _svg(width, height, "Where codes appear within documents",
                 "".join(parts),
-                "One track per document (length proportional to its size, in corpus order); each colored tick marks an annotation at its byte position. Clusters show where in a document a theme concentrates.")
+                "One track per document (length proportional to its size, in corpus order); each colored tick marks an annotation at its byte position. Darker segments are interviewer turns in segmented transcripts. Clusters show where in a document a theme concentrates.")
 
 
 def codebook_evolution_svg(data: dict[str, Any]) -> str:

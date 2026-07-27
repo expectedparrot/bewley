@@ -433,7 +433,7 @@ add(f"""
     <p>Plots audit the shape of the coding work — which codes dominate, which documents received disproportionate attention, which codes co-occur. They are prompts to return to the evidence, not statistical tests. These are the plots from this run:</p>
     <figure>
       <img src="plots/code-prevalence.svg" alt="Horizontal bars comparing annotation and document counts per code in the Adams letters run.">
-      <figcaption><strong>Code prevalence.</strong> Dark bars count annotations; light bars count distinct documents. A large gap flags repeated coding within few sources.</figcaption>
+      <figcaption><strong>Code prevalence.</strong> Dark bars count annotations; light bars count distinct documents; each label adds the share of corpus text covered. Counts and coverage disagree exactly when a code is rare-but-deep (one long passage) or pervasive-but-thin (a phrase in every letter) — the two readings of "prevalent" side by side.</figcaption>
     </figure>
     <figure>
       <img src="plots/document-density.svg" alt="Horizontal bars showing annotation and distinct-code counts by letter.">
@@ -445,11 +445,11 @@ add(f"""
     </figure>
     <figure>
       <img src="plots/annotation-positions.svg" alt="One track per letter with colored ticks marking where each annotation falls within the text.">
-      <figcaption><strong>Where codes appear within documents.</strong> Each track is a letter at proportional length; each tick is an annotation at its byte position. Clusters show where in a letter a theme concentrates — and empty tracks show exactly which letters carry no codes yet.</figcaption>
+      <figcaption><strong>Where codes appear within documents.</strong> Each track is a letter at proportional length; each tick is an annotation at its byte position. Clusters show where in a letter a theme concentrates — and empty tracks show exactly which letters carry no codes yet. (In segmented transcripts, interviewer turns render as darker segments and are excluded from coverage denominators.)</figcaption>
     </figure>
     <figure>
-      <img src="plots/code-cooccurrence.svg" alt="Matrix counting the letters in which each pair of codes appears.">
-      <figcaption><strong>Code co-occurrence.</strong> Cells count documents containing both codes — comparisons to inspect, not relationships established.</figcaption>
+      <img src="plots/code-cooccurrence.svg" alt="Matrix counting pairs of differently-coded annotations within five lines of each other.">
+      <figcaption><strong>Code co-occurrence, span-level.</strong> Cells count pairs of differently-coded annotations within five lines of each other — passages where two themes actually meet, not documents that merely contain both. (Document-level membership saturates on short documents: in twenty letters, nearly everything "co-occurs" with everything.) Comparisons to inspect, not relationships established.</figcaption>
     </figure>
     <figure>
       <img src="plots/review-funnel.svg" alt="Per proposed code, a light bar for candidates proposed and a dark bar for annotations applied after review.">

@@ -117,7 +117,7 @@ class TestExportPlots:
             assert "<desc" in svg
         manifest = json.loads((project.root / "report/plots/plots.json").read_text())
         assert {row["canonical_name"] for row in manifest["codes"]} == {"friction", "trust"}
-        assert any(row["documents"] == 1 for row in manifest["cooccurrence"])
+        assert all("coverage_share" in row for row in manifest["codes"])
         assert manifest["matrix"], "matrix cells should be present"
         assert manifest["annotation_positions"], "annotation positions should be present"
         assert any(event["type"] == "code_created" for event in manifest["events"])
@@ -140,6 +140,53 @@ class TestExportPlots:
         manifest = json.loads((project.root / "report/plots/plots.json").read_text())
         assert manifest["review"]["proposed"] == {"trust": 1, "noise": 1}
         assert manifest["review"]["applied"] == {"trust": 1}
+
+    def test_cooccurrence_is_span_level(self, project: BewleyProject) -> None:
+        project.cli_ok("code", "create", "trust")
+        project.cli_ok("code", "create", "friction")
+        project.cli_ok("code", "create", "distant")
+        # trust and friction within 5 lines; distant is far away in the same doc
+        project.cli_ok("annotate", "apply", "trust", "corpus/interview_alice.txt", "--lines", "5:5")
+        project.cli_ok("annotate", "apply", "friction", "corpus/interview_alice.txt", "--lines", "9:10")
+        project.cli_ok("annotate", "apply", "distant", "corpus/interview_alice.txt", "--lines", "30:30")
+
+        project.cli_ok("export", "plots", "--output-dir", "report/plots")
+
+        manifest = json.loads((project.root / "report/plots/plots.json").read_text())
+        names = {row["code_id"]: row["canonical_name"] for row in manifest["codes"]}
+        pairs = {
+            tuple(sorted((names[row["left_id"]], names[row["right_id"]]))): row["pairs"]
+            for row in manifest["cooccurrence"]
+        }
+        assert pairs.get(("friction", "trust")) == 1
+        assert ("distant", "trust") not in pairs
+        assert ("distant", "friction") not in pairs
+
+    def test_coverage_share_uses_participant_denominator(self, empty_project: BewleyProject) -> None:
+        transcript = (
+            "INTERVIEWER: A question that takes up half of all the bytes here?\n\n"
+            "NARRATOR: A short answer that we code fully, every single byte of it.\n"
+        )
+        path = empty_project.root / "corpus" / "talk.txt"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(transcript, encoding="utf-8")
+        empty_project.cli_ok("add", "corpus/talk.txt")
+        empty_project.cli_ok("speakers", "detect", "corpus/talk.txt")
+        empty_project.cli_ok("speakers", "set-role", "INTERVIEWER", "interviewer")
+        empty_project.cli_ok("speakers", "set-role", "NARRATOR", "participant")
+        empty_project.cli_ok("code", "create", "answering")
+        empty_project.cli_ok("annotate", "apply", "answering", "corpus/talk.txt", "--turn", "2")
+
+        empty_project.cli_ok("export", "plots", "--output-dir", "report/plots")
+
+        manifest = json.loads((empty_project.root / "report/plots/plots.json").read_text())
+        share = manifest["codes"][0]["coverage_share"]
+        document = manifest["documents"][0]
+        # denominator excludes interviewer bytes, so effective < full length
+        assert document["effective_bytes"] < document["byte_length"]
+        # the coded turn covers nearly all participant text
+        assert share > 0.8
+        assert manifest["interviewer_spans"]
 
     def test_merged_code_annotations_resolve_in_matrix(self, project: BewleyProject) -> None:
         project.cli_ok("code", "create", "trust")

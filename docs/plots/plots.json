@@ -1,426 +1,396 @@
 {
-  "generated_at": "2026-07-27T19:38:32Z",
+  "generated_at": "2026-07-27T19:43:23Z",
+  "proximity_lines": 5,
   "codes": [
     {
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
+      "code_id": "b43d756b589a45b4a288f22e76143eb3",
       "canonical_name": "political_voice",
       "color": null,
       "annotations": 3,
-      "documents": 3
+      "documents": 3,
+      "coverage_share": 0.0052
     },
     {
-      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "code_id": "8b06a7a1dcac40489c89f168e136333b",
       "canonical_name": "health_and_scarcity",
       "color": null,
       "annotations": 2,
-      "documents": 2
+      "documents": 2,
+      "coverage_share": 0.0027
     },
     {
-      "code_id": "4368ab89c8214c3b8524baa58e867653",
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294",
       "canonical_name": "information_and_delay",
       "color": null,
       "annotations": 2,
-      "documents": 2
+      "documents": 2,
+      "coverage_share": 0.0066
     },
     {
-      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "code_id": "c07b8e5ff8a8464fb4a155e716ab39c0",
       "canonical_name": "public_duty",
       "color": null,
       "annotations": 2,
-      "documents": 2
+      "documents": 2,
+      "coverage_share": 0.0022
     },
     {
-      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "code_id": "b22d3851d43b4b95bcc5ebfda5e0bebe",
       "canonical_name": "separation_and_affection",
       "color": null,
       "annotations": 2,
-      "documents": 2
+      "documents": 2,
+      "coverage_share": 0.0026
     },
     {
-      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
+      "code_id": "e097db3d5c3f49318eda8da9182ab4a1",
       "canonical_name": "war_and_danger",
       "color": null,
       "annotations": 2,
-      "documents": 2
+      "documents": 2,
+      "coverage_share": 0.002
     },
     {
-      "code_id": "de0303c2f04d46b485163d12ef177a10",
+      "code_id": "1cd420835e124445b24f6f4f98b3e730",
       "canonical_name": "household_responsibility",
       "color": null,
       "annotations": 1,
-      "documents": 1
+      "documents": 1,
+      "coverage_share": 0.0013
     },
     {
-      "code_id": "bafa234d5c3543e397939823738f6a37",
+      "code_id": "fd1fd658d3a644af8969a5dd24fe25be",
       "canonical_name": "home_front",
       "color": null,
       "annotations": 0,
-      "documents": 0
+      "documents": 0,
+      "coverage_share": 0.0
     }
   ],
   "documents": [
     {
-      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
+      "document_id": "84cd2ec609f64b38b003baf601fa20ed",
       "current_path": "corpus/1775-may-04-abigail-adams.txt",
       "annotations": 3,
       "codes": 3,
-      "byte_length": 2534
+      "byte_length": 2534,
+      "effective_bytes": 2534
     },
     {
-      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
+      "document_id": "1ac62158055d4de9b5afa463b5bef35a",
       "current_path": "corpus/1775-june-15-abigail-adams.txt",
       "annotations": 2,
       "codes": 2,
-      "byte_length": 5063
+      "byte_length": 5063,
+      "effective_bytes": 5063
     },
     {
-      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
+      "document_id": "1d5113c63d6b48ad9dca3c6e5b2e611c",
       "current_path": "corpus/1775-september-17-john-adams.txt",
       "annotations": 2,
       "codes": 2,
-      "byte_length": 2307
+      "byte_length": 2307,
+      "effective_bytes": 2307
     },
     {
-      "document_id": "0d65952ddb23477380f2f0a059a03707",
+      "document_id": "445ffe5fc30c4a6f9852d8532af6c9ca",
       "current_path": "corpus/1776-march-31-abigail-adams.txt",
       "annotations": 2,
       "codes": 2,
-      "byte_length": 5214
+      "byte_length": 5214,
+      "effective_bytes": 5214
     },
     {
-      "document_id": "6f38cfdf67b84933ae3f4b39cfac48d0",
+      "document_id": "3a4b59423ffa48298912608d011911f6",
       "current_path": "corpus/1775-december-10-abigail-adams.txt",
       "annotations": 1,
       "codes": 1,
-      "byte_length": 5754
+      "byte_length": 5754,
+      "effective_bytes": 5754
     },
     {
-      "document_id": "92136da53424454899f43db0ada01251",
+      "document_id": "319e270360324e81a3cb633de4bb7bc7",
       "current_path": "corpus/1776-april-14-john-adams.txt",
       "annotations": 1,
       "codes": 1,
-      "byte_length": 4601
+      "byte_length": 4601,
+      "effective_bytes": 4601
     },
     {
-      "document_id": "18a21f5611ed48ffb08bebf3b584bbf5",
+      "document_id": "529affe57704443994ecfce9661ed1b2",
       "current_path": "corpus/1776-july-03-john-adams.txt",
       "annotations": 1,
       "codes": 1,
-      "byte_length": 3849
+      "byte_length": 3849,
+      "effective_bytes": 3849
     },
     {
-      "document_id": "71a196b262e94800b2ff9c94296bd682",
+      "document_id": "8570af695b164454b8a9f29d15daf1f3",
       "current_path": "corpus/1776-july-13-abigail-adams.txt",
       "annotations": 1,
       "codes": 1,
-      "byte_length": 2778
+      "byte_length": 2778,
+      "effective_bytes": 2778
     },
     {
-      "document_id": "f7e037e33a064d719d9653a60d8a4272",
+      "document_id": "53e80fc4de2a4b2ca56af6cd5c31346f",
       "current_path": "corpus/1776-june-03-abigail-adams.txt",
       "annotations": 1,
       "codes": 1,
-      "byte_length": 3101
+      "byte_length": 3101,
+      "effective_bytes": 3101
     },
     {
-      "document_id": "b919a3b2f811495883f3216cc8ce8a56",
+      "document_id": "2009a5ca05f84004b5523c89410b4cae",
       "current_path": "corpus/1776-march-17-john-adams.txt",
       "annotations": 1,
       "codes": 1,
-      "byte_length": 2371
+      "byte_length": 2371,
+      "effective_bytes": 2371
     },
     {
-      "document_id": "f252c2cf640c49a9abd700d65c01e937",
+      "document_id": "a2ac01d5cf8d43eea59109db3ae30e06",
       "current_path": "corpus/1775-april-30-john-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 1280
+      "byte_length": 1280,
+      "effective_bytes": 1280
     },
     {
-      "document_id": "412fbfd260724c4b9fe1a6acc9fe8712",
+      "document_id": "f88f8f9adfa04c0bbfa6b731b34369ca",
       "current_path": "corpus/1775-august-10-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 1699
+      "byte_length": 1699,
+      "effective_bytes": 1699
     },
     {
-      "document_id": "c882f493f73b4062a41ce0c63f1bec39",
+      "document_id": "59d163cf3d46443280194fc381eed995",
       "current_path": "corpus/1775-december-03-john-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 3280
+      "byte_length": 3280,
+      "effective_bytes": 3280
     },
     {
-      "document_id": "3eb8260ff4c44b39aa8817f9ea85ea30",
+      "document_id": "620ca24741f647de8c51c8db25bf44bc",
       "current_path": "corpus/1775-june-11-john-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 4079
+      "byte_length": 4079,
+      "effective_bytes": 4079
     },
     {
-      "document_id": "9d4c2dd30d9f44c3ac11778d5a7d1533",
+      "document_id": "a49918bb995d44a289bcffb208dc7883",
       "current_path": "corpus/1775-june-18-john-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 817
+      "byte_length": 817,
+      "effective_bytes": 817
     },
     {
-      "document_id": "3948d211bb41434f89262ce7166066ef",
+      "document_id": "3eeedb04918e4969bffb6ee810fcb557",
       "current_path": "corpus/1775-june-22-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 2227
+      "byte_length": 2227,
+      "effective_bytes": 2227
     },
     {
-      "document_id": "7b2fc612b5b94178a8a701468f7524c5",
+      "document_id": "c05c092da7304e04b3350d2ccade7382",
       "current_path": "corpus/1775-october-21-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 5841
+      "byte_length": 5841,
+      "effective_bytes": 5841
     },
     {
-      "document_id": "cb4b8df3eb7d49f99422de9e2e3670dc",
+      "document_id": "95df25cc3d77408281838603a763fe56",
       "current_path": "corpus/1775-october-23-john-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 2378
+      "byte_length": 2378,
+      "effective_bytes": 2378
     },
     {
-      "document_id": "83996f4c8cf64f47bc5f13d529d4920b",
+      "document_id": "934d498cb7da4fe6a7e5a8bfb894dce6",
       "current_path": "corpus/1776-july-11-john-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 3415
+      "byte_length": 3415,
+      "effective_bytes": 3415
     },
     {
-      "document_id": "3f40a059071c42b48c1996ace129f647",
+      "document_id": "c079fe15c8b04c65b6bfd3cc9a883c95",
       "current_path": "corpus/1776-march-02-abigail-adams.txt",
       "annotations": 0,
       "codes": 0,
-      "byte_length": 8010
+      "byte_length": 8010,
+      "effective_bytes": 8010
     }
   ],
   "cooccurrence": [
     {
-      "left_id": "3cc3c950a1044e5ba16a672df55e0419",
-      "right_id": "3cc3c950a1044e5ba16a672df55e0419",
-      "documents": 2
+      "left_id": "78f9d0cca32142fe95c1bfe54a91a294",
+      "right_id": "b22d3851d43b4b95bcc5ebfda5e0bebe",
+      "pairs": 2
     },
     {
-      "left_id": "3cc3c950a1044e5ba16a672df55e0419",
-      "right_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
-      "documents": 1
-    },
-    {
-      "left_id": "4368ab89c8214c3b8524baa58e867653",
-      "right_id": "4368ab89c8214c3b8524baa58e867653",
-      "documents": 2
-    },
-    {
-      "left_id": "4368ab89c8214c3b8524baa58e867653",
-      "right_id": "727ed35137994789b1b923c170a16ea7",
-      "documents": 1
-    },
-    {
-      "left_id": "4368ab89c8214c3b8524baa58e867653",
-      "right_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "documents": 1
-    },
-    {
-      "left_id": "4368ab89c8214c3b8524baa58e867653",
-      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "documents": 1
-    },
-    {
-      "left_id": "64da40c410704f2ca94c2826e5a92d6b",
-      "right_id": "64da40c410704f2ca94c2826e5a92d6b",
-      "documents": 2
-    },
-    {
-      "left_id": "64da40c410704f2ca94c2826e5a92d6b",
-      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "documents": 1
-    },
-    {
-      "left_id": "727ed35137994789b1b923c170a16ea7",
-      "right_id": "727ed35137994789b1b923c170a16ea7",
-      "documents": 1
-    },
-    {
-      "left_id": "727ed35137994789b1b923c170a16ea7",
-      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "documents": 1
-    },
-    {
-      "left_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "right_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "documents": 3
-    },
-    {
-      "left_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "right_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "documents": 2
-    },
-    {
-      "left_id": "de0303c2f04d46b485163d12ef177a10",
-      "right_id": "de0303c2f04d46b485163d12ef177a10",
-      "documents": 1
-    },
-    {
-      "left_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
-      "right_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
-      "documents": 2
+      "left_id": "b22d3851d43b4b95bcc5ebfda5e0bebe",
+      "right_id": "c07b8e5ff8a8464fb4a155e716ab39c0",
+      "pairs": 1
     }
   ],
   "matrix": [
     {
-      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
-      "document_id": "71a196b262e94800b2ff9c94296bd682",
+      "code_id": "1cd420835e124445b24f6f4f98b3e730",
+      "document_id": "53e80fc4de2a4b2ca56af6cd5c31346f",
       "annotations": 1
     },
     {
-      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
-      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294",
+      "document_id": "445ffe5fc30c4a6f9852d8532af6c9ca",
       "annotations": 1
     },
     {
-      "code_id": "4368ab89c8214c3b8524baa58e867653",
-      "document_id": "0d65952ddb23477380f2f0a059a03707",
-      "annotations": 1
-    },
-    {
-      "code_id": "4368ab89c8214c3b8524baa58e867653",
-      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294",
+      "document_id": "84cd2ec609f64b38b003baf601fa20ed",
       "annotations": 2
     },
     {
-      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
-      "document_id": "18a21f5611ed48ffb08bebf3b584bbf5",
+      "code_id": "8b06a7a1dcac40489c89f168e136333b",
+      "document_id": "1ac62158055d4de9b5afa463b5bef35a",
       "annotations": 1
     },
     {
-      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
-      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
+      "code_id": "8b06a7a1dcac40489c89f168e136333b",
+      "document_id": "8570af695b164454b8a9f29d15daf1f3",
       "annotations": 1
     },
     {
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "document_id": "0d65952ddb23477380f2f0a059a03707",
+      "code_id": "b22d3851d43b4b95bcc5ebfda5e0bebe",
+      "document_id": "1d5113c63d6b48ad9dca3c6e5b2e611c",
       "annotations": 1
     },
     {
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "document_id": "6f38cfdf67b84933ae3f4b39cfac48d0",
+      "code_id": "b22d3851d43b4b95bcc5ebfda5e0bebe",
+      "document_id": "84cd2ec609f64b38b003baf601fa20ed",
       "annotations": 1
     },
     {
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "document_id": "92136da53424454899f43db0ada01251",
+      "code_id": "b43d756b589a45b4a288f22e76143eb3",
+      "document_id": "319e270360324e81a3cb633de4bb7bc7",
       "annotations": 1
     },
     {
-      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
+      "code_id": "b43d756b589a45b4a288f22e76143eb3",
+      "document_id": "3a4b59423ffa48298912608d011911f6",
       "annotations": 1
     },
     {
-      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
+      "code_id": "b43d756b589a45b4a288f22e76143eb3",
+      "document_id": "445ffe5fc30c4a6f9852d8532af6c9ca",
       "annotations": 1
     },
     {
-      "code_id": "de0303c2f04d46b485163d12ef177a10",
-      "document_id": "f7e037e33a064d719d9653a60d8a4272",
+      "code_id": "c07b8e5ff8a8464fb4a155e716ab39c0",
+      "document_id": "1d5113c63d6b48ad9dca3c6e5b2e611c",
       "annotations": 1
     },
     {
-      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
-      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
+      "code_id": "c07b8e5ff8a8464fb4a155e716ab39c0",
+      "document_id": "529affe57704443994ecfce9661ed1b2",
       "annotations": 1
     },
     {
-      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
-      "document_id": "b919a3b2f811495883f3216cc8ce8a56",
+      "code_id": "e097db3d5c3f49318eda8da9182ab4a1",
+      "document_id": "1ac62158055d4de9b5afa463b5bef35a",
+      "annotations": 1
+    },
+    {
+      "code_id": "e097db3d5c3f49318eda8da9182ab4a1",
+      "document_id": "2009a5ca05f84004b5523c89410b4cae",
       "annotations": 1
     }
   ],
   "annotation_positions": [
     {
-      "document_id": "0d65952ddb23477380f2f0a059a03707",
-      "code_id": "4368ab89c8214c3b8524baa58e867653",
-      "start_byte": 164
-    },
-    {
-      "document_id": "0d65952ddb23477380f2f0a059a03707",
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "start_byte": 3114
-    },
-    {
-      "document_id": "18a21f5611ed48ffb08bebf3b584bbf5",
-      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
-      "start_byte": 2892
-    },
-    {
-      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
-      "code_id": "4368ab89c8214c3b8524baa58e867653",
-      "start_byte": 1513
-    },
-    {
-      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
-      "code_id": "4368ab89c8214c3b8524baa58e867653",
-      "start_byte": 1513
-    },
-    {
-      "document_id": "5ba0cd4b2fde40788b4c3726b4771737",
-      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
-      "start_byte": 1617
-    },
-    {
-      "document_id": "6f38cfdf67b84933ae3f4b39cfac48d0",
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "start_byte": 5290
-    },
-    {
-      "document_id": "71a196b262e94800b2ff9c94296bd682",
-      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
-      "start_byte": 362
-    },
-    {
-      "document_id": "92136da53424454899f43db0ada01251",
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87",
-      "start_byte": 3117
-    },
-    {
-      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
-      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
+      "document_id": "1ac62158055d4de9b5afa463b5bef35a",
+      "code_id": "e097db3d5c3f49318eda8da9182ab4a1",
       "start_byte": 1768
     },
     {
-      "document_id": "95fb2f29d1b34df79725c2628c5c4105",
-      "code_id": "3cc3c950a1044e5ba16a672df55e0419",
+      "document_id": "1ac62158055d4de9b5afa463b5bef35a",
+      "code_id": "8b06a7a1dcac40489c89f168e136333b",
       "start_byte": 4644
     },
     {
-      "document_id": "b919a3b2f811495883f3216cc8ce8a56",
-      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b",
-      "start_byte": 1433
-    },
-    {
-      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
-      "code_id": "64da40c410704f2ca94c2826e5a92d6b",
+      "document_id": "1d5113c63d6b48ad9dca3c6e5b2e611c",
+      "code_id": "c07b8e5ff8a8464fb4a155e716ab39c0",
       "start_byte": 1833
     },
     {
-      "document_id": "d9b3ebf3a0664ff29bbdd169949c9a6a",
-      "code_id": "c10344fa9f3943f38d9507685ecf7c46",
+      "document_id": "1d5113c63d6b48ad9dca3c6e5b2e611c",
+      "code_id": "b22d3851d43b4b95bcc5ebfda5e0bebe",
       "start_byte": 2232
     },
     {
-      "document_id": "f7e037e33a064d719d9653a60d8a4272",
-      "code_id": "de0303c2f04d46b485163d12ef177a10",
+      "document_id": "2009a5ca05f84004b5523c89410b4cae",
+      "code_id": "e097db3d5c3f49318eda8da9182ab4a1",
+      "start_byte": 1433
+    },
+    {
+      "document_id": "319e270360324e81a3cb633de4bb7bc7",
+      "code_id": "b43d756b589a45b4a288f22e76143eb3",
+      "start_byte": 3117
+    },
+    {
+      "document_id": "3a4b59423ffa48298912608d011911f6",
+      "code_id": "b43d756b589a45b4a288f22e76143eb3",
+      "start_byte": 5290
+    },
+    {
+      "document_id": "445ffe5fc30c4a6f9852d8532af6c9ca",
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294",
+      "start_byte": 164
+    },
+    {
+      "document_id": "445ffe5fc30c4a6f9852d8532af6c9ca",
+      "code_id": "b43d756b589a45b4a288f22e76143eb3",
+      "start_byte": 3114
+    },
+    {
+      "document_id": "529affe57704443994ecfce9661ed1b2",
+      "code_id": "c07b8e5ff8a8464fb4a155e716ab39c0",
+      "start_byte": 2892
+    },
+    {
+      "document_id": "53e80fc4de2a4b2ca56af6cd5c31346f",
+      "code_id": "1cd420835e124445b24f6f4f98b3e730",
       "start_byte": 2223
+    },
+    {
+      "document_id": "84cd2ec609f64b38b003baf601fa20ed",
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294",
+      "start_byte": 1513
+    },
+    {
+      "document_id": "84cd2ec609f64b38b003baf601fa20ed",
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294",
+      "start_byte": 1513
+    },
+    {
+      "document_id": "84cd2ec609f64b38b003baf601fa20ed",
+      "code_id": "b22d3851d43b4b95bcc5ebfda5e0bebe",
+      "start_byte": 1617
+    },
+    {
+      "document_id": "8570af695b164454b8a9f29d15daf1f3",
+      "code_id": "8b06a7a1dcac40489c89f168e136333b",
+      "start_byte": 362
     }
   ],
+  "interviewer_spans": {},
   "events": [
     {
       "sequence": 1,
@@ -748,72 +718,72 @@
     {
       "sequence": 80,
       "type": "annotation_added",
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87"
+      "code_id": "b43d756b589a45b4a288f22e76143eb3"
     },
     {
       "sequence": 81,
       "type": "annotation_added",
-      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b"
+      "code_id": "e097db3d5c3f49318eda8da9182ab4a1"
     },
     {
       "sequence": 82,
       "type": "annotation_added",
-      "code_id": "3cc3c950a1044e5ba16a672df55e0419"
+      "code_id": "8b06a7a1dcac40489c89f168e136333b"
     },
     {
       "sequence": 83,
       "type": "annotation_added",
-      "code_id": "4368ab89c8214c3b8524baa58e867653"
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294"
     },
     {
       "sequence": 84,
       "type": "annotation_added",
-      "code_id": "c10344fa9f3943f38d9507685ecf7c46"
+      "code_id": "b22d3851d43b4b95bcc5ebfda5e0bebe"
     },
     {
       "sequence": 85,
       "type": "annotation_added",
-      "code_id": "64da40c410704f2ca94c2826e5a92d6b"
+      "code_id": "c07b8e5ff8a8464fb4a155e716ab39c0"
     },
     {
       "sequence": 86,
       "type": "annotation_added",
-      "code_id": "c10344fa9f3943f38d9507685ecf7c46"
+      "code_id": "b22d3851d43b4b95bcc5ebfda5e0bebe"
     },
     {
       "sequence": 87,
       "type": "annotation_added",
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87"
+      "code_id": "b43d756b589a45b4a288f22e76143eb3"
     },
     {
       "sequence": 88,
       "type": "annotation_added",
-      "code_id": "64da40c410704f2ca94c2826e5a92d6b"
+      "code_id": "c07b8e5ff8a8464fb4a155e716ab39c0"
     },
     {
       "sequence": 89,
       "type": "annotation_added",
-      "code_id": "3cc3c950a1044e5ba16a672df55e0419"
+      "code_id": "8b06a7a1dcac40489c89f168e136333b"
     },
     {
       "sequence": 90,
       "type": "annotation_added",
-      "code_id": "de0303c2f04d46b485163d12ef177a10"
+      "code_id": "1cd420835e124445b24f6f4f98b3e730"
     },
     {
       "sequence": 91,
       "type": "annotation_added",
-      "code_id": "ed0f21f4d17248f0b5edd6187a6a5b6b"
+      "code_id": "e097db3d5c3f49318eda8da9182ab4a1"
     },
     {
       "sequence": 92,
       "type": "annotation_added",
-      "code_id": "bbce30ad284f47f085e3cdaf9e176a87"
+      "code_id": "b43d756b589a45b4a288f22e76143eb3"
     },
     {
       "sequence": 93,
       "type": "annotation_added",
-      "code_id": "4368ab89c8214c3b8524baa58e867653"
+      "code_id": "78f9d0cca32142fe95c1bfe54a91a294"
     },
     {
       "sequence": 94,
@@ -827,7 +797,7 @@
     {
       "sequence": 96,
       "type": "annotation_added",
-      "code_id": "727ed35137994789b1b923c170a16ea7"
+      "code_id": "979260ef32f0410698ad2c7e7cdc4193"
     },
     {
       "sequence": 97,
