@@ -57,6 +57,8 @@ presentation mode and should not be used by agents parsing results.
 | `bewley example fetch <name> [--dest DIR]` | Write a bundled example corpus (documents, README, license) into a new local directory. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |
 | `bewley rebuild-index` | Rebuild the SQLite index from the event log. |
+| `bewley project pack --output <file.bewley>` | Create a portable, integrity-checked project bundle. Refuses to overwrite or pack a project that fails `fsck`. |
+| `bewley project unpack <file.bewley> --dest <new-dir>` | Validate and restore a bundle into a new directory, rebuild its index, and run integrity checks. Never merges or overwrites. |
 | `bewley capabilities` | Describe the versioned agent interface and bundled schemas. |
 | `bewley agent status` | Return phase-aware, executable next actions with safety metadata. |
 | `bewley agent schema <name>` | Return the `envelope`, `action`, or `agent-status` schema. |
@@ -68,6 +70,7 @@ presentation mode and should not be used by agents parsing results.
 | `bewley add <path>` | Add a UTF-8 file as a new document. Prints the new `document_id`. |
 | `bewley add-audio <path> [--output F] [--model M]` | Transcribe audio via the OpenAI API (external paid call; envelope carries a cost warning) and add the transcript. |
 | `bewley add-video <path> [--output F] [--model M]` | Extract audio from video, transcribe it (external paid call), and add the transcript. |
+| `bewley import survey-csv <file> --transcript-column C [--feedback-column C] [--format auto\|json\|python\|plain] [--output-dir D] [--dry-run]` | Import one CSV row per document; safely flatten serialized role/content turns, exclude unselected columns, segment speakers, assign roles, and record source provenance. Refuses to overwrite an existing output directory. |
 | `bewley update <path>` | Create a new revision of an existing document. Prints `revision_id` or "no-op". |
 | `bewley list documents` | List all documents as JSON (document_id, path, revision_count). |
 | `bewley list codes [--tree]` | List all codes. Alias for `bewley code list`. |
@@ -98,6 +101,16 @@ presentation mode and should not be used by agents parsing results.
 | `bewley code lint` | Flag codebook quality problems (missing definitions or criteria, definitions that restate the name, unused codes, heavily-used codes without memos, near-duplicate names). Flags, never fixes. |
 | `bewley codebook release <name>` | Freeze the current structured codebook as a named, immutable snapshot (event-recorded). |
 | `bewley codebook diff <from> <to>` | Compare two releases: codes added, removed, and changed (definition, criteria, parent). |
+| `bewley codebook consolidate jobs [--output F] [--batch-size N] [--model M]` | Package active codes, counts, definitions, and representative evidence as external EDSL Jobs. Proposals are fingerprinted against the current codebook. |
+| `bewley codebook consolidate ingest <results.ep> [--jobs F]` | Validate consolidation Results and write a reviewable merge-proposal CSV. Conflicting, incomplete, or invented-id proposals fail closed. |
+| `bewley codebook consolidate candidates` | List proposed source→target merges with confidence, rationale, evidence IDs, and recorded decisions. |
+| `bewley codebook consolidate review <id> --decision accept\|reject [--reason R]` | Record an append-only human decision for one merge proposal; `--all-remaining` is supported. |
+| `bewley codebook consolidate apply [--dry-run]` | Preview or apply fully reviewed merges through ordinary `code_merged` events. Refuses stale codebook fingerprints and undecided proposals. |
+| `bewley codebook focused framework-jobs [--min-focused N] [--max-focused N] [--model M]` | Package one global EDSL job that constructs a fixed second-cycle framework from the complete compact open-code inventory. |
+| `bewley codebook focused framework-ingest <results.ep> [--jobs F]` | Validate the global theme/focused-code framework and preserve it with an append-only ingest sidecar. |
+| `bewley codebook focused mapping-jobs [--framework F] [--batch-size N] [--model M]` | Package batched exhaustive mappings against the same fixed global framework. Model execution remains external. |
+| `bewley codebook focused mapping-ingest <results.ep> [--jobs F] [--framework F]` | Require every active open code exactly once, reject unknown focused keys, and write an audited crosswalk CSV. |
+| `bewley codebook focused apply [--dry-run]` | Create theme → focused → open-code hierarchy events without deleting or moving original annotations. Refuses stale, incomplete, conflicting, or previously applied inputs. |
 
 ## Annotations
 
@@ -135,7 +148,7 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 |---|---|
 | `bewley export snippets --code <ref> --format jsonl\|text [--context-lines N]` | Export annotated text snippets. |
 | `bewley export quotes (--code <ref> \| --query '<expr>' \| --all) --format jsonl\|text [--context-lines N]` | Export quotes filtered by code or query, or `--all` to dump every active span annotation in the project. |
-| `bewley export html [--output F] [--title T]` | All codes and annotations as standalone HTML. |
+| `bewley export html [--output F] [--title T]` | Standalone interactive explorer with full-text search and highlighting, document/scope/status/memo filters, code definitions, prevalence and coverage analytics, proximity relationships, document density, and filtered JSON download. |
 | `bewley export document-html <ref> [--output F] [--title T]` | Single document with inline highlights as HTML. |
 | `bewley export plots [--output-dir DIR]` | Accessible SVGs: code prevalence, coding density, code co-occurrence, code × document matrix, code-discovery curve, review outcomes, in-document annotation positions, and codebook evolution, plus the underlying JSON manifest. The review-outcomes plot is written only when open-coding sidecar logs (`ingest_log.jsonl`/`apply_log.jsonl`) exist. |
 | `bewley export theory [--format json\|mermaid] [--output F]` | Code hierarchy + links as JSON or Mermaid diagram. |

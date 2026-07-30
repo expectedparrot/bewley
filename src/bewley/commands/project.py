@@ -6,9 +6,11 @@ from typing import Optional
 import typer
 
 from ..project import BewleyError, Project, cmd_status
+from ..bundle import pack_project, unpack_project
 from .common import HumanOption, QuietOption, action, fail, finish, get_project, should_emit_json
 
 app = typer.Typer(help="Project management.")
+bundle_app = typer.Typer(help="Pack or restore portable Bewley projects.")
 
 
 @app.command("init")
@@ -106,3 +108,41 @@ def rebuild_index_command(human: bool = HumanOption) -> None:
         finish(command, {"status": "rebuilt"})
     else:
         typer.echo("rebuilt")
+
+
+@bundle_app.command("pack")
+def pack_command(
+    output: Path = typer.Option(..., "--output", "-o", help="New .bewley bundle path."),
+    human: bool = HumanOption,
+) -> None:
+    """Pack the current project into a portable, integrity-checked bundle."""
+    command = "project pack"
+    json_flag = should_emit_json(human)
+    try:
+        project = get_project(command, json_flag)
+        result = pack_project(project, output)
+    except BewleyError as e:
+        fail(command, e, json_flag)
+    if json_flag:
+        finish(command, result)
+    else:
+        typer.echo(result["path"])
+
+
+@bundle_app.command("unpack")
+def unpack_command(
+    bundle: Path = typer.Argument(..., help="Source .bewley bundle."),
+    dest: Path = typer.Option(..., "--dest", "-d", help="New destination directory."),
+    human: bool = HumanOption,
+) -> None:
+    """Validate and restore a bundle into a new project directory."""
+    command = "project unpack"
+    json_flag = should_emit_json(human)
+    try:
+        result = unpack_project(bundle, dest)
+    except BewleyError as e:
+        fail(command, e, json_flag)
+    if json_flag:
+        finish(command, result)
+    else:
+        typer.echo(result["path"])

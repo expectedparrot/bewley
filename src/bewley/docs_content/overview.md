@@ -16,7 +16,7 @@ Bewley is a local-first CLI for qualitative coding of text corpora — interview
 |---|---|
 | **Project** | A directory with `.bewley/` metadata and a `corpus/` folder |
 | **Document** | A UTF-8 text file added to the corpus |
-| **Code** | A named analytic label (e.g., `trust_building`, `themes/rapport`) |
+| **Code** | A named analytic label. Codes may occupy an `open`, `focused`, or `theme` layer in a second-cycle hierarchy. |
 | **Annotation** | A code applied to a whole document or a text span |
 | **Memo** | A free-text analytic note attached to a code, document, or the project |
 | **Event log** | Append-only JSON log in `.bewley/events/` — the source of truth |
@@ -27,6 +27,12 @@ Bewley is a local-first CLI for qualitative coding of text corpora — interview
 2. **Text-first** — UTF-8 documents, byte/line span anchors
 3. **Full provenance** — every annotation and code change is logged with a timestamp
 4. **Rebuildable derived state** — SQLite is a cache; `bewley rebuild-index` recovers from events alone
+5. **Portable projects** — `bewley project pack` creates a versioned `.bewley`
+   bundle with a hashed manifest; `project unpack` validates it, restores into
+   a new directory, rebuilds SQLite, and runs the integrity checker
+6. **Layered interpretation** — focused coding adds theme and focused-code
+   parents while preserving first-cycle open codes and their annotations as
+   provenance
 
 ## Output format
 

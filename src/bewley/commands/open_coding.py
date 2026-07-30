@@ -11,6 +11,7 @@ from typing import Any, Optional
 import typer
 
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
+from bewley.commands.import_corpus import looks_like_serialized_transcript
 from bewley.project import BewleyError, safe_decode, utcnow
 
 
@@ -92,7 +93,10 @@ def _parse_answer(raw: Any) -> list[dict[str, Any]]:
         try:
             parsed = json.loads(fragment)
         except json.JSONDecodeError:
-            parsed = ast.literal_eval(fragment)
+            try:
+                parsed = ast.literal_eval(fragment)
+            except (SyntaxError, ValueError) as exc:
+                raise ValueError("answer does not contain a valid JSON array") from exc
     else:
         raise ValueError("answer is neither a list nor text")
     if not isinstance(parsed, list):
@@ -188,6 +192,11 @@ def jobs_command(
         help="With --from-failures: the originating Jobs, so never-returned scenarios are included.",
     ),
     force: bool = typer.Option(False, "--force", help="Replace an existing Jobs package."),
+    allow_structured_text: bool = typer.Option(
+        False,
+        "--allow-structured-text",
+        help="Package documents that appear to contain unflattened role/content records.",
+    ),
     human: bool = HumanOption,
 ) -> None:
     """Build an EDSL Jobs package; execute it separately with the ep CLI."""
@@ -204,6 +213,7 @@ def jobs_command(
         summary_path = _path(project.root, summary)
         corpus_summary = summary_path.read_text(encoding="utf-8") if summary_path.exists() else ""
         scenarios = []
+        structured_documents: list[str] = []
         with project.connect() as conn:
             documents = conn.execute(
                 "SELECT document_id, current_path FROM documents WHERE archived_at IS NULL ORDER BY current_path"
@@ -211,6 +221,8 @@ def jobs_command(
             for document in documents:
                 revision = project.current_revision(conn, document["document_id"])
                 text = safe_decode((project.objects_dir / revision["content_sha256"]).read_bytes())
+                if looks_like_serialized_transcript(text):
+                    structured_documents.append(document["current_path"])
                 scenarios.append(Scenario({
                     "document_id": document["document_id"],
                     "document_path": document["current_path"],
@@ -222,6 +234,19 @@ def jobs_command(
                     ),
                     "corpus_summary": corpus_summary,
                 }))
+        if structured_documents and not allow_structured_text:
+            raise BewleyError(
+                "The corpus contains serialized role/content turns rather than flattened transcripts.",
+                code="STRUCTURED_TRANSCRIPT_NOT_FLATTENED",
+                context={
+                    "document_count": len(structured_documents),
+                    "documents": structured_documents[:20],
+                },
+                hint=(
+                    "Import the source with `bewley import survey-csv ...` so turns become speaker-labelled "
+                    "text, or pass --allow-structured-text only when the serialized representation is intentional."
+                ),
+            )
         failed_documents: Optional[int] = None
         if from_failures is not None:
             failures_source = _path(project.root, from_failures)

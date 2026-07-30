@@ -13,7 +13,10 @@ PROSE_SOURCES = [
     REPO / "docs" / "index.html",
 ]
 
-_COMMAND_RE = re.compile(r"\bbewley ([a-z][a-z0-9-]*)(?: ([a-z][a-z0-9-]*))?")
+_COMMAND_RE = re.compile(
+    r"\bbewley ([a-z][a-z0-9-]*)(?: ([a-z][a-z0-9-]*))?"
+    r"(?: ([a-z][a-z0-9-]*))?"
+)
 _CODE_SPAN_RE = re.compile(
     r"```.*?```|`[^`\n]+`|<code>.*?</code>|<pre>.*?</pre>",
     re.DOTALL,
@@ -30,45 +33,42 @@ def _code_spans(text: str) -> str:
     return "\n".join(match.group(0) for match in _CODE_SPAN_RE.finditer(text))
 
 
-def _registered_commands() -> tuple[set[str], dict[str, set[str]]]:
+def _registered_commands() -> tuple[set[tuple[str, ...]], set[tuple[str, ...]]]:
     from bewley.cli import app
 
     def name_of(command) -> str:
         return command.name or command.callback.__name__.replace("_", "-")
 
-    top = {name_of(command) for command in app.registered_commands}
-    groups: dict[str, set[str]] = {}
-    for group in app.registered_groups:
-        groups[group.name] = {
-            name_of(command) for command in group.typer_instance.registered_commands
-        }
-    return top, groups
+    commands: set[tuple[str, ...]] = set()
+    groups: set[tuple[str, ...]] = set()
+
+    def walk(typer, prefix: tuple[str, ...] = ()) -> None:
+        commands.update(prefix + (name_of(command),) for command in typer.registered_commands)
+        for group in typer.registered_groups:
+            group_path = prefix + (group.name,)
+            groups.add(group_path)
+            walk(group.typer_instance, group_path)
+
+    walk(app)
+    return commands, groups
 
 
 def test_every_documented_command_exists() -> None:
-    top, groups = _registered_commands()
+    commands, groups = _registered_commands()
     problems: list[str] = []
     for source in PROSE_SOURCES:
         text = _code_spans(source.read_text(encoding="utf-8"))
         for match in _COMMAND_RE.finditer(text):
-            first, second = match.group(1), match.group(2)
-            if first in top:
-                continue
-            if first in groups:
-                # Second token, when present and word-like, must be a real
-                # subcommand; bare group references are fine.
-                if second is not None and second not in groups[first]:
-                    problems.append(f"{source.name}: bewley {first} {second}")
-                continue
-            problems.append(f"{source.name}: bewley {first}")
+            path = tuple(part for part in match.groups() if part is not None)
+            is_command = any(path[:len(command)] == command for command in commands)
+            if not is_command and path not in groups:
+                problems.append(f"{source.name}: bewley {' '.join(path)}")
     assert problems == [], "documented commands missing from the CLI:\n" + "\n".join(problems)
 
 
 def test_every_command_is_documented_in_reference() -> None:
-    top, groups = _registered_commands()
+    commands, _ = _registered_commands()
     reference = (DOCS_CONTENT / "commands.md").read_text(encoding="utf-8")
-    paths = sorted(top) + sorted(
-        f"{group} {sub}" for group, subs in groups.items() for sub in subs
-    )
-    missing = [path for path in paths if f"bewley {path}" not in reference]
+    command_paths = sorted(" ".join(path) for path in commands)
+    missing = [path for path in command_paths if f"bewley {path}" not in reference]
     assert missing == [], "commands missing from docs_content/commands.md:\n" + "\n".join(missing)

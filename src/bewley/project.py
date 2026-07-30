@@ -174,6 +174,7 @@ _SCHEMA_SQL = """
                   canonical_name TEXT NOT NULL UNIQUE,
                   description TEXT,
                   color TEXT,
+                  code_layer TEXT NOT NULL DEFAULT 'open',
                   status TEXT NOT NULL,
                   created_at TEXT NOT NULL
                 );
@@ -310,6 +311,12 @@ _SCHEMA_SQL = """
                   byte_end INTEGER,
                   decided_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS consolidation_decisions (
+                  candidate_id TEXT PRIMARY KEY,
+                  decision TEXT NOT NULL,
+                  reason TEXT,
+                  decided_at TEXT NOT NULL
+                );
                 """
 
 REVIEW_DECISIONS = ("accept", "reject", "map", "adjust")
@@ -416,6 +423,10 @@ class Project:
             pass
         try:
             conn.execute("ALTER TABLE codes ADD COLUMN merged_into TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE codes ADD COLUMN code_layer TEXT NOT NULL DEFAULT 'open'")
         except sqlite3.OperationalError:
             pass
         try:
@@ -686,10 +697,16 @@ class Project:
         if etype == "code_created":
             conn.execute(
                 """
-                INSERT INTO codes (code_id, canonical_name, description, color, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO codes (
+                  code_id, canonical_name, description, color, code_layer, status, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (payload["code_id"], payload["canonical_name"], payload.get("description"), payload.get("color"), "active", event["timestamp"]),
+                (
+                    payload["code_id"], payload["canonical_name"],
+                    payload.get("description"), payload.get("color"),
+                    payload.get("code_layer", "open"), "active", event["timestamp"],
+                ),
             )
             return
         if etype == "code_renamed":
@@ -934,6 +951,12 @@ class Project:
                  event["timestamp"]),
             )
             return
+        if etype == "consolidation_decision_recorded":
+            conn.execute(
+                "INSERT OR REPLACE INTO consolidation_decisions (candidate_id, decision, reason, decided_at) VALUES (?, ?, ?, ?)",
+                (payload["candidate_id"], payload["decision"], payload.get("reason"), event["timestamp"]),
+            )
+            return
         if etype == "core_category_set":
             conn.execute(
                 "INSERT OR REPLACE INTO project_settings (key, value, updated_at) VALUES ('core_category_code_id', ?, ?)",
@@ -958,6 +981,10 @@ class Project:
             self.apply_undo(conn, payload, event)
             return
         if etype == "index_rebuilt":
+            return
+        if etype == "survey_csv_imported":
+            # Import provenance is durable in the event payload and manifest;
+            # document and speaker projections come from their own events.
             return
         raise BewleyError(f"unsupported event type in projection: {etype}")
 
@@ -2134,11 +2161,54 @@ class Project:
             except sqlite3.OperationalError:
                 return {}
 
-    def add_code(self, name: str, description: str | None = None, color: str | None = None) -> dict[str, Any]:
+    def record_consolidation_decision(
+        self, candidate_id: str, decision: str, reason: str | None = None,
+    ) -> dict[str, Any]:
+        if decision not in {"accept", "reject"}:
+            raise BewleyError(
+                f"unknown consolidation decision: {decision}",
+                code="INVALID_INPUT",
+                context={"allowed_decisions": ["accept", "reject"]},
+            )
+        payload = {"candidate_id": candidate_id, "decision": decision}
+        if reason:
+            payload["reason"] = reason
+        return self.append_event("consolidation_decision_recorded", payload)
+
+    def consolidation_decisions(self) -> dict[str, dict[str, Any]]:
+        """Latest recorded consolidation decision per candidate id."""
+        with self.connect() as conn:
+            try:
+                return {
+                    row["candidate_id"]: dict(row)
+                    for row in conn.execute("SELECT * FROM consolidation_decisions")
+                }
+            except sqlite3.OperationalError:
+                return {}
+
+    def add_code(
+        self,
+        name: str,
+        description: str | None = None,
+        color: str | None = None,
+        *,
+        code_layer: str = "open",
+    ) -> dict[str, Any]:
+        if code_layer not in {"open", "focused", "theme"}:
+            raise BewleyError("invalid code layer", code="INVALID_INPUT")
         with self.connect() as conn:
             if self.code_name_taken(conn, name):
                 raise BewleyError(f"code name already exists: {name}", code="ALREADY_EXISTS")
-        return self.append_event("code_created", {"code_id": uuid.uuid4().hex, "canonical_name": name, "description": description, "color": color})
+        return self.append_event(
+            "code_created",
+            {
+                "code_id": uuid.uuid4().hex,
+                "canonical_name": name,
+                "description": description,
+                "color": color,
+                "code_layer": code_layer,
+            },
+        )
 
     def rename_code(self, old_ref: str, new_name: str, new_description: str | None = None) -> dict[str, Any]:
         with self.connect() as conn:
@@ -3433,5 +3503,3 @@ def cmd_export_document_html(project: Project, document_ref: str, output_path: s
 
 
 # ── Workflow phase constants ──────────────────────────────────────────────────
-
-

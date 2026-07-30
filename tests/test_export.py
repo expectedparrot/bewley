@@ -72,6 +72,25 @@ class TestExportHtml:
         html_content = report_path.read_text(encoding="utf-8")
         assert "Test Study" in html_content
         assert "trust" in html_content
+        # Whole-document annotations have no exact_text; search must use the
+        # embedded document text rather than only annotation metadata.
+        assert '(docTexts[s.document_path] || []).join("\\n")' in html_content
+        assert '"analytics": {' in html_content
+        assert 'id="document-filter"' in html_content
+        assert 'id="prevalence"' in html_content
+        assert 'id="download-results"' in html_content
+        assert 'data-tab="documents"' in html_content
+        assert 'data-tab="stats"' in html_content
+        assert 'id="document-list"' in html_content
+        assert 'class="copy-text"' in html_content
+        assert 'class="open-document"' in html_content
+        assert "Open full document" in html_content
+        assert "scrollIntoView" in html_content
+        assert 'class="go-document-top"' in html_content
+        assert "Go to top" in html_content
+        assert 'scrollTo({top: 0, behavior: "smooth"})' in html_content
+        assert "navigator.clipboard.writeText" in html_content
+        assert "function highlighted(v)" in html_content
 
     def test_document_html(self, project: BewleyProject) -> None:
         project.cli_ok("code", "create", "friction")

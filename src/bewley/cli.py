@@ -18,6 +18,8 @@ from bewley.commands.agent import (
 )
 from bewley.commands.codegen import app as codegen_app
 from bewley.commands.codes import app as code_app, codebook_app
+from bewley.commands.consolidation import app as consolidation_app
+from bewley.commands.focused_coding import app as focused_coding_app
 from bewley.commands.docs import app as docs_app
 from bewley.commands.documents import (
     add_audio_command,
@@ -30,9 +32,10 @@ from bewley.commands.documents import (
 from bewley.commands.examples import app as example_app
 from bewley.commands.export import app as export_app
 from bewley.commands.history import history_command, undo_command
+from bewley.commands.import_corpus import app as import_app
 from bewley.commands.memos import app as memo_app
 from bewley.commands.open_coding import app as open_coding_app
-from bewley.commands.project import fsck_command, init_command, rebuild_index_command, status_command
+from bewley.commands.project import bundle_app as project_app, fsck_command, init_command, rebuild_index_command, status_command
 from bewley.commands.cases import attribute_app, case_app, link_app
 from bewley.commands.query import query_command
 from bewley.commands.speakers import app as speakers_app
@@ -49,6 +52,7 @@ app.command("init")(init_command)
 app.command("status")(status_command)
 app.command("fsck")(fsck_command)
 app.command("rebuild-index")(rebuild_index_command)
+app.add_typer(project_app, name="project")
 app.command("add")(add_command)
 app.command("add-audio")(add_audio_command)
 app.command("add-video")(add_video_command)
@@ -60,6 +64,8 @@ app.add_typer(show_app, name="show")
 
 # Code management
 app.add_typer(code_app, name="code")
+codebook_app.add_typer(consolidation_app, name="consolidate")
+codebook_app.add_typer(focused_coding_app, name="focused")
 app.add_typer(codebook_app, name="codebook")
 
 # Annotation management
@@ -87,6 +93,7 @@ app.add_typer(case_app, name="case")
 app.add_typer(attribute_app, name="attribute")
 app.add_typer(link_app, name="link")
 app.add_typer(speakers_app, name="speakers")
+app.add_typer(import_app, name="import")
 
 # Codegen
 app.add_typer(codegen_app, name="codegen")

@@ -33,8 +33,9 @@ ENVELOPE_SCHEMA_VERSION = "2.0"
 _COMMAND_GROUPS = {
     "list", "show", "code", "annotate", "export", "memo",
     "docs", "codegen", "open-coding", "agent", "example", "study", "question",
-    "case", "attribute", "link", "speakers", "codebook",
+    "case", "attribute", "link", "speakers", "codebook", "import",
 }
+_NESTED_GROUPS = {("codebook", "consolidate"), ("codebook", "focused")}
 
 
 def command_argv() -> list[str]:
@@ -47,7 +48,11 @@ def command_name() -> str:
     args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
     if not args:
         return "bewley"
-    depth = 2 if args[0] in _COMMAND_GROUPS and len(args) > 1 else 1
+    depth = (
+        3 if len(args) > 2 and (args[0], args[1]) in _NESTED_GROUPS
+        else 2 if args[0] in _COMMAND_GROUPS and len(args) > 1
+        else 1
+    )
     return " ".join(["bewley", *args[:depth]])
 
 

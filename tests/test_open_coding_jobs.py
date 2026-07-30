@@ -129,7 +129,12 @@ def _broken_result(scenario_data: dict, model_name: str = "test"):
         scenario=Scenario(scenario_data),
         model=Model(model_name),
         iteration=0,
-        answer={"open_coding": "this is not a JSON array"},
+        answer={
+            "open_coding": (
+                "[{'code': 'broken', 'description': 'bad', "
+                "'quote': 'unterminated}]"
+            )
+        },
     )
 
 

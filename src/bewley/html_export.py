@@ -13,8 +13,12 @@ if TYPE_CHECKING:
 
 
 def code_explorer_payload(project: Project) -> dict[str, Any]:
+    # Imported lazily to avoid the project -> html_export -> plots -> project
+    # import cycle during CLI startup.
+    from .plots import plot_data
+
     with project.connect() as conn:
-        codes = conn.execute(
+        code_rows = conn.execute(
             "SELECT c.*, COUNT(DISTINCT CASE WHEN a.is_active = 1 THEN a.annotation_id END) AS annotation_count, COUNT(DISTINCT CASE WHEN a.is_active = 1 THEN a.document_id END) AS document_count FROM codes c LEFT JOIN annotations a ON a.code_id = c.code_id GROUP BY c.code_id ORDER BY annotation_count DESC, c.canonical_name"
         ).fetchall()
         alias_rows = conn.execute("SELECT code_id, alias_name FROM code_aliases ORDER BY alias_name").fetchall()
@@ -32,9 +36,77 @@ def code_explorer_payload(project: Project) -> dict[str, Any]:
     aliases_by_code: dict[str, list[str]] = {}
     for row in alias_rows:
         aliases_by_code.setdefault(row["code_id"], []).append(row["alias_name"])
-    code_items = [{"code_id": row["code_id"], "name": row["canonical_name"], "description": row["description"], "status": row["status"], "annotation_count": row["annotation_count"], "document_count": row["document_count"], "display_color": coerce_code_color(row["color"], row["canonical_name"]), "aliases": aliases_by_code.get(row["code_id"], [])} for row in codes]
-    snippet_items = [{"annotation_id": row["annotation_id"], "code_id": row["code_id"], "code_name": row["canonical_name"], "code_color": coerce_code_color(row["color"], row["canonical_name"]), "document_path": row["current_path"], "scope_type": row["scope_type"], "start_line": row["start_line"], "end_line": row["end_line"], "anchor_status": row["anchor_status"], "memo": row["memo"], "exact_text": row["exact_text"]} for row in annotations]
-    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len({item["document_path"] for item in snippet_items}), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts}
+    code_by_id = {row["code_id"]: dict(row) for row in code_rows}
+    focused_rows = [
+        row for row in code_rows
+        if row["status"] == "active" and row["code_layer"] == "focused"
+    ]
+
+    def focused_ancestor(code_id: str) -> dict[str, Any] | None:
+        current = code_by_id.get(code_id)
+        visited: set[str] = set()
+        while current and current["code_id"] not in visited:
+            visited.add(current["code_id"])
+            if current["status"] == "merged" and current["merged_into"]:
+                current = code_by_id.get(current["merged_into"])
+                continue
+            if current["code_layer"] == "focused":
+                return current
+            current = code_by_id.get(current["parent_code_id"])
+        return None
+
+    snippet_items = []
+    focused_annotations: dict[str, set[str]] = {}
+    focused_documents: dict[str, set[str]] = {}
+    for row in annotations:
+        original = code_by_id[row["code_id"]]
+        focused = focused_ancestor(row["code_id"]) if focused_rows else None
+        display = focused or original
+        snippet_items.append({
+            "annotation_id": row["annotation_id"],
+            "code_id": display["code_id"],
+            "code_name": display["canonical_name"],
+            "code_color": coerce_code_color(display["color"], display["canonical_name"]),
+            "open_code_id": original["code_id"],
+            "open_code_name": original["canonical_name"],
+            "document_path": row["current_path"],
+            "scope_type": row["scope_type"],
+            "start_line": row["start_line"],
+            "end_line": row["end_line"],
+            "anchor_status": row["anchor_status"],
+            "memo": row["memo"],
+            "exact_text": row["exact_text"],
+        })
+        focused_annotations.setdefault(display["code_id"], set()).add(row["annotation_id"])
+        focused_documents.setdefault(display["code_id"], set()).add(row["current_path"])
+    visible_codes = focused_rows if focused_rows else code_rows
+    open_children: dict[str, list[str]] = {}
+    for row in code_rows:
+        if row["status"] == "active" and row["code_layer"] == "open" and row["parent_code_id"]:
+            open_children.setdefault(row["parent_code_id"], []).append(row["canonical_name"])
+    code_items = [{
+        "code_id": row["code_id"],
+        "name": row["canonical_name"],
+        "description": row["description"],
+        "inclusion_criteria": row["inclusion_criteria"],
+        "exclusion_criteria": row["exclusion_criteria"],
+        "parent_code_id": row["parent_code_id"],
+        "theme_name": (
+            code_by_id[row["parent_code_id"]]["canonical_name"]
+            if row["parent_code_id"] in code_by_id
+            and code_by_id[row["parent_code_id"]]["code_layer"] == "theme"
+            else None
+        ),
+        "open_codes": sorted(open_children.get(row["code_id"], [])),
+        "layer": row["code_layer"],
+        "status": row["status"],
+        "annotation_count": len(focused_annotations.get(row["code_id"], set())),
+        "document_count": len(focused_documents.get(row["code_id"], set())),
+        "display_color": coerce_code_color(row["color"], row["canonical_name"]),
+        "aliases": aliases_by_code.get(row["code_id"], []),
+    } for row in visible_codes]
+    code_items.sort(key=lambda item: (-item["annotation_count"], item["name"]))
+    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len({item["document_path"] for item in snippet_items}), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts, "analytics": plot_data(project)}
 
 
 def document_viewer_payload(project: Project, document_ref: str) -> dict[str, Any]:
@@ -173,6 +245,27 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       color: var(--ep-green);
       font-size: 0.9rem;
     }}
+    .tabs {{
+      display: flex;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--ep-border);
+    }}
+    .tab {{
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--ep-gray);
+      padding: 0.55rem 0.9rem;
+      font: 600 0.85rem var(--font-sans);
+      cursor: pointer;
+    }}
+    .tab:hover {{ color: var(--ep-dark); }}
+    .tab.is-active {{
+      color: var(--ep-green);
+      border-bottom-color: var(--ep-green);
+    }}
+    .tab-panel[hidden] {{ display: none; }}
     .summary {{
       display: flex;
       gap: 1.5rem;
@@ -222,6 +315,45 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       color: white;
       border-color: var(--ep-green);
     }}
+    .controls select {{
+      border: 1px solid var(--ep-border);
+      border-radius: 4px;
+      padding: 6px 9px;
+      background: #fff;
+      font: inherit;
+      font-size: 0.8rem;
+      max-width: 240px;
+    }}
+    .dashboard {{
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 1rem;
+    }}
+    .metric {{
+      border: 1px solid var(--ep-border);
+      border-radius: 6px;
+      padding: 9px 11px;
+      background: var(--ep-light-gray);
+    }}
+    .metric strong {{ display: block; font-size: 1.15rem; color: var(--ep-green); }}
+    .metric span {{ color: var(--ep-gray); font-size: 0.75rem; }}
+    .analysis {{
+      border: 1px solid var(--ep-border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 1rem;
+    }}
+    .analysis h2 {{ margin: 0 0 8px; font: 600 1rem var(--font-serif); color: var(--ep-green); }}
+    .analysis-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
+    .rank-list {{ display: grid; gap: 5px; }}
+    .rank-row {{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: .8rem; }}
+    .bar {{ height: 5px; margin-top: 2px; background: var(--ep-border); border-radius: 5px; overflow: hidden; }}
+    .bar > i {{ display: block; height: 100%; background: var(--ep-green-light); }}
+    .analysis button.link-button {{
+      border: 0; padding: 0; background: none; color: inherit; text-align: left; cursor: pointer;
+    }}
+    mark.search-hit {{ background: #ffe36e; color: inherit; }}
     .layout {{
       display: grid;
       grid-template-columns: 240px minmax(0, 1fr);
@@ -282,6 +414,10 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       display: grid;
       gap: 8px;
     }}
+    .document-list {{
+      display: grid;
+      gap: 10px;
+    }}
     .snippet {{
       border: 1px solid var(--ep-border);
       border-radius: 6px;
@@ -316,6 +452,22 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       color: var(--ep-gray);
       font-size: 0.78rem;
     }}
+    .text-actions {{
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 4px;
+    }}
+    .copy-text, .open-document, .go-document-top {{
+      border: 1px solid var(--ep-border);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--ep-gray);
+      padding: 3px 8px;
+      font: 0.72rem var(--font-sans);
+      cursor: pointer;
+    }}
+    .copy-text:hover, .open-document:hover, .go-document-top:hover {{ background: var(--ep-light-gray); color: var(--ep-dark); }}
+    .copy-text.is-copied {{ color: var(--ep-green); border-color: var(--ep-green); }}
     .context-scroll {{
       max-height: 260px;
       overflow: auto;
@@ -364,6 +516,64 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       color: var(--ep-gray);
       display: inline;
     }}
+    .document-card pre {{
+      margin: 0;
+      padding: 10px 12px;
+      max-height: 420px;
+      overflow: auto;
+      border: 1px solid var(--ep-border);
+      border-radius: 4px;
+      background: var(--ep-light-gray);
+      white-space: pre-wrap;
+      font: 0.82rem/1.55 var(--font-mono);
+    }}
+    .document-card.is-focused {{
+      border-color: var(--ep-green);
+      box-shadow: 0 0 0 3px var(--ep-green-soft);
+    }}
+    .codebook-list {{
+      display: grid;
+      gap: 10px;
+    }}
+    .codebook-card {{
+      border: 1px solid var(--ep-border);
+      border-radius: 6px;
+      background: #fff;
+      overflow: hidden;
+    }}
+    .codebook-card summary {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      cursor: pointer;
+      padding: 11px 13px;
+      background: var(--ep-light-gray);
+    }}
+    .codebook-card summary:hover {{ background: var(--ep-green-soft); }}
+    .codebook-title {{ font-weight: 700; }}
+    .codebook-theme {{ color: var(--ep-green); font-size: 0.78rem; margin-top: 2px; }}
+    .codebook-body {{ padding: 12px 13px; display: grid; gap: 10px; }}
+    .codebook-field strong {{
+      display: block;
+      color: var(--ep-green);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 2px;
+    }}
+    .open-code-list {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }}
+    .open-code-pill {{
+      border: 1px solid var(--ep-border);
+      border-radius: 3px;
+      padding: 2px 6px;
+      background: var(--ep-light-gray);
+      font: 0.72rem var(--font-mono);
+    }}
     .snippet .memo {{
       margin: 6px 0 0;
       font-size: 0.85rem;
@@ -391,6 +601,8 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       .code-list {{
         max-height: none;
       }}
+      .dashboard {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .analysis-grid {{ grid-template-columns: 1fr; }}
     }}
   </style>
 </head>
@@ -400,40 +612,98 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       <h1>{safe_title}</h1>
       <span class="brand">E[&#x1f99c;] Expected Parrot</span>
     </header>
-    <div class="summary" id="summary"></div>
-    <div class="controls">
-      <input id="search" class="search" type="search" placeholder="Search codes, documents, snippet text&hellip;">
-      <button class="is-active" data-scope="all" type="button">All</button>
-      <button data-scope="span" type="button">Span</button>
-      <button data-scope="document" type="button">Document</button>
-      <button id="clear-filters" type="button">Clear</button>
-    </div>
-    <div class="layout">
-      <aside class="sidebar">
-        <h2>Codes</h2>
-        <div class="code-list" id="code-list"></div>
-      </aside>
+    <nav class="tabs" aria-label="Explorer views">
+      <button class="tab is-active" data-tab="snippets" type="button">Snippets</button>
+      <button class="tab" data-tab="codebook" type="button">Codebook</button>
+      <button class="tab" data-tab="documents" type="button">Documents</button>
+      <button class="tab" data-tab="stats" type="button">Stats</button>
+    </nav>
+    <section class="tab-panel" id="panel-snippets" data-panel="snippets">
+      <div class="controls">
+        <input id="search" class="search" type="search" placeholder="Search codes, documents, snippet text&hellip;">
+        <select id="document-filter" aria-label="Filter by document"><option value="">All documents</option></select>
+        <select id="anchor-filter" aria-label="Filter by anchor status"><option value="">Any anchor status</option><option value="clean">Clean</option><option value="relocated">Relocated</option><option value="conflicted">Conflicted</option></select>
+        <button class="is-active" data-scope="all" type="button">All</button>
+        <button data-scope="span" type="button">Span</button>
+        <button data-scope="document" type="button">Document</button>
+        <button id="memo-filter" type="button">Has memo</button>
+        <button id="download-results" type="button">Download JSON</button>
+        <button id="clear-filters" type="button">Clear</button>
+      </div>
+      <div class="layout">
+        <aside class="sidebar">
+          <h2>Codes</h2>
+          <div class="code-list" id="code-list"></div>
+        </aside>
+        <main class="main">
+          <h2>Snippets</h2>
+          <div class="snippet-list" id="snippet-list"></div>
+        </main>
+      </div>
+    </section>
+    <section class="tab-panel" id="panel-codebook" data-panel="codebook" hidden>
+      <div class="controls">
+        <input id="codebook-search" class="search" type="search" placeholder="Search focused codes, themes, definitions, and open codes&hellip;">
+        <button id="expand-codebook" type="button">Expand all</button>
+        <button id="collapse-codebook" type="button">Collapse all</button>
+      </div>
       <main class="main">
-        <h2>Snippets</h2>
-        <div class="snippet-list" id="snippet-list"></div>
+        <h2>Focused Codebook</h2>
+        <div class="summary" id="codebook-summary"></div>
+        <div class="codebook-list" id="codebook-list"></div>
       </main>
-    </div>
+    </section>
+    <section class="tab-panel" id="panel-documents" data-panel="documents" hidden>
+      <main class="main">
+        <h2>Documents</h2>
+        <div class="document-list" id="document-list"></div>
+      </main>
+    </section>
+    <section class="tab-panel" id="panel-stats" data-panel="stats" hidden>
+      <div class="summary" id="summary"></div>
+      <div class="dashboard" id="dashboard"></div>
+      <section class="analysis">
+        <h2>Analysis</h2>
+        <div class="analysis-grid">
+          <div><strong>Code prevalence &amp; text coverage</strong><div id="prevalence" class="rank-list"></div></div>
+          <div><strong>Related codes / densest documents</strong><div id="relationships" class="rank-list"></div></div>
+        </div>
+      </section>
+    </section>
     <div class="footer" id="footer"></div>
   </div>
   <script>
     const data = {data_json};
     const docTexts = data.document_texts || {{}};
-    const state = {{ selectedCode: null, scope: "all", search: "" }};
+    const documents = Object.entries(docTexts).sort(([left], [right]) => left.localeCompare(right));
+    const documentIndexByPath = new Map(documents.map(([path], index) => [path, index]));
+    const analytics = data.analytics || {{}};
+    const state = {{ selectedCode: null, scope: "all", search: "", codebookSearch: "", documentPath: "", anchorStatus: "", memoOnly: false, activeTab: "snippets" }};
 
     const codeListEl = document.getElementById("code-list");
+    const codebookListEl = document.getElementById("codebook-list");
+    const codebookSearchEl = document.getElementById("codebook-search");
     const snippetListEl = document.getElementById("snippet-list");
+    const documentListEl = document.getElementById("document-list");
     const summaryEl = document.getElementById("summary");
     const footerEl = document.getElementById("footer");
     const searchEl = document.getElementById("search");
+    const documentFilterEl = document.getElementById("document-filter");
+    const anchorFilterEl = document.getElementById("anchor-filter");
     const scopeButtons = Array.from(document.querySelectorAll("[data-scope]"));
+    const tabButtons = Array.from(document.querySelectorAll("[data-tab]"));
+    const tabPanels = Array.from(document.querySelectorAll("[data-panel]"));
 
     function escapeHtml(v) {{
-      return v.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+      return String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+    }}
+
+    function highlighted(v) {{
+      const text = String(v ?? "");
+      if (!state.search) return escapeHtml(text);
+      const at = text.toLowerCase().indexOf(state.search);
+      if (at < 0) return escapeHtml(text);
+      return escapeHtml(text.slice(0, at)) + `<mark class="search-hit">${{escapeHtml(text.slice(at, at + state.search.length))}}</mark>` + escapeHtml(text.slice(at + state.search.length));
     }}
 
     function cardForCode(code) {{
@@ -444,6 +714,7 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
           <span class="code-name">${{escapeHtml(code.name)}}</span>
         </div>
         <div class="code-meta">${{code.annotation_count}} annot · ${{code.document_count}} doc${{code.document_count !== 1 ? "s" : ""}}</div>
+        ${{code.description ? `<div class="code-meta">${{escapeHtml(code.description)}}</div>` : ""}}
       </div>`;
     }}
 
@@ -451,18 +722,19 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       if (snippet.scope_type === "document") {{
         const lines = docTexts[snippet.document_path];
         if (lines && lines.length > 0) {{
-          const maxLines = Math.min(lines.length, 60);
-          let parts = lines.slice(0, maxLines).map(l => `<span class="ctx">${{escapeHtml(l)}}</span>`);
-          if (lines.length > maxLines) {{
-            parts.push(`<span class="ctx">... (${{lines.length - maxLines}} more lines)</span>`);
-          }}
+          const matchLine = state.search ? lines.findIndex(line => line.toLowerCase().includes(state.search)) : -1;
+          const first = matchLine >= 0 ? Math.max(0, matchLine - 10) : 0;
+          const last = Math.min(lines.length, first + 60);
+          let parts = lines.slice(first, last).map(l => `<span class="ctx">${{highlighted(l)}}</span>`);
+          if (first > 0) parts.unshift(`<span class="ctx">... (${{first}} earlier lines)</span>`);
+          if (last < lines.length) parts.push(`<span class="ctx">... (${{lines.length - last}} more lines)</span>`);
           return `<pre>${{parts.join("\\n")}}</pre>`;
         }}
         return `<pre>&lt;document-level annotation&gt;</pre>`;
       }}
       const lines = docTexts[snippet.document_path];
       if (!lines) {{
-        return `<pre>${{escapeHtml(snippet.exact_text || "")}}</pre>`;
+        return `<pre>${{highlighted(snippet.exact_text || "")}}</pre>`;
       }}
       const start = snippet.start_line;
       const end = snippet.end_line;
@@ -471,7 +743,7 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       let parts = [];
       for (let i = ctxBefore; i < ctxAfter; i++) {{
         const lineNum = i + 1;
-        const escaped = escapeHtml(lines[i]);
+        const escaped = highlighted(lines[i]);
         if (lineNum >= start && lineNum <= end) {{
           parts.push(`<span class="hl">${{escaped}}</span>`);
         }} else {{
@@ -479,6 +751,17 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
         }}
       }}
       return `<pre>${{parts.join("\\n")}}</pre>`;
+    }}
+
+    function snippetCopyText(snippet) {{
+      if (snippet.scope_type === "document") {{
+        return (docTexts[snippet.document_path] || []).join("\\n") || snippet.exact_text || "";
+      }}
+      const lines = docTexts[snippet.document_path];
+      if (!lines) return snippet.exact_text || "";
+      const start = Math.max(0, snippet.start_line - 1 - 10);
+      const end = Math.min(lines.length, snippet.end_line + 10);
+      return lines.slice(start, end).join("\\n");
     }}
 
     function snippetCard(snippet) {{
@@ -491,23 +774,51 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
         <div class="snippet-head">
           <div class="snippet-title">
             <span class="chip"><span class="swatch" style="background:${{snippet.code_color}}"></span>${{escapeHtml(snippet.code_name)}}</span>
+            ${{snippet.open_code_name && snippet.open_code_name !== snippet.code_name
+              ? `<span class="snippet-meta">Open code: ${{escapeHtml(snippet.open_code_name)}}</span>`
+              : ""}}
           </div>
           <div class="snippet-meta">${{escapeHtml(snippet.document_path)}} &middot; ${{escapeHtml(range)}}</div>
+        </div>
+        <div class="text-actions">
+          <button class="open-document" data-open-document="${{documentIndexByPath.get(snippet.document_path)}}" type="button">Open full document</button>
+          <button class="copy-text" data-copy-snippet="${{snippet.annotation_id}}" type="button">Copy text</button>
         </div>
         <div class="context-scroll">${{contextHtml}}<button class="recenter" type="button">&uarr; Back to highlight</button></div>
         ${{memo}}
       </article>`;
     }}
 
+    function documentCard(path, lines, index) {{
+      return `<article class="snippet document-card" id="document-card-${{index}}">
+        <div class="snippet-head">
+          <strong>${{escapeHtml(path)}}</strong>
+          <span class="snippet-meta">${{lines.length}} line${{lines.length !== 1 ? "s" : ""}}</span>
+        </div>
+        <div class="text-actions"><button class="copy-text" data-copy-document="${{index}}" type="button">Copy text</button></div>
+        <pre>${{escapeHtml(lines.join("\\n"))}}</pre>
+        <div class="text-actions"><button class="go-document-top" data-document-top="${{index}}" type="button">Go to top</button></div>
+      </article>`;
+    }}
+
     function matchesSnippet(s) {{
       if (state.selectedCode && s.code_id !== state.selectedCode) return false;
       if (state.scope !== "all" && s.scope_type !== state.scope) return false;
+      if (state.documentPath && s.document_path !== state.documentPath) return false;
+      if (state.anchorStatus && s.anchor_status !== state.anchorStatus) return false;
+      if (state.memoOnly && !s.memo) return false;
       if (!state.search) return true;
-      return [s.code_name, s.document_path, s.memo||"", s.exact_text||""].join("\\n").toLowerCase().includes(state.search);
+      const documentText = s.scope_type === "document"
+        ? (docTexts[s.document_path] || []).join("\\n")
+        : "";
+      return [s.code_name, s.open_code_name||"", s.document_path, s.memo||"", s.exact_text||"", documentText]
+        .join("\\n")
+        .toLowerCase()
+        .includes(state.search);
     }}
 
     function renderSummary(snippets) {{
-      const codes = state.selectedCode ? 1 : data.codes.length;
+      const codes = new Set(snippets.map(s => s.code_id)).size;
       const docs = new Set(snippets.map(s => s.document_path)).size;
       const conflicted = snippets.filter(s => s.anchor_status === "conflicted").length;
       summaryEl.innerHTML = [
@@ -518,15 +829,135 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       ].filter(Boolean).join("");
     }}
 
+    function renderDashboard(snippets) {{
+      const selectedAnalytic = (analytics.codes || []).find(c => c.code_id === state.selectedCode);
+      const coverage = selectedAnalytic ? `${{(100 * selectedAnalytic.coverage_share).toFixed(1)}}%` : "—";
+      const memoCount = snippets.filter(s => s.memo).length;
+      document.getElementById("dashboard").innerHTML = [
+        [new Set(snippets.map(s => s.code_id)).size, "codes in view"],
+        [snippets.length, "annotations in view"],
+        [new Set(snippets.map(s => s.document_path)).size, "documents in view"],
+        [state.selectedCode ? coverage : memoCount, state.selectedCode ? "corpus coverage" : "annotations with memos"],
+      ].map(([value, label]) => `<div class="metric"><strong>${{value}}</strong><span>${{label}}</span></div>`).join("");
+    }}
+
+    function selectCode(codeId) {{
+      state.selectedCode = state.selectedCode === codeId ? null : codeId;
+      render();
+    }}
+
+    function renderAnalysis() {{
+      const codeById = new Map(data.codes.map(c => [c.code_id, c]));
+      const analyticCodes = (analytics.codes || []).slice(0, 10);
+      const maxAnnotations = Math.max(1, ...analyticCodes.map(c => c.annotations));
+      document.getElementById("prevalence").innerHTML = analyticCodes.map(c => `
+        <div class="rank-row"><div><button class="link-button" data-analysis-code="${{c.code_id}}">${{escapeHtml(c.canonical_name)}}</button>
+        <div class="bar"><i style="width:${{100*c.annotations/maxAnnotations}}%"></i></div></div>
+        <span>${{c.annotations}} · ${{(100*c.coverage_share).toFixed(1)}}%</span></div>`).join("") || `<span class="code-meta">No analytic data.</span>`;
+      let related = [];
+      if (state.selectedCode) {{
+        related = (analytics.cooccurrence || [])
+          .filter(p => p.left_id === state.selectedCode || p.right_id === state.selectedCode)
+          .map(p => ({{ code_id: p.left_id === state.selectedCode ? p.right_id : p.left_id, value: p.pairs }}))
+          .sort((a,b) => b.value-a.value).slice(0, 10)
+          .map(row => ({{...row, label: codeById.get(row.code_id)?.name || row.code_id}}));
+      }} else {{
+        const pathById = new Map((analytics.documents || []).map(d => [d.document_id, d.current_path]));
+        related = (analytics.documents || []).slice(0, 10).map(d => ({{document_id: d.document_id, label: pathById.get(d.document_id), value: d.annotations}}));
+      }}
+      document.getElementById("relationships").innerHTML = related.map(row => `
+        <div class="rank-row"><button class="link-button" ${{row.code_id ? `data-analysis-code="${{row.code_id}}"` : `data-analysis-document="${{escapeHtml(row.label)}}"`}}>${{escapeHtml(row.label)}}</button><span>${{row.value}}</span></div>`).join("") || `<span class="code-meta">No proximity relationships for this selection.</span>`;
+      for (const button of document.querySelectorAll("[data-analysis-code]")) button.addEventListener("click", () => selectCode(button.dataset.analysisCode));
+      for (const button of document.querySelectorAll("[data-analysis-document]")) button.addEventListener("click", () => {{ state.documentPath = button.dataset.analysisDocument; documentFilterEl.value = state.documentPath; render(); }});
+    }}
+
     function renderCodes() {{
       codeListEl.innerHTML = data.codes.map(cardForCode).join("");
       for (const n of codeListEl.querySelectorAll(".code-card")) {{
         n.addEventListener("click", () => {{
           const id = n.getAttribute("data-code-id");
-          state.selectedCode = state.selectedCode === id ? null : id;
-          render();
+          selectCode(id);
         }});
       }}
+    }}
+
+    function codebookText(code) {{
+      return [
+        code.name,
+        `Theme: ${{code.theme_name || "Unassigned"}}`,
+        `Definition: ${{code.description || "Not recorded"}}`,
+        `Include: ${{code.inclusion_criteria || "Not recorded"}}`,
+        `Exclude: ${{code.exclusion_criteria || "Not recorded"}}`,
+        `Coverage: ${{code.annotation_count}} annotations across ${{code.document_count}} documents`,
+        `Underlying open codes (${{(code.open_codes || []).length}}):`,
+        ...(code.open_codes || []),
+      ].join("\\n");
+    }}
+
+    function codebookCard(code) {{
+      const openCodes = (code.open_codes || []).map(name =>
+        `<span class="open-code-pill">${{escapeHtml(name)}}</span>`
+      ).join("");
+      return `<details class="codebook-card" data-codebook-id="${{code.code_id}}">
+        <summary>
+          <div>
+            <div class="codebook-title">${{escapeHtml(code.name)}}</div>
+            <div class="codebook-theme">${{escapeHtml(code.theme_name || "Unassigned theme")}}</div>
+          </div>
+          <span class="snippet-meta">${{code.annotation_count}} annotations · ${{code.document_count}} documents · ${{(code.open_codes || []).length}} open codes</span>
+        </summary>
+        <div class="codebook-body">
+          <div class="text-actions"><button class="copy-text" data-copy-codebook="${{code.code_id}}" type="button">Copy details</button></div>
+          <div class="codebook-field"><strong>Definition</strong><div>${{escapeHtml(code.description || "Not recorded")}}</div></div>
+          <div class="codebook-field"><strong>Include when</strong><div>${{escapeHtml(code.inclusion_criteria || "Not recorded")}}</div></div>
+          <div class="codebook-field"><strong>Exclude when</strong><div>${{escapeHtml(code.exclusion_criteria || "Not recorded")}}</div></div>
+          <div class="codebook-field"><strong>Underlying open codes (${{(code.open_codes || []).length}})</strong><div class="open-code-list">${{openCodes || "None"}}</div></div>
+        </div>
+      </details>`;
+    }}
+
+    function renderCodebook() {{
+      const query = state.codebookSearch;
+      const codes = data.codes.filter(code => !query || [
+        code.name, code.theme_name || "", code.description || "",
+        code.inclusion_criteria || "", code.exclusion_criteria || "",
+        ...(code.open_codes || []),
+      ].join("\\n").toLowerCase().includes(query));
+      codebookListEl.innerHTML = codes.length
+        ? codes.map(codebookCard).join("")
+        : `<div class="empty">No codebook entries match this search.</div>`;
+      document.getElementById("codebook-summary").innerHTML =
+        `<span><span class="stat-value">${{codes.length}}</span> focused codes</span>` +
+        `<span><span class="stat-value">${{new Set(codes.map(c => c.theme_name).filter(Boolean)).size}}</span> themes</span>` +
+        `<span><span class="stat-value">${{codes.reduce((n,c) => n + (c.open_codes || []).length, 0)}}</span> underlying open codes</span>`;
+    }}
+
+    function renderDocuments() {{
+      documentListEl.innerHTML = documents.length
+        ? documents.map(([path, lines], index) => documentCard(path, lines, index)).join("")
+        : `<div class="empty">No documents in this project.</div>`;
+    }}
+
+    async function copyText(button, text) {{
+      try {{
+        await navigator.clipboard.writeText(text);
+      }} catch (_) {{
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }}
+      const original = button.textContent;
+      button.textContent = "Copied";
+      button.classList.add("is-copied");
+      window.setTimeout(() => {{
+        button.textContent = original;
+        button.classList.remove("is-copied");
+      }}, 1400);
     }}
 
     function renderSnippets() {{
@@ -535,6 +966,7 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
         ? filtered.map(snippetCard).join("")
         : `<div class="empty">No snippets match the current filters.</div>`;
       renderSummary(filtered);
+      renderDashboard(filtered);
       // Auto-scroll highlighted text into view and wire up recenter buttons
       for (const el of snippetListEl.querySelectorAll(".context-scroll")) {{
         const hl = el.querySelector(".hl");
@@ -558,19 +990,88 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
 
     function render() {{
       scopeButtons.forEach(b => b.classList.toggle("is-active", b.dataset.scope === state.scope));
+      document.getElementById("memo-filter").classList.toggle("is-active", state.memoOnly);
+      tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === state.activeTab));
+      tabPanels.forEach(panel => panel.hidden = panel.dataset.panel !== state.activeTab);
       renderCodes();
+      renderCodebook();
+      renderAnalysis();
       renderSnippets();
+      renderDocuments();
     }}
 
+    for (const path of Object.keys(docTexts).sort()) documentFilterEl.insertAdjacentHTML("beforeend", `<option value="${{escapeHtml(path)}}">${{escapeHtml(path)}}</option>`);
     searchEl.addEventListener("input", e => {{
       state.search = e.target.value.trim().toLowerCase();
       renderSnippets();
     }});
+    codebookSearchEl.addEventListener("input", e => {{
+      state.codebookSearch = e.target.value.trim().toLowerCase();
+      renderCodebook();
+    }});
+    document.getElementById("expand-codebook").addEventListener("click", () => {{
+      for (const card of codebookListEl.querySelectorAll("details")) card.open = true;
+    }});
+    document.getElementById("collapse-codebook").addEventListener("click", () => {{
+      for (const card of codebookListEl.querySelectorAll("details")) card.open = false;
+    }});
     for (const b of scopeButtons) {{
       b.addEventListener("click", () => {{ state.scope = b.dataset.scope; render(); }});
     }}
+    for (const button of tabButtons) {{
+      button.addEventListener("click", () => {{
+        state.activeTab = button.dataset.tab;
+        render();
+      }});
+    }}
+    document.addEventListener("click", event => {{
+      const openButton = event.target.closest(".open-document");
+      if (openButton) {{
+        const index = Number(openButton.dataset.openDocument);
+        state.activeTab = "documents";
+        render();
+        window.requestAnimationFrame(() => {{
+          const card = document.getElementById(`document-card-${{index}}`);
+          if (!card) return;
+          card.classList.add("is-focused");
+          card.scrollIntoView({{behavior: "smooth", block: "start"}});
+          window.setTimeout(() => card.classList.remove("is-focused"), 2200);
+        }});
+        return;
+      }}
+      const topButton = event.target.closest(".go-document-top");
+      if (topButton) {{
+        const card = document.getElementById(`document-card-${{Number(topButton.dataset.documentTop)}}`);
+        const textBox = card?.querySelector("pre");
+        if (textBox) textBox.scrollTo({{top: 0, behavior: "smooth"}});
+        return;
+      }}
+      const button = event.target.closest(".copy-text");
+      if (!button) return;
+      if (button.dataset.copySnippet) {{
+        const snippet = data.snippets.find(item => item.annotation_id === button.dataset.copySnippet);
+        if (snippet) copyText(button, snippetCopyText(snippet));
+      }} else if (button.dataset.copyDocument !== undefined) {{
+        const entry = documents[Number(button.dataset.copyDocument)];
+        if (entry) copyText(button, entry[1].join("\\n"));
+      }} else if (button.dataset.copyCodebook) {{
+        const code = data.codes.find(item => item.code_id === button.dataset.copyCodebook);
+        if (code) copyText(button, codebookText(code));
+      }}
+    }});
+    documentFilterEl.addEventListener("change", e => {{ state.documentPath = e.target.value; render(); }});
+    anchorFilterEl.addEventListener("change", e => {{ state.anchorStatus = e.target.value; render(); }});
+    document.getElementById("memo-filter").addEventListener("click", () => {{ state.memoOnly = !state.memoOnly; render(); }});
+    document.getElementById("download-results").addEventListener("click", () => {{
+      const filtered = data.snippets.filter(matchesSnippet);
+      const blob = new Blob([JSON.stringify(filtered, null, 2)], {{type: "application/json"}});
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob); link.download = "bewley-explorer-results.json"; link.click();
+      URL.revokeObjectURL(link.href);
+    }});
     document.getElementById("clear-filters").addEventListener("click", () => {{
-      state.selectedCode = null; state.scope = "all"; state.search = ""; searchEl.value = "";
+      state.selectedCode = null; state.scope = "all"; state.search = ""; state.documentPath = ""; state.anchorStatus = ""; state.memoOnly = false;
+      searchEl.value = ""; documentFilterEl.value = ""; anchorFilterEl.value = "";
       render();
     }});
     render();
