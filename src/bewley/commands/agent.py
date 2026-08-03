@@ -165,6 +165,42 @@ def guide_command() -> None:
 def _artifact_next(project: Project) -> dict[str, Any] | None:
     """Recognize EDSL pipeline artifacts that the count-based phases cannot see."""
     root = project.root
+    feedback_aggregate = root / "qualitative-analysis" / "feedback-aggregate.json"
+    feedback_classifications = root / "qualitative-analysis" / "feedback-classifications.jsonl"
+    feedback_codebook = root / "qualitative-analysis" / "feedback-codebook.json"
+    if feedback_aggregate.exists():
+        return {
+            "stage": "feedback-analysis-complete",
+            "artifacts": {"codebook": str(feedback_codebook), "classifications": str(feedback_classifications), "aggregate": str(feedback_aggregate)},
+            "exists": {"codebook": feedback_codebook.exists(), "classifications": feedback_classifications.exists(), "aggregate": True},
+            "recommendation": action("verify-feedback-analysis", "Verify project integrity before downstream reporting", ["bewley", "fsck"], mutates_state=False),
+        }
+    discovery = root / "runs" / "001-discovery"
+    discovery_jobs = discovery / "jobs.ep"
+    discovery_results = discovery / "results.ep"
+    discovery_candidates = discovery / "candidates.jsonl"
+    if discovery_jobs.exists() and not discovery_results.exists():
+        return {
+            "stage": "feedback-discovery-awaiting-external-results",
+            "artifacts": {"jobs": str(discovery_jobs), "results": str(discovery_results)},
+            "exists": {"jobs": True, "results": False, "candidates": discovery_candidates.exists()},
+            "recommendation": action(
+                "run-feedback-discovery", "Run bundled feedback-code discovery externally",
+                ["ep", "run", "--jobs", str(discovery_jobs), "--output", str(discovery_results)],
+                mutates_state=True, requires_network=True, requires_user_approval=True,
+            ),
+        }
+    if discovery_results.exists() and not discovery_candidates.exists():
+        return {
+            "stage": "feedback-discovery-results-awaiting-ingest",
+            "artifacts": {"jobs": str(discovery_jobs), "results": str(discovery_results), "candidates": str(discovery_candidates)},
+            "exists": {"jobs": discovery_jobs.exists(), "results": True, "candidates": False},
+            "recommendation": action(
+                "ingest-feedback-discovery", "Validate bundled candidates and exact evidence",
+                ["bewley", "insights", "discover", "ingest", str(discovery_results), "--jobs", str(discovery_jobs)],
+                mutates_state=True,
+            ),
+        }
     artifacts = {
         "jobs": root / "jobs.ep",
         "models": root / "models.ep",

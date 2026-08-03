@@ -45,6 +45,10 @@ def test_focused_framework_mapping_apply_and_export(project: BewleyProject) -> N
         "--output", "focused-framework.jobs.ep",
         "--min-focused", "5", "--max-focused", "5",
     )
+    from edsl import Jobs
+    framework_jobs = Jobs.git.load(project.root / "focused-framework.jobs.ep")
+    context = json.loads(dict(framework_jobs.scenarios[0])["study_context"])
+    assert set(context) == {"method", "unit_of_analysis", "purpose", "research_questions"}
     framework = {
         "themes": [
             {"theme_key": "ai_impacts", "name": "AI impacts", "description": "Effects of AI."},
@@ -97,7 +101,6 @@ def test_focused_framework_mapping_apply_and_export(project: BewleyProject) -> N
         "--output", "focused-mapping.jobs.ep", "--batch-size", "5",
     )
     assert jobs["expected_model_calls"] == 1
-    from edsl import Jobs
     mapping_jobs = Jobs.git.load(project.root / "focused-mapping.jobs.ep")
     ids = dict(mapping_jobs.scenarios[0])["open_code_ids"]
     focused_keys = [

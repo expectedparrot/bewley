@@ -33,6 +33,7 @@ from bewley.commands.examples import app as example_app
 from bewley.commands.export import app as export_app
 from bewley.commands.history import history_command, undo_command
 from bewley.commands.import_corpus import app as import_app
+from bewley.commands.insights import app as insights_app
 from bewley.commands.memos import app as memo_app
 from bewley.commands.open_coding import app as open_coding_app
 from bewley.commands.project import bundle_app as project_app, fsck_command, init_command, rebuild_index_command, status_command
@@ -94,6 +95,7 @@ app.add_typer(attribute_app, name="attribute")
 app.add_typer(link_app, name="link")
 app.add_typer(speakers_app, name="speakers")
 app.add_typer(import_app, name="import")
+app.add_typer(insights_app, name="insights")
 
 # Codegen
 app.add_typer(codegen_app, name="codegen")

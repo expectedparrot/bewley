@@ -11,7 +11,7 @@ from typing import Any, Optional
 import typer
 
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
-from bewley.project import BewleyError, utcnow
+from bewley.project import BewleyError, cmd_study_show, utcnow
 
 app = typer.Typer(help="Build and apply a global focused-code framework.")
 
@@ -21,7 +21,11 @@ _KEY = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 
 FRAMEWORK_PROMPT = """You are conducting second-cycle focused coding over a complete
 inventory of first-cycle open codes. Construct a coherent global analytic
-framework, not a list of synonyms.
+framework, not a list of synonyms. The framework must answer the declared
+research question and remain within the declared study purpose.
+
+Study context:
+{{ study_context }}
 
 Return one JSON object with:
 - "themes": array of objects with theme_key, name, description
@@ -35,8 +39,9 @@ Requirements:
 - Focused codes must be broad enough to subsume multiple open codes while
   preserving analytically important differences in mechanism, direction,
   temporality, conditions, and valence.
-- Separate substantive findings about AI and work from occupational context
-  and from interview/interface feedback.
+- Preserve distinctions that matter for this study, including positive,
+  negative, mixed, and non-substantive feedback when those distinctions are
+  present in the inventory. Do not introduce categories from another domain.
 - Make categories mutually distinguishable and collectively capable of
   covering the inventory.
 - Do not return mappings yet and do not invent quotations.
@@ -186,11 +191,22 @@ def framework_jobs(
             for row in codes
         ]
         Jobs, Model, ModelList, QuestionFreeText, _, Scenario, ScenarioList = _edsl()
+        study = cmd_study_show(project)
+        study_context = {
+            "method": study.get("method"),
+            "unit_of_analysis": study.get("unit_of_analysis"),
+            "purpose": study.get("purpose"),
+            "research_questions": [
+                row["text"] for row in study.get("research_questions", [])
+                if row.get("status") == "active"
+            ],
+        }
         scenario = Scenario({
             "codebook_fingerprint": _fingerprint(project),
             "open_code_count": len(codes),
             "min_focused": min_focused,
             "max_focused": max_focused,
+            "study_context": json.dumps(study_context, ensure_ascii=False),
             "inventory_json": json.dumps(inventory, ensure_ascii=False),
         })
         question = QuestionFreeText(question_name=FRAMEWORK_QUESTION, question_text=FRAMEWORK_PROMPT)

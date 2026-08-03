@@ -33,9 +33,9 @@ ENVELOPE_SCHEMA_VERSION = "2.0"
 _COMMAND_GROUPS = {
     "list", "show", "code", "annotate", "export", "memo",
     "docs", "codegen", "open-coding", "agent", "example", "study", "question",
-    "case", "attribute", "link", "speakers", "codebook", "import",
+    "case", "attribute", "link", "speakers", "codebook", "import", "insights",
 }
-_NESTED_GROUPS = {("codebook", "consolidate"), ("codebook", "focused")}
+_NESTED_GROUPS = {("codebook", "consolidate"), ("codebook", "focused"), ("insights", "discover"), ("insights", "consolidate"), ("insights", "classify")}
 
 
 def command_argv() -> list[str]:

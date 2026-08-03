@@ -112,6 +112,22 @@ presentation mode and should not be used by agents parsing results.
 | `bewley codebook focused mapping-ingest <results.ep> [--jobs F] [--framework F]` | Require every active open code exactly once, reject unknown focused keys, and write an audited crosswalk CSV. |
 | `bewley codebook focused apply [--dry-run]` | Create theme → focused → open-code hierarchy events without deleting or moving original annotations. Refuses stale, incomplete, conflicting, or previously applied inputs. |
 
+## Rapid insights
+
+| Command | Purpose |
+|---|---|
+| `bewley insights jobs [--output F] [--model M]` | Package one EDSL job per document using only respondent turns from the interview body. Excludes interviewer prompts and the marked AI-interviewer feedback section; uses the applied focused codebook as a fixed theme framework. |
+| `bewley insights ingest <results.ep> [--jobs F]` | Validate per-response summaries, sentiment toward AI at work, focused-theme IDs, and verbatim standout quotes before writing JSONL plus an append-only evidence log. |
+| `bewley insights export [--input F] [--output F] [--title T]` | Export a standalone dashboard with sentiment distribution, cross-respondent theme prevalence, response summaries, standout quotes, and downloadable JSON. |
+| `bewley insights discover jobs [--output F] [--seed N] [--bundle-size N] [--coverage N] [--model M]` | Package reproducibly shuffled bundles of short feedback responses for recurring-code discovery, preserving source IDs and a corpus fingerprint. |
+| `bewley insights discover ingest <results.ep> [--jobs F]` | Require every bundle result and validate candidate definitions plus exact evidence from at least two distinct responses before writing an auditable JSONL artifact. |
+| `bewley insights consolidate jobs [--candidates F] [--min-codes N] [--max-codes N]` | Package all evidence-valid discovery candidates for one global compact-codebook job. |
+| `bewley insights consolidate ingest <results.ep> [--jobs F]` | Validate themes, code definitions, and criteria, then freeze a fingerprinted semantic codebook; exhaustive bookkeeping belongs to the later classification stage. |
+| `bewley insights classify jobs [--codebook F] [--output F]` | Package one fixed-codebook classification job per response with the frozen fingerprint. |
+| `bewley insights classify ingest <results.ep> [--jobs F] [--codebook F]` | Require every response exactly once and validate code IDs, codebook fingerprint, sentiment, and exact evidence spans. |
+| `bewley insights aggregate [--classifications F] [--codebook F] [--output F]` | Compute deterministic response-level code, theme, and sentiment counts; never accepts model-supplied totals. |
+| `bewley insights evidence-export [--aggregate F] [--classifications F] [--codebook F] [--output F]` | Export a standalone explorer with deterministic tables, exact quotes, codebook criteria, response evidence, and explicit coverage gaps. |
+
 ## Annotations
 
 | Command | Purpose |
