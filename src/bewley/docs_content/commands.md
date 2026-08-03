@@ -121,9 +121,9 @@ presentation mode and should not be used by agents parsing results.
 | `bewley insights export [--input F] [--output F] [--title T]` | Export a standalone dashboard with sentiment distribution, cross-respondent theme prevalence, response summaries, standout quotes, and downloadable JSON. |
 | `bewley insights discover jobs [--output F] [--seed N] [--bundle-size N] [--coverage N] [--model M]` | Package reproducibly shuffled bundles of short feedback responses for recurring-code discovery, preserving source IDs and a corpus fingerprint. |
 | `bewley insights discover ingest <results.ep> [--jobs F]` | Require every bundle result and validate candidate definitions plus exact evidence from at least two distinct responses before writing an auditable JSONL artifact. |
-| `bewley insights consolidate jobs [--candidates F] [--min-codes N] [--max-codes N]` | Package all evidence-valid discovery candidates for one global compact-codebook job. |
+| `bewley insights consolidate jobs [--candidates F] [--min-codes N] [--max-codes N] [--model M]` | Package all evidence-valid discovery candidates and an optional JSON ModelList for one global compact-codebook job. |
 | `bewley insights consolidate ingest <results.ep> [--jobs F]` | Validate themes, code definitions, and criteria, then freeze a fingerprinted semantic codebook; exhaustive bookkeeping belongs to the later classification stage. |
-| `bewley insights classify jobs [--codebook F] [--output F]` | Package one fixed-codebook classification job per response with the frozen fingerprint. |
+| `bewley insights classify jobs [--codebook F] [--output F] [--model M]` | Package one fixed-codebook classification job per response with the frozen fingerprint and an optional JSON ModelList. |
 | `bewley insights classify ingest <results.ep> [--jobs F] [--codebook F]` | Require every response exactly once and validate code IDs, codebook fingerprint, sentiment, and exact evidence spans. |
 | `bewley insights aggregate [--classifications F] [--codebook F] [--output F]` | Compute deterministic response-level code, theme, and sentiment counts; never accepts model-supplied totals. |
 | `bewley insights evidence-export [--aggregate F] [--classifications F] [--codebook F] [--output F]` | Export a standalone explorer with deterministic tables, exact quotes, codebook criteria, response evidence, and explicit coverage gaps. |
@@ -190,6 +190,7 @@ and depend only on the Python stdlib.
 | Command | Purpose |
 |---|---|
 | `bewley codegen theory-explorer [--output F] [--html-output F] [--title T]` | Emit a script that renders an interactive D3 theory explorer HTML — force-directed graph, category/document/count filters, click a node for quotes and links. Regenerate when codes or annotations change. |
+| `bewley codegen makefile --workflow feedback-insights [--output F] [--model M] [--seed N] [--bundle-size N] [--coverage N] [--force]` | Generate a project-specific executable Make runbook with explicit paid `ep run` targets and no automatic cross-boundary `all` target. |
 
 ## Memos
 

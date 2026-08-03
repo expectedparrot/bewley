@@ -171,3 +171,11 @@ def test_feedback_workflow_validators_and_deterministic_export(project: BewleyPr
     }, "The conversation felt natural.", {"code_1"})
     assert len(classification["assignments"]) == 1
     assert len(classification["_rejected_assignments"]) == 2
+
+    packaged = _json(
+        project, "insights", "discover", "jobs", "--coverage", "1",
+        "--bundle-size", "5", "--model", "gpt-5-mini", "--output", "runs/discovery/jobs.ep",
+    )
+    model_list = json.loads((project.root / "runs" / "discovery" / "models.json").read_text(encoding="utf-8"))
+    assert packaged["models"].endswith("models.json")
+    assert model_list["models"][0]["parameters"]["reasoning_effort"] == "low"

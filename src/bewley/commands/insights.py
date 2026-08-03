@@ -144,7 +144,16 @@ def _edsl():
 
 def _configured_model(Model, name: str, max_tokens: int):
     service = "openai" if name.startswith(("gpt-", "o1", "o3", "o4")) else None
-    return Model(name, service_name=service, max_tokens=max_tokens)
+    return Model(name, service_name=service, max_tokens=max_tokens, reasoning_effort="low")
+
+
+def _save_model_list_json(Model, ModelList, name: str, max_tokens: int, target: Path, force: bool) -> Path:
+    if target.exists() and not force:
+        raise BewleyError(f"{target} already exists", code="ALREADY_EXISTS")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    models = ModelList([_configured_model(Model, name, max_tokens)])
+    target.write_text(json.dumps(models.to_dict(), indent=2) + "\n", encoding="utf-8")
+    return target
 
 
 def _path(root: Path, value: Path) -> Path:
@@ -304,13 +313,7 @@ def discovery_jobs_command(
         jobs = Jobs(survey=question.to_survey()).by(ScenarioList(scenarios))
         model_target = None
         if model:
-            models = ModelList([_configured_model(Model, model, max_tokens)])
-            model_target = target.with_name("models.ep")
-            if model_target.exists() and not force:
-                raise BewleyError(f"{model_target} already exists", code="ALREADY_EXISTS")
-            if model_target.exists():
-                model_target.unlink()
-            models.git.save(model_target)
+            model_target = _save_model_list_json(Model, ModelList, model, max_tokens, target.with_name("models.json"), force)
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
             target.unlink()
@@ -467,6 +470,8 @@ def consolidation_jobs_command(
     output: Path = typer.Option(Path("runs/002-consolidation/jobs.ep"), "--output", "-o"),
     min_codes: int = typer.Option(8, "--min-codes", min=4, max=50),
     max_codes: int = typer.Option(20, "--max-codes", min=4, max=60),
+    model: Optional[str] = typer.Option(None, "--model"),
+    max_tokens: int = typer.Option(12000, "--max-tokens", min=1000),
     prior_results: Optional[Path] = typer.Option(None, "--prior-results"),
     force: bool = typer.Option(False, "--force"),
     human: bool = HumanOption,
@@ -483,7 +488,7 @@ def consolidation_jobs_command(
         inventory = _candidate_inventory(source)
         if not inventory:
             raise BewleyError("No validated discovery candidates found.", code="INVALID_INPUT")
-        Jobs, _, _, QuestionFreeText, Results, Scenario, ScenarioList = _edsl()
+        Jobs, Model, ModelList, QuestionFreeText, Results, Scenario, ScenarioList = _edsl()
         correction_context = ""
         if prior_results:
             prior_path = _path(project.root, prior_results)
@@ -515,10 +520,11 @@ def consolidation_jobs_command(
         if target.exists():
             target.unlink()
         saved = jobs.git.save(target)
+        model_target = _save_model_list_json(Model, ModelList, model, max_tokens, target.with_name("models.json"), force) if model else None
         data = {
             "output": str(target), "candidate_count": len(inventory),
             "candidate_fingerprint": scenario["candidate_fingerprint"],
-            "expected_model_calls": 1, "saved": saved,
+            "expected_model_calls": 1, "models": str(model_target) if model_target else None, "saved": saved,
         }
     except (BewleyError, OSError, json.JSONDecodeError, KeyError) as exc:
         error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="INVALID_INPUT")
@@ -526,7 +532,7 @@ def consolidation_jobs_command(
         return
     finish(command, data, next_actions=[action(
         "run-feedback-consolidation", "Run global candidate consolidation externally",
-        ["ep", "run", "--jobs", str(target), "--model_list", str(target.with_name("models.json")), "--output", str(target.with_name("results.ep"))],
+        ["ep", "run", "--jobs", str(target), "--model_list", str(model_target or target.with_name("models.json")), "--output", str(target.with_name("results.ep"))],
         mutates_state=True, requires_network=True, requires_user_approval=True,
     )])
 
@@ -612,6 +618,8 @@ def consolidation_ingest_command(
 def classification_jobs_command(
     codebook: Path = typer.Option(Path("qualitative-analysis/feedback-codebook.json"), "--codebook"),
     output: Path = typer.Option(Path("runs/003-classification/jobs.ep"), "--output", "-o"),
+    model: Optional[str] = typer.Option(None, "--model"),
+    max_tokens: int = typer.Option(4000, "--max-tokens", min=1000),
     force: bool = typer.Option(False, "--force"),
     human: bool = HumanOption,
 ) -> None:
@@ -624,7 +632,7 @@ def classification_jobs_command(
             raise BewleyError(f"{target} already exists", code="ALREADY_EXISTS")
         artifact = json.loads(source.read_text(encoding="utf-8"))
         documents = _plain_feedback_documents(project)
-        Jobs, _, _, QuestionFreeText, _, Scenario, ScenarioList = _edsl()
+        Jobs, Model, ModelList, QuestionFreeText, _, Scenario, ScenarioList = _edsl()
         compact = {"themes": artifact["themes"], "codes": artifact["codes"]}
         scenarios = [Scenario({
             **row, "response_text": row["feedback_text"],
@@ -636,13 +644,14 @@ def classification_jobs_command(
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists(): target.unlink()
         saved = jobs.git.save(target)
-        data = {"output": str(target), "document_count": len(documents), "code_count": len(artifact["codes"]), "codebook_fingerprint": artifact["codebook_fingerprint"], "expected_model_calls": len(documents), "saved": saved}
+        model_target = _save_model_list_json(Model, ModelList, model, max_tokens, target.with_name("models.json"), force) if model else None
+        data = {"output": str(target), "document_count": len(documents), "code_count": len(artifact["codes"]), "codebook_fingerprint": artifact["codebook_fingerprint"], "expected_model_calls": len(documents), "models": str(model_target) if model_target else None, "saved": saved}
     except (BewleyError, OSError, KeyError, json.JSONDecodeError) as exc:
         error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="INVALID_INPUT")
         fail(command, error, json_flag); return
     finish(command, data, next_actions=[action(
         "run-feedback-classification", "Classify every feedback response externally",
-        ["ep", "run", "--jobs", str(target), "--model_list", str(target.with_name("models.json")), "--output", str(target.with_name("results.ep"))],
+        ["ep", "run", "--jobs", str(target), "--model_list", str(model_target or target.with_name("models.json")), "--output", str(target.with_name("results.ep"))],
         mutates_state=True, requires_network=True, requires_user_approval=True,
     )])
 

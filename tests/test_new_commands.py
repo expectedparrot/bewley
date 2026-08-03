@@ -91,7 +91,36 @@ class TestDocsCommand:
         assert code == 0
 
 
-# ── codegen open-coding ───────────────────────────────────────────────────────
+# ── codegen ───────────────────────────────────────────────────────────────────
+
+
+class TestCodegenMakefile:
+    def test_feedback_insights_makefile_has_explicit_paid_boundaries(self, project: BewleyProject) -> None:
+        data = _json_ok(
+            project, "codegen", "makefile", "--workflow", "feedback-insights",
+            "--model", "test-model", "--seed", "17",
+        )
+        target = project.root / "Makefile"
+        content = target.read_text(encoding="utf-8")
+        assert data["output"] == str(target)
+        assert data["paid_targets"] == ["discovery-run", "consolidation-run", "classification-run"]
+        assert "MODEL ?= test-model" in content
+        assert "SEED ?= 17" in content
+        assert "--model $(MODEL)" in content
+        assert "--model_list runs/003-classification/models.json" in content
+        assert "all:" not in content
+
+    def test_makefile_refuses_overwrite_without_force(self, project: BewleyProject) -> None:
+        _json_ok(project, "codegen", "makefile", "--workflow", "feedback-insights")
+        envelope = _json_err(project, "codegen", "makefile", "--workflow", "feedback-insights")
+        assert envelope["errors"][0]["code"] == "ALREADY_EXISTS"
+
+    def test_makefile_rejects_unknown_workflow(self, project: BewleyProject) -> None:
+        envelope = _json_err(project, "codegen", "makefile", "--workflow", "unknown")
+        assert envelope["errors"][0]["code"] == "INVALID_INPUT"
+
+
+# ── open-coding apply ─────────────────────────────────────────────────────────
 
 
 class TestOpenCodingApply:
