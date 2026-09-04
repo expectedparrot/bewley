@@ -7,7 +7,7 @@ from typing import Optional
 
 import typer
 
-from bewley.commands.common import HumanOption, fail, finish, get_project, should_emit_json
+from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
 from bewley.project import (
     BewleyError,
     cmd_export_document_html,
@@ -97,7 +97,26 @@ def export_quotes(
     command = "export quotes"
     provided = sum(1 for v in (code, query, all_quotes) if v)
     if provided != 1:
-        fail(command, BewleyError("Provide exactly one of --code, --query, or --all.", code="INVALID_INPUT"), json_flag)
+        fail(
+            command,
+            BewleyError("Provide exactly one of --code, --query, or --all.", code="INVALID_INPUT"),
+            json_flag,
+            next_actions=[
+                action(
+                    "export-all-quotes",
+                    "Export every active span annotation",
+                    ["bewley", "export", "quotes", "--all"],
+                    mutates_state=False,
+                    reason="Choose --all, or replace it with exactly one --code or --query selector.",
+                ),
+                action(
+                    "show-export-quotes-help",
+                    "Inspect quote selectors and formatting options",
+                    ["bewley", "export", "quotes", "--help"],
+                    mutates_state=False,
+                ),
+            ],
+        )
         raise typer.Exit(2)
     project = get_project(command, json_flag)
     try:
@@ -129,6 +148,7 @@ def export_html(
     title: Optional[str] = typer.Option(None, "--title", help="Page title for the HTML output."),
     static: bool = typer.Option(False, "--static", help="Generate a pure HTML/CSS page with no JavaScript."),
     embed: bool = typer.Option(False, "--embed", help="Generate an embeddable HTML fragment instead of a full page."),
+    source_images: str = typer.Option("omit", "--source-images", help="Source-image handling: omit or embed."),
     human: bool = HumanOption,
 ) -> None:
     """Export all codes and annotations as a standalone HTML file."""
@@ -136,7 +156,7 @@ def export_html(
     command = "export html"
     project = get_project(command, json_flag)
     try:
-        result = cmd_export_html(project, output, title, static=static, embed=embed)
+        result = cmd_export_html(project, output, title, static=static, embed=embed, source_images=source_images)
     except BewleyError as exc:
         fail(command, exc, json_flag)
         raise typer.Exit(2)
@@ -151,6 +171,7 @@ def export_document_html(
     document_ref: str = typer.Argument(..., help="Document to export (UUID, path, or prefix)."),
     output: str = typer.Option("bewley-document.html", "--output", help="Output file path."),
     title: Optional[str] = typer.Option(None, "--title", help="Page title for the HTML output."),
+    source_images: str = typer.Option("omit", "--source-images", help="Source-image handling: omit or embed."),
     human: bool = HumanOption,
 ) -> None:
     """Export a single document with inline annotation highlights as HTML."""
@@ -158,7 +179,7 @@ def export_document_html(
     command = "export document-html"
     project = get_project(command, json_flag)
     try:
-        result = cmd_export_document_html(project, document_ref, output, title)
+        result = cmd_export_document_html(project, document_ref, output, title, source_images=source_images)
     except BewleyError as exc:
         fail(command, exc, json_flag)
         raise typer.Exit(2)

@@ -65,6 +65,7 @@ def test_unknown_command_is_enveloped_cli_usage(tmp_path: Path) -> None:
     assert completed.returncode == 1
     payload = json.loads(completed.stdout)
     assert payload["errors"][0]["code"] == "CLI_USAGE"
+    assert payload["next_steps"][0]["command"] == ["bewley", "--help"]
 
 
 def test_version_reports_build(tmp_path: Path) -> None:
@@ -73,3 +74,12 @@ def test_version_reports_build(tmp_path: Path) -> None:
     payload = json.loads(completed.stdout)
     assert payload["data"]["version"]
     assert payload["data"]["envelope_schema_version"] == "2.0"
+
+
+def test_conventional_version_alias_reports_build(tmp_path: Path) -> None:
+    completed = run_bewley(tmp_path, "--version")
+    assert completed.returncode == 0
+    payload = json.loads(completed.stdout)
+    assert payload["command"] == "bewley"
+    assert payload["argv"] == ["bewley", "--version"]
+    assert payload["data"]["version"]

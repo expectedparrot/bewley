@@ -5,7 +5,7 @@ from typing import List, Optional
 import typer
 
 from ..project import BewleyError, cmd_code_list, cmd_code_show, cmd_code_coverage, cmd_code_links
-from .common import rich_console, HumanOption, QuietOption, fail, finish, get_project, should_emit_json
+from .common import action, rich_console, HumanOption, QuietOption, fail, finish, get_project, should_emit_json
 from .documents import list_app
 
 app = typer.Typer(help="Code management.")
@@ -25,7 +25,18 @@ def code_create(
         project = get_project()
         event = project.add_code(name, description, color)
     except BewleyError as e:
-        fail(command, e, json_flag)
+        next_actions = None
+        if e.code == "ALREADY_EXISTS":
+            next_actions = [
+                action(
+                    "update-existing-code",
+                    "Inspect how to update the existing code definition and criteria",
+                    ["bewley", "code", "update", name, "--help"],
+                    mutates_state=False,
+                    reason="The requested code name already exists; update that code instead of creating it again.",
+                )
+            ]
+        fail(command, e, json_flag, next_actions=next_actions)
     code_id = event["payload"]["code_id"]
     if json_flag:
         finish(command, {"code_id": code_id})

@@ -29,8 +29,8 @@ presentation mode and should not be used by agents parsing results.
 |---|---|
 | `bewley init` | Create a new project in the current directory. |
 | `bewley status` | Print JSON counts: documents, revisions, codes, active_annotations, conflicted_annotations. |
-| `bewley version` | Report the installed build plus envelope/agent schema versions. |
-| `bewley guide` | Describe the complete lifecycle and the external ep-run execution boundary. |
+| `bewley version` / `bewley --version` | Report the installed build plus envelope/agent schema versions. |
+| `bewley guide` | Describe the lifecycle, exact common-operation contracts, output behavior, and external ep-run execution boundary. |
 | `bewley next` | Return the single highest-priority next action from artifact state. |
 | `bewley docs list` | List embedded documentation topics. |
 | `bewley docs show <topic>` | Show one embedded documentation topic. |
@@ -72,6 +72,7 @@ presentation mode and should not be used by agents parsing results.
 | `bewley add-video <path> [--output F] [--model M]` | Extract audio from video, transcribe it (external paid call), and add the transcript. |
 | `bewley import survey-csv <file> --transcript-column C [--feedback-column C] [--format auto\|json\|python\|plain] [--output-dir D] [--dry-run]` | Import one CSV row per document; safely flatten serialized role/content turns, exclude unselected columns, segment speakers, assign roles, and record source provenance. Refuses to overwrite an existing output directory. |
 | `bewley update <path>` | Create a new revision of an existing document. Prints `revision_id` or "no-op". |
+| `bewley source-image attach <doc> <image> --page N` | Preserve a JPEG/PNG/GIF/WebP source image content-addressably and link it to an analysis document at an explicit one-based page number. |
 | `bewley list documents` | List all documents as JSON (document_id, path, revision_count). |
 | `bewley list codes [--tree]` | List all codes. Alias for `bewley code list`. |
 | `bewley show document <ref>` | Show metadata, revisions, and annotations for a document. |
@@ -164,8 +165,8 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 |---|---|
 | `bewley export snippets --code <ref> --format jsonl\|text [--context-lines N]` | Export annotated text snippets. |
 | `bewley export quotes (--code <ref> \| --query '<expr>' \| --all) --format jsonl\|text [--context-lines N]` | Export quotes filtered by code or query, or `--all` to dump every active span annotation in the project. |
-| `bewley export html [--output F] [--title T]` | Standalone interactive explorer with full-text search and highlighting, document/scope/status/memo filters, code definitions, prevalence and coverage analytics, proximity relationships, document density, and filtered JSON download. |
-| `bewley export document-html <ref> [--output F] [--title T]` | Single document with inline highlights as HTML. |
+| `bewley export html [--output F] [--title T] [--source-images omit\|embed]` | Standalone interactive explorer with full-text search and highlighting, document/scope/status/memo filters, code definitions, prevalence and coverage analytics, proximity relationships, document density, and filtered JSON download. `embed` includes registered pre-OCR source pages; omission is the privacy-preserving default. |
+| `bewley export document-html <ref> [--output F] [--title T] [--source-images omit\|embed]` | Single document with inline highlights and, when explicitly requested, embedded original source-page images. |
 | `bewley export plots [--output-dir DIR]` | Accessible SVGs: code prevalence, coding density, code co-occurrence, code × document matrix, code-discovery curve, review outcomes, in-document annotation positions, and codebook evolution, plus the underlying JSON manifest. The review-outcomes plot is written only when open-coding sidecar logs (`ingest_log.jsonl`/`apply_log.jsonl`) exist. |
 | `bewley export theory [--format json\|mermaid] [--output F]` | Code hierarchy + links as JSON or Mermaid diagram. |
 | `bewley export narrative [--output F]` | Integrative narrative summary. |

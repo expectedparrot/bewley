@@ -28,6 +28,7 @@ from bewley.commands.documents import (
     list_app,
     show_app,
     update_command,
+    source_image_app,
 )
 from bewley.commands.examples import app as example_app
 from bewley.commands.export import app as export_app
@@ -48,6 +49,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+
 # Project lifecycle and flat document commands.
 app.command("init")(init_command)
 app.command("status")(status_command)
@@ -62,6 +64,7 @@ app.command("update")(update_command)
 # list <entity> and show <entity> top-level subcommand groups
 app.add_typer(list_app, name="list")
 app.add_typer(show_app, name="show")
+app.add_typer(source_image_app, name="source-image")
 
 # Code management
 app.add_typer(code_app, name="code")
@@ -139,12 +142,20 @@ def main(argv: list[str] | None = None) -> int:
         from bewley.project import BewleyError
 
         try:
+            effective_argv = list(argv) if argv is not None else sys.argv[1:]
+            if effective_argv == ["--version"]:
+                version_command()
+                return 0
             result = app(args=argv, prog_name="bewley", standalone_mode=False)
             return int(result) if isinstance(result, int) else 0
         except (click.exceptions.Exit, typer_click.exceptions.Exit) as exc:
             return int(exc.exit_code)
         except (click.ClickException, typer_click.ClickException) as exc:
-            from bewley.commands.common import fail
+            from bewley.commands.common import action, fail
+
+            ctx = getattr(exc, "ctx", None)
+            command_path = getattr(ctx, "command_path", None) or "bewley"
+            help_argv = command_path.split() + ["--help"]
 
             try:
                 fail(
@@ -156,6 +167,15 @@ def main(argv: list[str] | None = None) -> int:
                         hint="Run the command with --help to inspect its arguments.",
                     ),
                     should_emit_json(False),
+                    next_actions=[
+                        action(
+                            "show-command-help",
+                            "Inspect accepted positional arguments and options",
+                            help_argv,
+                            mutates_state=False,
+                            reason="Recover from invalid CLI syntax using the closest valid command group.",
+                        )
+                    ],
                 )
             except typer.Exit as exit_exc:
                 return int(exit_exc.exit_code)

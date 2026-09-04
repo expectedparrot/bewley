@@ -14,6 +14,7 @@ from ..project import (
 from .common import rich_console, HumanOption, QuietOption, fail, finish, get_project, should_emit_json
 
 app = typer.Typer(help="Document management.")
+source_image_app = typer.Typer(help="Attach immutable pre-OCR source images to analysis documents.")
 
 # Sub-apps for 'list' and 'show' subcommand groups
 list_app = typer.Typer(help="List project entities.")
@@ -21,6 +22,28 @@ show_app = typer.Typer(help="Show detailed information.")
 
 app.add_typer(list_app, name="list")
 app.add_typer(show_app, name="show")
+
+
+@source_image_app.command("attach")
+def attach_source_image_command(
+    document_ref: str = typer.Argument(..., help="Analysis document identifier, path, or prefix."),
+    image_path: str = typer.Argument(..., help="JPEG, PNG, GIF, or WebP source image."),
+    page: int = typer.Option(..., "--page", min=1, help="One-based page number in the source document."),
+    human: bool = HumanOption,
+) -> None:
+    """Preserve and link one original pre-OCR image to an analysis document."""
+    json_flag = should_emit_json(human)
+    try:
+        project = get_project()
+        event = project.attach_source_image(document_ref, image_path, page)
+    except BewleyError as exc:
+        fail("source-image attach", exc, json_flag)
+    payload = event["payload"]
+    result = {key: payload[key] for key in ("image_id", "document_id", "page_number", "image_sha256", "media_type", "byte_length")}
+    if json_flag:
+        finish("source-image attach", result)
+    else:
+        typer.echo(payload["image_id"])
 
 
 @app.command("add")
@@ -194,6 +217,13 @@ def show_document(
             for key in ("original_video_filename", "original_video_path", "media_type", "duration", "transcription_model", "transcription_response_format", "transcription_language", "transcript_style", "chunk_count"):
                 if video.get(key) is not None:
                     typer.echo(f"  {key}\t{video[key]}")
+        if result.get("source_images"):
+            typer.echo("source_images")
+            for image in result["source_images"]:
+                typer.echo(
+                    f"  page={image['page_number']}\t{image['original_image_filename']}\t"
+                    f"{image['media_type']}\tsha256={image['image_sha256']}"
+                )
         typer.echo("revisions")
         for r in result["revisions"]:
             typer.echo(f"  {r['revision_id']}\t{r['created_at']}\t{r['byte_length']}\t{r['line_count']}\t{r['is_current']}")

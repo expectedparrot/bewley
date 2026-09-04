@@ -33,7 +33,7 @@ ENVELOPE_SCHEMA_VERSION = "2.0"
 _COMMAND_GROUPS = {
     "list", "show", "code", "annotate", "export", "memo",
     "docs", "codegen", "open-coding", "agent", "example", "study", "question",
-    "case", "attribute", "link", "speakers", "codebook", "import", "insights",
+    "case", "attribute", "link", "speakers", "codebook", "import", "insights", "source-image",
 }
 _NESTED_GROUPS = {("codebook", "consolidate"), ("codebook", "focused"), ("insights", "discover"), ("insights", "consolidate"), ("insights", "classify")}
 
@@ -121,7 +121,10 @@ def _json_envelope(
     }
 
 
-def _error_envelope(err: BewleyError) -> dict:
+def _error_envelope(
+    err: BewleyError,
+    next_actions: list[str | dict[str, Any]] | None = None,
+) -> dict:
     error: dict[str, Any] = {
         "code": err.code,
         "message": err.message,
@@ -137,7 +140,7 @@ def _error_envelope(err: BewleyError) -> dict:
         "data": {},
         "warnings": [],
         "errors": [error],
-        "next_steps": [],
+        "next_steps": [_normalize_action(item) for item in (next_actions or [])],
     }
 
 
@@ -163,10 +166,16 @@ def finish(
     print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
 
 
-def fail(command: str, err: BewleyError, json_flag: bool) -> None:
+def fail(
+    command: str,
+    err: BewleyError,
+    json_flag: bool,
+    *,
+    next_actions: list[str | dict[str, Any]] | None = None,
+) -> None:
     del command
     if json_flag:
-        payload = _error_envelope(err)
+        payload = _error_envelope(err, next_actions=next_actions)
         print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
     else:
         print(f"error: {err}", file=sys.stderr)

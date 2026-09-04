@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 import json
+import base64
 from typing import Any
 
 from .util import byte_to_char_index_map, coerce_code_color, safe_decode, soft_color, utcnow
@@ -12,7 +13,31 @@ if TYPE_CHECKING:
     from .project import Project
 
 
-def code_explorer_payload(project: Project) -> dict[str, Any]:
+def _source_images(project: Project, document_ids: dict[str, str]) -> dict[str, list[dict[str, Any]]]:
+    """Return browser-ready image data keyed by document path."""
+    if not document_ids:
+        return {}
+    with project.connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM document_image_sources ORDER BY document_id, page_number"
+        ).fetchall()
+    paths_by_id = {document_id: path for path, document_id in document_ids.items()}
+    result: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        path = paths_by_id.get(row["document_id"])
+        if path is None:
+            continue
+        data = (project.image_objects_dir / row["image_sha256"]).read_bytes()
+        result.setdefault(path, []).append({
+            "page_number": row["page_number"],
+            "filename": row["original_image_filename"],
+            "sha256": row["image_sha256"],
+            "data_uri": f"data:{row['media_type']};base64,{base64.b64encode(data).decode('ascii')}",
+        })
+    return result
+
+
+def code_explorer_payload(project: Project, *, include_source_images: bool = False) -> dict[str, Any]:
     # Imported lazily to avoid the project -> html_export -> plots -> project
     # import cycle during CLI startup.
     from .plots import plot_data
@@ -26,10 +51,12 @@ def code_explorer_payload(project: Project) -> dict[str, Any]:
             "SELECT a.*, c.canonical_name, c.color, d.current_path FROM annotations a JOIN codes c ON c.code_id = a.code_id JOIN documents d ON d.document_id = a.document_id WHERE a.is_active = 1 ORDER BY c.canonical_name, d.current_path, COALESCE(a.start_line, 0), a.annotation_id"
         ).fetchall()
         doc_paths_needed = {row["current_path"] for row in annotations}
+        document_ids: dict[str, str] = {}
         doc_texts: dict[str, list[str]] = {}
         for dpath in doc_paths_needed:
             doc_row = conn.execute("SELECT document_id FROM documents WHERE current_path = ?", (dpath,)).fetchone()
             if doc_row:
+                document_ids[dpath] = doc_row["document_id"]
                 rev = project.current_revision(conn, doc_row["document_id"])
                 content = (project.objects_dir / rev["content_sha256"]).read_bytes()
                 doc_texts[dpath] = safe_decode(content).splitlines()
@@ -106,10 +133,11 @@ def code_explorer_payload(project: Project) -> dict[str, Any]:
         "aliases": aliases_by_code.get(row["code_id"], []),
     } for row in visible_codes]
     code_items.sort(key=lambda item: (-item["annotation_count"], item["name"]))
-    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len({item["document_path"] for item in snippet_items}), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts, "analytics": plot_data(project)}
+    images = _source_images(project, document_ids) if include_source_images else {}
+    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len({item["document_path"] for item in snippet_items}), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts, "source_images": images, "analytics": plot_data(project)}
 
 
-def document_viewer_payload(project: Project, document_ref: str) -> dict[str, Any]:
+def document_viewer_payload(project: Project, document_ref: str, *, include_source_images: bool = False) -> dict[str, Any]:
     with project.connect() as conn:
         doc = project.resolve_document(conn, document_ref)
         revision = project.current_revision(conn, doc["document_id"])
@@ -134,7 +162,8 @@ def document_viewer_payload(project: Project, document_ref: str) -> dict[str, An
         span_annotations.append(item)
         code_entry["annotation_count"] += 1
     codes = sorted(code_counts.values(), key=lambda item: (-item["annotation_count"], -item["document_annotation_count"], item["name"]))
-    return {"generated_at": utcnow(), "project_root": str(project.root), "document_id": doc["document_id"], "document_path": doc["current_path"], "revision_id": revision["revision_id"], "byte_length": revision["byte_length"], "line_count": revision["line_count"], "code_count": len(codes), "annotation_count": len(span_annotations), "document_annotations": document_annotations, "span_annotations": span_annotations, "codes": codes, "annotation_index": annotation_index, "rendered_text": render_annotated_document_html(text, span_annotations)}
+    images = _source_images(project, {doc["current_path"]: doc["document_id"]}).get(doc["current_path"], []) if include_source_images else []
+    return {"generated_at": utcnow(), "project_root": str(project.root), "document_id": doc["document_id"], "document_path": doc["current_path"], "revision_id": revision["revision_id"], "byte_length": revision["byte_length"], "line_count": revision["line_count"], "code_count": len(codes), "annotation_count": len(span_annotations), "document_annotations": document_annotations, "span_annotations": span_annotations, "codes": codes, "annotation_index": annotation_index, "source_images": images, "rendered_text": render_annotated_document_html(text, span_annotations)}
 
 
 def render_annotated_document_html(text: str, spans: list[dict[str, Any]]) -> str:
@@ -418,6 +447,25 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       display: grid;
       gap: 10px;
     }}
+    .source-analysis-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 32rem), 1fr));
+      gap: 12px;
+      align-items: start;
+    }}
+    .source-pages {{
+      display: grid;
+      gap: 10px;
+    }}
+    .source-pages figure {{ margin: 0; }}
+    .source-pages img {{
+      display: block;
+      width: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+      border: 1px solid var(--ep-border);
+      background: var(--ep-light-gray);
+    }}
     .snippet {{
       border: 1px solid var(--ep-border);
       border-radius: 6px;
@@ -675,6 +723,7 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
   <script>
     const data = {data_json};
     const docTexts = data.document_texts || {{}};
+    const docImages = data.source_images || {{}};
     const documents = Object.entries(docTexts).sort(([left], [right]) => left.localeCompare(right));
     const documentIndexByPath = new Map(documents.map(([path], index) => [path, index]));
     const analytics = data.analytics || {{}};
@@ -790,13 +839,18 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
     }}
 
     function documentCard(path, lines, index) {{
+      const images = (docImages[path] || []).map(image => `<figure><img src="${{image.data_uri}}" alt="Source page ${{image.page_number}}: ${{escapeHtml(image.filename)}}" loading="lazy"><figcaption class="snippet-meta">Source page ${{image.page_number}} · ${{escapeHtml(image.filename)}} · SHA-256 ${{image.sha256}}</figcaption></figure>`).join("");
+      const sourcePanel = images ? `<section class="source-pages" aria-label="Ordered source pages">${{images}}</section>` : "";
       return `<article class="snippet document-card" id="document-card-${{index}}">
         <div class="snippet-head">
           <strong>${{escapeHtml(path)}}</strong>
           <span class="snippet-meta">${{lines.length}} line${{lines.length !== 1 ? "s" : ""}}</span>
         </div>
         <div class="text-actions"><button class="copy-text" data-copy-document="${{index}}" type="button">Copy text</button></div>
-        <pre>${{escapeHtml(lines.join("\\n"))}}</pre>
+        <div class="source-analysis-grid">
+          ${{sourcePanel}}
+          <pre aria-label="Extracted analysis text">${{escapeHtml(lines.join("\\n"))}}</pre>
+        </div>
         <div class="text-actions"><button class="go-document-top" data-document-top="${{index}}" type="button">Go to top</button></div>
       </article>`;
     }}
@@ -1542,7 +1596,13 @@ def build_embeddable_code_explorer_html(payload: dict[str, Any], title: str) -> 
 
 def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
     safe_title = html.escape(title)
-    data_json = json.dumps(payload, ensure_ascii=False)
+    source_figures = "".join(
+        f'<figure><img src="{item["data_uri"]}" alt="Source page {item["page_number"]}: {html.escape(item["filename"])}" loading="lazy"><figcaption>Source page {item["page_number"]} · {html.escape(item["filename"])} · SHA-256 {item["sha256"]}</figcaption></figure>'
+        for item in payload.get("source_images", [])
+    )
+    source_gallery = f'<section class="source-pages" aria-label="Ordered source pages">{source_figures}</section>' if source_figures else ""
+    browser_payload = {key: value for key, value in payload.items() if key != "source_images"}
+    data_json = json.dumps(browser_payload, ensure_ascii=False)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1755,6 +1815,24 @@ def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
       background: #fffdf8;
       overflow: hidden;
     }}
+    .source-analysis-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 32rem), 1fr));
+      gap: 18px;
+      align-items: start;
+    }}
+    .source-pages {{ display: grid; gap: 18px; }}
+    .source-pages figure {{ margin: 0; }}
+    .source-pages img {{
+      display: block;
+      width: 100%;
+      max-height: 85vh;
+      object-fit: contain;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: #fffdf8;
+    }}
+    .source-pages figcaption {{ color: var(--muted); font-size: 0.8rem; margin-top: 6px; }}
     .doc-header {{
       padding: 14px 16px;
       border-bottom: 1px solid var(--border);
@@ -1870,12 +1948,15 @@ def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
       <main class="document-panel">
         <h2>Document</h2>
         <div class="doc-tags" id="doc-tags"></div>
-        <div class="doc-frame">
+        <div class="source-analysis-grid">
+          {source_gallery}
+          <div class="doc-frame">
           <div class="doc-header">
             <span id="doc-path"></span>
             <span id="doc-meta"></span>
           </div>
-          <pre class="document-text" id="document-text"></pre>
+            <pre class="document-text" id="document-text"></pre>
+          </div>
         </div>
         <div class="annotation-list" id="annotation-list"></div>
       </main>

@@ -109,6 +109,48 @@ class TestExportHtml:
         assert "friction" in html_content
         assert "anno-segment" in html_content
 
+    def test_html_exports_can_embed_registered_source_images(self, project: BewleyProject) -> None:
+        image = project.root / "scans" / "alice-page-1.png"
+        image.parent.mkdir()
+        image.write_bytes(b"\x89PNG\r\n\x1a\nsource-page")
+        project.cli_ok(
+            "source-image", "attach", "corpus/interview_alice.txt", str(image), "--page", "1"
+        )
+        image_2 = project.root / "scans" / "alice-page-2.png"
+        image_2.write_bytes(b"\x89PNG\r\n\x1a\nsource-page-2")
+        project.cli_ok(
+            "source-image", "attach", "corpus/interview_alice.txt", str(image_2), "--page", "2"
+        )
+        project.cli_ok("code", "create", "source-check")
+        project.cli_ok(
+            "annotate", "apply", "source-check", "corpus/interview_alice.txt", "--lines", "1:1"
+        )
+
+        project.cli_ok(
+            "export", "document-html", "corpus/interview_alice.txt",
+            "--output", "report/source.html", "--source-images", "embed",
+        )
+        document_html = (project.root / "report/source.html").read_text(encoding="utf-8")
+        assert "data:image/png;base64," in document_html
+        assert "Source page 1" in document_html
+        assert "alice-page-1.png" in document_html
+        assert document_html.index("Source page 1") < document_html.index("Source page 2")
+        assert 'class="source-analysis-grid"' in document_html
+        assert 'aria-label="Extracted analysis text"' not in document_html
+
+        project.cli_ok(
+            "export", "html", "--output", "report/explorer.html", "--source-images", "embed"
+        )
+        explorer_html = (project.root / "report/explorer.html").read_text(encoding="utf-8")
+        assert "data:image/png;base64," in explorer_html
+        assert "Source page" in explorer_html
+        assert 'class=\"source-analysis-grid\"' in explorer_html
+        assert 'aria-label=\"Extracted analysis text\"' in explorer_html
+
+        shown = project.cli_ok("show", "document", "corpus/interview_alice.txt")
+        assert "alice-page-1.png" in shown
+        assert project.cli_ok("fsck").strip() == "ok"
+
 
 class TestExportPlots:
     def test_writes_accessible_svg_plots_and_manifest(self, project: BewleyProject) -> None:

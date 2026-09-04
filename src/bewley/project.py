@@ -89,6 +89,7 @@ EVENTS_DIR = Path(PROJECT_DIR) / "events"
 OBJECTS_DIR = Path(PROJECT_DIR) / "objects" / "documents"
 AUDIO_OBJECTS_DIR = Path(PROJECT_DIR) / "objects" / "audio"
 VIDEO_OBJECTS_DIR = Path(PROJECT_DIR) / "objects" / "video"
+IMAGE_OBJECTS_DIR = Path(PROJECT_DIR) / "objects" / "images"
 LOCK_PATH = Path(PROJECT_DIR) / "locks" / "write.lock"
 CONFIG_PATH = Path(PROJECT_DIR) / "config.toml"
 HEAD_PATH = Path(PROJECT_DIR) / "HEAD"
@@ -168,6 +169,18 @@ _SCHEMA_SQL = """
                   media_type TEXT NOT NULL,
                   metadata_json TEXT NOT NULL,
                   PRIMARY KEY (document_id, chunk_index)
+                );
+                CREATE TABLE IF NOT EXISTS document_image_sources (
+                  image_id TEXT PRIMARY KEY,
+                  document_id TEXT NOT NULL,
+                  page_number INTEGER NOT NULL,
+                  image_sha256 TEXT NOT NULL,
+                  original_image_path TEXT NOT NULL,
+                  original_image_filename TEXT NOT NULL,
+                  media_type TEXT NOT NULL,
+                  byte_length INTEGER NOT NULL,
+                  created_at TEXT NOT NULL,
+                  UNIQUE(document_id, page_number)
                 );
                 CREATE TABLE IF NOT EXISTS codes (
                   code_id TEXT PRIMARY KEY,
@@ -358,7 +371,12 @@ class Project:
 
     @classmethod
     def discover(cls) -> "Project":
-        return cls(find_project_root())
+        project = cls(find_project_root())
+        # SQLite is a rebuildable projection. Apply additive projection schema
+        # changes when an older project is opened; the event log remains the
+        # authoritative history and is never rewritten here.
+        project.ensure_db()
+        return project
 
     @property
     def db_path(self) -> Path:
@@ -387,6 +405,10 @@ class Project:
     @property
     def video_objects_dir(self) -> Path:
         return self.root / VIDEO_OBJECTS_DIR
+
+    @property
+    def image_objects_dir(self) -> Path:
+        return self.root / IMAGE_OBJECTS_DIR
 
     @property
     def lock_path(self) -> Path:
@@ -448,6 +470,7 @@ class Project:
             ".bewley/objects/documents",
             ".bewley/objects/audio",
             ".bewley/objects/video",
+            ".bewley/objects/images",
             ".bewley/objects/memos",
             ".bewley/refs/codes",
             ".bewley/refs/documents",
@@ -693,6 +716,18 @@ class Project:
                         json.dumps(chunk["transcription_metadata"], ensure_ascii=False, sort_keys=True),
                     ),
                 )
+            return
+        if etype == "document_image_linked":
+            conn.execute(
+                """INSERT INTO document_image_sources
+                (image_id, document_id, page_number, image_sha256, original_image_path,
+                 original_image_filename, media_type, byte_length, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (payload["image_id"], payload["document_id"], payload["page_number"],
+                 payload["image_sha256"], payload["original_image_path"],
+                 payload["original_image_filename"], payload["media_type"],
+                 payload["byte_length"], event["timestamp"]),
+            )
             return
         if etype == "code_created":
             conn.execute(
@@ -1173,6 +1208,46 @@ class Project:
         if not target.exists():
             target.write_bytes(data)
         return digest
+
+    def store_image_object(self, data: bytes) -> str:
+        digest = sha256_bytes(data)
+        self.image_objects_dir.mkdir(parents=True, exist_ok=True)
+        target = self.image_objects_dir / digest
+        if not target.exists():
+            target.write_bytes(data)
+        return digest
+
+    def attach_source_image(self, document_ref: str, image_path_arg: str, page_number: int) -> dict[str, Any]:
+        import mimetypes
+
+        if page_number < 1:
+            raise BewleyError("page number must be at least 1", code="INVALID_INPUT")
+        image_path = Path(image_path_arg).resolve()
+        if not image_path.is_file():
+            raise BewleyError(f"image not found: {image_path_arg}", code="NOT_FOUND")
+        media_type = mimetypes.guess_type(image_path.name)[0]
+        if media_type not in {"image/jpeg", "image/png", "image/gif", "image/webp"}:
+            raise BewleyError("source image must be JPEG, PNG, GIF, or WebP", code="INVALID_INPUT")
+        with self.connect() as conn:
+            doc = self.resolve_document(conn, document_ref)
+            existing = conn.execute(
+                "SELECT image_id FROM document_image_sources WHERE document_id = ? AND page_number = ?",
+                (doc["document_id"], page_number),
+            ).fetchone()
+        if existing:
+            raise BewleyError(f"document already has a source image for page {page_number}", code="ALREADY_EXISTS")
+        data = image_path.read_bytes()
+        digest = self.store_image_object(data)
+        return self.append_event("document_image_linked", {
+            "image_id": uuid.uuid4().hex,
+            "document_id": doc["document_id"],
+            "page_number": page_number,
+            "image_sha256": digest,
+            "original_image_path": str(image_path),
+            "original_image_filename": image_path.name,
+            "media_type": media_type,
+            "byte_length": len(data),
+        })
 
     def store_memo_object(self, content: str) -> str:
         data = content.encode("utf-8")
@@ -2458,6 +2533,10 @@ class Project:
                 obj_path = self.video_objects_dir / payload["video_sha256"]
                 if not obj_path.exists():
                     problems.append(f"missing video object: {payload['video_sha256']}")
+            if "image_sha256" in payload:
+                obj_path = self.image_objects_dir / payload["image_sha256"]
+                if not obj_path.exists():
+                    problems.append(f"missing image object: {payload['image_sha256']}")
             for chunk in payload.get("chunks", []):
                 obj_path = self.audio_objects_dir / chunk["chunk_audio_sha256"]
                 if not obj_path.exists():
@@ -2472,7 +2551,7 @@ class Project:
             self.apply_event(conn, event)
         conn.commit()
         with self.connect() as actual:
-            for table in ["documents", "document_revisions", "document_audio_sources", "document_video_sources", "document_video_chunks", "codes", "code_aliases", "annotations", "events", "memos", "code_links", "project_settings"]:
+            for table in ["documents", "document_revisions", "document_audio_sources", "document_video_sources", "document_video_chunks", "document_image_sources", "codes", "code_aliases", "annotations", "events", "memos", "code_links", "project_settings"]:
                 actual_count = actual.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 rebuilt_count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 if actual_count != rebuilt_count:
@@ -3114,6 +3193,7 @@ def cmd_show_document(project: Project, ref: str) -> dict:
         doc = project.resolve_document(conn, ref)
         audio_row = conn.execute("SELECT * FROM document_audio_sources WHERE document_id = ?", (doc["document_id"],)).fetchone()
         video_row = conn.execute("SELECT * FROM document_video_sources WHERE document_id = ?", (doc["document_id"],)).fetchone()
+        image_rows = conn.execute("SELECT * FROM document_image_sources WHERE document_id = ? ORDER BY page_number", (doc["document_id"],)).fetchall()
         revisions = conn.execute("SELECT revision_id, created_at, byte_length, line_count, is_current FROM document_revisions WHERE document_id = ? ORDER BY created_at", (doc["document_id"],)).fetchall()
         annotations = conn.execute(
             "SELECT a.annotation_id, c.canonical_name, a.scope_type, a.start_line, a.end_line, a.anchor_status, a.is_active FROM annotations a JOIN codes c ON c.code_id = a.code_id WHERE a.document_id = ? ORDER BY a.created_at",
@@ -3143,6 +3223,12 @@ def cmd_show_document(project: Project, ref: str) -> dict:
             "transcript_style": video_row["transcript_style"],
             "chunk_count": video_row["chunk_count"],
         } if video_row else None),
+        "source_images": [{
+            "image_id": row["image_id"], "page_number": row["page_number"],
+            "original_image_filename": row["original_image_filename"],
+            "media_type": row["media_type"], "image_sha256": row["image_sha256"],
+            "byte_length": row["byte_length"],
+        } for row in image_rows],
         "revisions": [{"revision_id": r["revision_id"], "created_at": r["created_at"], "byte_length": r["byte_length"], "line_count": r["line_count"], "is_current": r["is_current"]} for r in revisions],
         "annotations": [{"annotation_id": a["annotation_id"], "canonical_name": a["canonical_name"], "scope_type": a["scope_type"], "start_line": a["start_line"], "end_line": a["end_line"], "anchor_status": a["anchor_status"], "is_active": a["is_active"]} for a in annotations],
     }
@@ -3475,8 +3561,12 @@ def cmd_history(project: Project, document: str | None, code: str | None, annota
     return [{"sequence_number": event["sequence_number"], "timestamp": event["timestamp"], "event_type": event["event_type"], "event_id": event["event_id"]} for event in rows]
 
 
-def cmd_export_html(project: Project, output_path: str, title: str | None, *, static: bool = False, embed: bool = False) -> dict:
-    payload = code_explorer_payload(project)
+def cmd_export_html(project: Project, output_path: str, title: str | None, *, static: bool = False, embed: bool = False, source_images: str = "omit") -> dict:
+    if source_images not in {"omit", "embed"}:
+        raise BewleyError("--source-images must be omit or embed", code="INVALID_INPUT")
+    if source_images == "embed" and (static or embed):
+        raise BewleyError("embedded source images currently require the interactive full-page HTML export", code="INVALID_INPUT")
+    payload = code_explorer_payload(project, include_source_images=source_images == "embed")
     document_count = payload["document_count"]
     resolved_title = title or f"Qualitative coding explorer · {project.root.name} · {payload['code_count']} codes / {document_count} docs"
     target = Path(output_path)
@@ -3492,8 +3582,10 @@ def cmd_export_html(project: Project, output_path: str, title: str | None, *, st
     return {"output_path": str(target)}
 
 
-def cmd_export_document_html(project: Project, document_ref: str, output_path: str, title: str | None) -> dict:
-    payload = document_viewer_payload(project, document_ref)
+def cmd_export_document_html(project: Project, document_ref: str, output_path: str, title: str | None, *, source_images: str = "omit") -> dict:
+    if source_images not in {"omit", "embed"}:
+        raise BewleyError("--source-images must be omit or embed", code="INVALID_INPUT")
+    payload = document_viewer_payload(project, document_ref, include_source_images=source_images == "embed")
     resolved_title = title or f"Bewley Document Viewer · {payload['document_path']}"
     target = Path(output_path)
     if not target.is_absolute():

@@ -46,6 +46,41 @@ def test_cli_usage_error_is_enveloped(empty_project: BewleyProject) -> None:
     assert code == 1
     assert payload["status"] == "error"
     assert payload["errors"][0]["code"] == "CLI_USAGE"
+    assert payload["next_steps"][0]["command"] == ["bewley", "--help"]
+    assert payload["next_steps"][0]["mutates_state"] is False
+
+
+def test_nested_cli_usage_error_points_to_closest_help(empty_project: BewleyProject) -> None:
+    code, payload, _ = envelope(empty_project, "memo", "add", "--text", "body")
+    assert code == 1
+    assert payload["errors"][0]["code"] == "CLI_USAGE"
+    assert payload["next_steps"][0]["command"] == ["bewley", "memo", "add", "--help"]
+
+
+def test_missing_quote_selector_returns_executable_recovery(empty_project: BewleyProject) -> None:
+    code, payload, _ = envelope(empty_project, "export", "quotes")
+    assert code == 1
+    assert payload["errors"][0]["code"] == "INVALID_INPUT"
+    assert payload["next_steps"][0]["command"] == ["bewley", "export", "quotes", "--all"]
+    assert payload["next_steps"][0]["mutates_state"] is False
+
+
+def test_duplicate_code_points_to_update(empty_project: BewleyProject) -> None:
+    assert envelope(empty_project, "code", "create", "trust")[0] == 0
+    code, payload, _ = envelope(empty_project, "code", "create", "trust")
+    assert code == 1
+    assert payload["errors"][0]["code"] == "ALREADY_EXISTS"
+    assert payload["next_steps"][0]["command"] == ["bewley", "code", "update", "trust", "--help"]
+
+
+def test_guide_exposes_exact_common_operation_contracts(empty_project: BewleyProject) -> None:
+    code, payload, _ = envelope(empty_project, "guide")
+    assert code == 0
+    contracts = {item["id"]: item for item in payload["data"]["operation_contracts"]}
+    assert contracts["add-memo"]["argv_template"][3] == "<content>"
+    assert "map" in contracts["review-candidate"]["argv_templates"]
+    assert contracts["export-quotes"]["required"] == ["exactly one of --code, --query, --all"]
+    assert "--output" not in contracts["export-quotes"]["optional"]
 
 
 def test_init_returns_structured_mutating_action(tmp_path: Path) -> None:
