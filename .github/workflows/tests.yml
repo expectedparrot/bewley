@@ -1,0 +1,31 @@
+name: Python checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '${{ matrix.python }}'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - run: python -m compileall -q src
+      - run: PYTHONPATH=src python -m pytest tests/
+      - run: python -m build
+      - name: Verify installed wheel and bundled resources outside the checkout
+        run: |
+          python -m venv /tmp/bewley-wheel
+          /tmp/bewley-wheel/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/bewley-wheel/bin/bewley version
+          /tmp/bewley-wheel/bin/bewley agent schema envelope
+          /tmp/bewley-wheel/bin/bewley docs show commands

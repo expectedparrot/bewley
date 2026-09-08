@@ -90,6 +90,9 @@ def export_quotes(
     all_quotes: bool = typer.Option(False, "--all", help="Export every active span annotation in the project."),
     fmt: str = typer.Option("text", "--format", help="Output format: 'jsonl' or 'text'."),
     context_lines: int = typer.Option(0, "--context-lines", help="Number of surrounding lines to include."),
+    case: Optional[str] = typer.Option(None, "--case", help="Restrict quotes to a linked case."),
+    attributes: Optional[list[str]] = typer.Option(None, "--attribute", help="Case attribute NAME=VALUE."),
+    speaker: Optional[str] = typer.Option(None, "--speaker", help="Overlapping speaker label or role."),
     human: bool = HumanOption,
 ) -> None:
     """Export quotes filtered by code, boolean query expression, or all annotations."""
@@ -121,6 +124,11 @@ def export_quotes(
     project = get_project(command, json_flag)
     try:
         rows = [row for row in export_rows_for_selector(project, code_ref=code, query_expr=query, all_quotes=all_quotes) if row["scope_type"] == "span"]
+        if case or attributes or speaker:
+            from bewley.case_analysis import scoped_annotations
+            with project.connect() as conn:
+                scoped = {row['annotation_id'] for row in scoped_annotations(project,conn,case=case,attributes=attributes or [],speaker=speaker)}
+            rows = [row for row in rows if row['annotation_id'] in scoped]
         text_by_document = current_text_by_document(project, rows) if context_lines > 0 else {}
     except BewleyError as exc:
         fail(command, exc, json_flag)
@@ -136,9 +144,15 @@ def export_quotes(
                 print("\t".join(parts))
         else:
             for row in rows:
-                print(json.dumps(quote_export_item(row, context_lines, text_by_document), ensure_ascii=False))
+                from bewley.sources import document_lineage
+                item = quote_export_item(row, context_lines, text_by_document)
+                item['source_lineage'] = document_lineage(project,row['document_id'],row['document_revision_id'])
+                print(json.dumps(item, ensure_ascii=False))
     else:
-        result = [quote_export_item(row, context_lines, text_by_document) for row in rows]
+        from bewley.sources import document_lineage
+        result = [{**quote_export_item(row, context_lines, text_by_document),
+                   'source_lineage': document_lineage(project,row['document_id'],row['document_revision_id'])}
+                  for row in rows]
         finish(command, result)
 
 
@@ -248,3 +262,24 @@ def export_narrative(
         finish(command, {"text": text})
     else:
         print(text)
+
+
+@app.command("matrix")
+def export_matrix(
+    attributes: Optional[list[str]] = typer.Option(None, "--attribute", help="Limit cases by NAME=VALUE; repeat for AND."),
+    output: Optional[str] = typer.Option(None, "--output", help="Write a JSON matrix to this path."),
+    human: bool = HumanOption,
+) -> None:
+    """Export code × case counts with explicit document denominators."""
+    from bewley.case_analysis import code_case_matrix
+    project = get_project()
+    try:
+        result = code_case_matrix(project, attributes or [])
+        if output:
+            target = Path(output)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding='utf-8')
+    except (BewleyError, OSError) as exc:
+        fail('export matrix',exc if isinstance(exc,BewleyError) else BewleyError(str(exc),code='IO_ERROR'),should_emit_json(human))
+        return
+    finish('export matrix',result if not output else {'output':output,'case_count':len(result['cases']),'code_count':len(result['codes'])})

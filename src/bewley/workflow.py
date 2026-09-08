@@ -151,6 +151,16 @@ def _phase_state(project: "Project | None", project_exists: bool) -> dict:
             }
     study = _study_state(project)
     steps = _next_steps_for_phase(phase)
+    checklist = list(_PHASE_CHECKLISTS.get(phase, []))
+    primary_doc = _PHASE_DOCS.get(phase, 'overview')
+    if phase == _PHASE_ANALYSIS and study['method'] != 'grounded-theory':
+        checklist = [
+            'Compare coded evidence across cases and record interpretive memos.',
+            'Export evidence: `bewley export quotes --all`.',
+            'Verify the project before reporting: `bewley fsck`.',
+        ]
+        primary_doc = 'workflow'
+        steps = [{'label': 'Inspect coded evidence', 'command': 'bewley export quotes --all'}]
     # Declaring the study design comes before model-assisted coding, but never
     # blocks it: the suggestion is prepended, not substituted.
     if project and phase in (_PHASE_CORPUS, _PHASE_OPEN_CODING):
@@ -182,7 +192,7 @@ def _phase_state(project: "Project | None", project_exists: bool) -> dict:
         "project_exists": project_exists,
         "counts": counts,
         "study": study,
-        "checklist": _PHASE_CHECKLISTS.get(phase, []),
+        "checklist": checklist,
         "recommended_next_steps": steps,
-        "primary_doc": _PHASE_DOCS.get(phase, "overview"),
+        "primary_doc": primary_doc,
     }

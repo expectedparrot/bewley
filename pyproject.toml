@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "bewley"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local-first qualitative coding CLI"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,8 +25,11 @@ dependencies = [
     "typer>=0.12",
     "rich>=13.7",
     "pyyaml>=6.0",
-    "edsl @ git+https://github.com/expectedparrot/edsl.git"
+    "edsl @ git+https://github.com/expectedparrot/edsl.git@02c9d1c8e273d9257f3f9d5f380b91a18747b8cb"
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "jsonschema>=4", "build>=1"]
 
 [project.scripts]
 bewley = "bewley.cli:main"

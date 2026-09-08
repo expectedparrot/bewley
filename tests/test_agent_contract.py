@@ -83,13 +83,13 @@ def test_guide_exposes_exact_common_operation_contracts(empty_project: BewleyPro
     assert "--output" not in contracts["export-quotes"]["optional"]
 
 
-def test_init_returns_structured_mutating_action(tmp_path: Path) -> None:
+def test_init_returns_executable_help_for_missing_input(tmp_path: Path) -> None:
     project = BewleyProject(tmp_path)
     code, payload, _ = envelope(project, "init")
     assert code == 0
     action = payload["next_steps"][0]
-    assert action["command"] == ["bewley", "add", "corpus/<filename>"]
-    assert action["mutates_state"] is True
+    assert action["command"] == ["bewley", "add", "--help"]
+    assert action["mutates_state"] is False
     assert action["requires_network"] is False
     assert action["requires_user_approval"] is False
 

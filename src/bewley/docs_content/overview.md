@@ -41,7 +41,7 @@ stdout. Use `--human`/`-H` for human-readable text.
 
 - Success: `{"schema_version":"2.0","status":"ok","command":"bewley ...","argv":[...],"data":...,"warnings":[],"errors":[],"next_steps":[]}`
 - Failure: `{"schema_version":"2.0","status":"error","command":"bewley ...","argv":[...],"data":{},"warnings":[],"errors":[{"code":"...","message":"...","context":{}}],"next_steps":[]}`
-- `command` is the actual invoked argv array.
+- `command` is the canonical command string; `argv` is the actual invocation array.
 - `next_steps` contain argv arrays plus mutation, network, and approval metadata.
 - Exit code is zero on success and nonzero on failure.
 

@@ -33,7 +33,7 @@ ENVELOPE_SCHEMA_VERSION = "2.0"
 _COMMAND_GROUPS = {
     "list", "show", "code", "annotate", "export", "memo",
     "docs", "codegen", "open-coding", "agent", "example", "study", "question",
-    "case", "attribute", "link", "speakers", "codebook", "import", "insights", "source-image",
+    "case", "attribute", "link", "speakers", "codebook", "import", "insights", "source-image", "source", "project",
 }
 _NESTED_GROUPS = {("codebook", "consolidate"), ("codebook", "focused"), ("insights", "discover"), ("insights", "consolidate"), ("insights", "classify")}
 
@@ -66,6 +66,19 @@ def action(
     requires_user_approval: bool = False,
     reason: str = "",
 ) -> dict[str, Any]:
+    # Parameterized templates belong in guide; next actions must execute as-is.
+    if any("<" in arg and ">" in arg for arg in command):
+        original = shlex.join(command)
+        path = command[:1]
+        for arg in command[1:]:
+            if arg.startswith('-') or '<' in arg:
+                break
+            path.append(arg)
+        # Stop at the registered command path, before any positional values.
+        depth = 3 if len(path) > 2 and tuple(path[1:3]) in _NESTED_GROUPS else 2 if len(path) > 1 and path[1] in _COMMAND_GROUPS else 1
+        command = path[:depth + 1] + ['--help']
+        mutates_state = requires_network = requires_user_approval = False
+        reason = f"Supply the required values using this template: {original}"
     result: dict[str, Any] = {
         "id": action_id,
         "purpose": purpose,
@@ -100,7 +113,12 @@ def _normalize_action(value: str | dict[str, Any]) -> dict[str, Any]:
         raw_command = value
     argv = shlex.split(raw_command) if isinstance(raw_command, str) else [str(item) for item in raw_command]
     action_id = "-".join(argv[1:3]) if len(argv) > 1 else "next"
-    return action(action_id or "next", label, argv, mutates_state=False)
+    read_roots = {"status", "list", "show", "query", "guide", "next", "version", "capabilities", "fsck", "docs", "agent"}
+    read_leaves = {"list", "show", "coverage", "lint", "diff", "candidates"}
+    read_only = ('--help' in argv or '--dry-run' in argv or
+                 (len(argv) > 1 and argv[1] in read_roots) or
+                 (len(argv) > 2 and argv[2] in read_leaves))
+    return action(action_id or "next", label, argv, mutates_state=not read_only)
 
 
 def _json_envelope(

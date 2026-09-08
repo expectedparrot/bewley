@@ -111,6 +111,18 @@ def find_project_root(start: Path | None = None) -> Path:
 
 
 _SCHEMA_SQL = """
+                CREATE TABLE IF NOT EXISTS artifact_versions (
+                  event_id TEXT NOT NULL,
+                  path TEXT NOT NULL,
+                  relative_path TEXT,
+                  sha256 TEXT NOT NULL,
+                  size INTEGER NOT NULL,
+                  role TEXT NOT NULL,
+                  command TEXT NOT NULL,
+                  sequence_number INTEGER NOT NULL,
+                  PRIMARY KEY(event_id, path)
+                );
+
                 CREATE TABLE IF NOT EXISTS documents (
                   document_id TEXT PRIMARY KEY,
                   current_path TEXT NOT NULL,
@@ -438,7 +450,8 @@ class Project:
 
     def _apply_schema(self, conn: sqlite3.Connection) -> None:
         """Apply the single authoritative schema (idempotent)."""
-        conn.executescript(_SCHEMA_SQL)
+        from .sources import SCHEMA as SOURCE_SCHEMA
+        conn.executescript(_SCHEMA_SQL + SOURCE_SCHEMA)
         try:
             conn.execute("ALTER TABLE codes ADD COLUMN parent_code_id TEXT")
         except sqlite3.OperationalError:
@@ -497,18 +510,19 @@ class Project:
 
     @contextlib.contextmanager
     def write_lock(self) -> Iterable[None]:
+        # Kernel locks are released on process exit, including interrupted writes.
+        import fcntl
+
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError as exc:
-            raise BewleyError("project is locked by another writer") from exc
-        try:
-            os.write(fd, str(os.getpid()).encode("utf-8"))
-            os.close(fd)
-            yield
-        finally:
-            with contextlib.suppress(FileNotFoundError):
-                self.lock_path.unlink()
+        with self.lock_path.open("a+") as handle:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as exc:
+                raise BewleyError("project is locked by another writer", code="PROJECT_LOCKED") from exc
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
     def next_sequence(self) -> int:
         if not self.head_path.exists():
@@ -524,30 +538,45 @@ class Project:
         return payload["event_id"]
 
     def append_event(self, event_type: str, payload: dict[str, Any], rebuild_projection: bool = False) -> dict[str, Any]:
+        from .integrity import code_graph_problems, validate_mutation
+        from .util import atomic_create_text
+
         with self.write_lock():
+            self.ensure_db()
             sequence_number = self.next_sequence()
+            files = sorted(self.events_dir.glob("*.json"))
+            if len(files) != sequence_number - 1 or (files and files[-1].stem != f"{sequence_number - 1:012d}"):
+                raise BewleyError("HEAD does not match the event log.", code="INTEGRITY_ERROR",
+                                  hint="Inspect fsck; use rebuild-index --repair-head for an interrupted append.")
             event: dict[str, Any] = {
-                "event_id": uuid.uuid4().hex,
-                "sequence_number": sequence_number,
-                "event_type": event_type,
-                "timestamp": utcnow(),
-                "actor": self.actor(),
-                "tool_version": __version__,
-                "payload": payload,
+                "event_id": uuid.uuid4().hex, "sequence_number": sequence_number,
+                "event_type": event_type, "timestamp": utcnow(), "actor": self.actor(),
+                "tool_version": __version__, "payload": payload,
                 "parent_event_ids": [eid] if (eid := self.last_event_id()) else [],
             }
-            digest_input = dict(event)
-            event["event_sha256"] = sha256_text(json.dumps(digest_input, ensure_ascii=False, sort_keys=True))
-            event_path = self.events_dir / f"{sequence_number:012d}.json"
-            atomic_write_text(event_path, json_dumps(event))
-            atomic_write_text(self.head_path, f"{sequence_number}\n")
-            self.ensure_db()
-            if rebuild_projection:
-                self.rebuild_index()
-            else:
-                with self.connect() as conn:
+            event["event_sha256"] = sha256_text(json.dumps(event, ensure_ascii=False, sort_keys=True))
+            with self.connect() as conn:
+                frontier = conn.execute("SELECT event_id, sequence_number FROM events ORDER BY sequence_number DESC LIMIT 1").fetchone()
+                count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+                if count != len(files) or (frontier and (frontier['event_id'] != self.last_event_id() or frontier['sequence_number'] != len(files))):
+                    raise BewleyError("Projection is behind the event log.", code="INTEGRITY_ERROR",
+                                      hint="Run rebuild-index before writing further events.")
+                try:
+                    conn.execute("BEGIN IMMEDIATE")
+                    validate_mutation(self, conn, event)
                     self.apply_event(conn, event)
-                    conn.commit()
+                    if event_type in {"code_merged", "code_parent_set", "undo_recorded"}:
+                        problems = code_graph_problems(conn)
+                        if problems:
+                            raise BewleyError("Operation would invalidate the code graph.", code="INVALID_INPUT", context={"problems": problems})
+                except sqlite3.IntegrityError as exc:
+                    raise BewleyError("Operation conflicts with current project state.", code="INVALID_INPUT", context={"detail": str(exc)}) from exc
+                # The transaction is validated but uncommitted. The immutable log
+                # commits first; interruption leaves a replayable event, never an
+                # invalid accepted operation or a projection ahead of the log.
+                atomic_create_text(self.events_dir / f"{sequence_number:012d}.json", json_dumps(event))
+                atomic_write_text(self.head_path, f"{sequence_number}\n")
+                conn.commit()
             return event
 
     def all_events(self) -> list[dict[str, Any]]:
@@ -556,20 +585,29 @@ class Project:
             events.append(json.loads(path.read_text(encoding="utf-8")))
         return events
 
-    def rebuild_index(self) -> None:
-        temp_db = self.db_path.with_suffix(".sqlite.tmp")
-        if temp_db.exists():
-            temp_db.unlink()
-        conn = sqlite3.connect(temp_db)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        self._init_connection(conn)
-        for event in self.all_events():
-            self.apply_event(conn, event)
-        conn.commit()
-        conn.close()
-        os.replace(temp_db, self.db_path)
-        atomic_write_text(self.root / PROJECT_DIR / "logs" / "rebuild.log", f"{utcnow()} rebuilt index\n")
+    def rebuild_index(self, *, repair_head: bool = False) -> None:
+        from .integrity import object_problems, read_events, replay
+
+        with self.write_lock():
+            events, problems = read_events(self, check_head=not repair_head)
+            problems.extend(object_problems(self, events))
+            if problems:
+                raise BewleyError("Refusing to rebuild an invalid store.", code="INTEGRITY_ERROR", context={"problems": problems})
+            fd, name = tempfile.mkstemp(prefix="rebuild-", suffix=".sqlite", dir=self.db_path.parent)
+            os.close(fd)
+            temp_db = Path(name)
+            try:
+                with sqlite3.connect(temp_db) as conn:
+                    conn.row_factory = sqlite3.Row
+                    self._init_connection(conn)
+                    replay(self, events, conn)
+                conn.close()
+                os.replace(temp_db, self.db_path)
+                if repair_head:
+                    atomic_write_text(self.head_path, f"{len(events)}\n")
+                atomic_write_text(self.meta / "logs" / "rebuild.log", f"{utcnow()} rebuilt index\n")
+            finally:
+                temp_db.unlink(missing_ok=True)
 
     def _init_connection(self, conn: sqlite3.Connection) -> None:
         self._apply_schema(conn)
@@ -584,6 +622,18 @@ class Project:
             (event["event_id"], event["sequence_number"], event["event_type"], event["timestamp"], json.dumps(event["actor"], ensure_ascii=False)),
         )
         etype = event["event_type"]
+        from .sources import apply_source_event
+        if apply_source_event(conn,event):
+            return
+        if etype == "artifacts_registered":
+            for artifact in payload['artifacts']:
+                conn.execute(
+                    "INSERT INTO artifact_versions VALUES (?,?,?,?,?,?,?,?)",
+                    (event['event_id'], artifact['path'], artifact.get('relative_path'),
+                     artifact['sha256'], artifact['size'], artifact['role'],
+                     payload['command'], event['sequence_number']),
+                )
+            return
         if etype == "project_initialized":
             return
         if etype == "document_added":
@@ -1057,9 +1107,11 @@ class Project:
             return
         if undone_type == "code_link_created":
             conn.execute("UPDATE code_links SET is_active = 0 WHERE link_id = ?", (original["link_id"],))
+            conn.execute("UPDATE entity_links SET is_active = 0 WHERE link_id = ?", (original["link_id"],))
             return
         if undone_type == "code_link_removed":
             conn.execute("UPDATE code_links SET is_active = 1 WHERE link_id = ?", (original["link_id"],))
+            conn.execute("UPDATE entity_links SET is_active = 1 WHERE link_id = ?", (original["link_id"],))
             return
         if undone_type == "core_category_set":
             old = original.get("old_code_id")
@@ -1094,6 +1146,8 @@ class Project:
             while parents.get(code_id) and code_id not in seen:
                 seen.add(code_id)
                 code_id = parents[code_id]
+            if parents.get(code_id):
+                raise BewleyError("Code merge cycle detected.", code="INTEGRITY_ERROR")
             return code_id
 
         return {code_id: root(code_id) for code_id in parents}
@@ -2156,6 +2210,7 @@ class Project:
         }
         return [
             {
+                "code_id": row["code_id"],
                 "canonical_name": row["canonical_name"],
                 "description": row["description"],
                 "inclusion_criteria": row["inclusion_criteria"],
@@ -2305,8 +2360,8 @@ class Project:
 
     def merge_codes(self, sources: list[str], target_ref: str) -> dict[str, Any]:
         with self.connect() as conn:
-            target = self.resolve_code(conn, target_ref)
-            resolved = [self.resolve_code(conn, src) for src in sources]
+            target = self.resolve_active_code(conn, target_ref)
+            resolved = [self.resolve_active_code(conn, src) for src in sources]
         source_ids = [row["code_id"] for row in resolved if row["code_id"] != target["code_id"]]
         if not source_ids:
             raise BewleyError("merge requires at least one source distinct from target", code="INVALID_INPUT")
@@ -2504,62 +2559,10 @@ class Project:
             return matches
 
     def fsck(self) -> list[str]:
-        problems: list[str] = []
-        events = self.all_events()
-        seen_sequences: set[int] = set()
-        for event in events:
-            copied = dict(event)
-            event_sha = copied.pop("event_sha256", None)
-            expected = sha256_text(json.dumps(copied, ensure_ascii=False, sort_keys=True))
-            if event_sha != expected:
-                problems.append(f"event hash mismatch: {event['event_id']}")
-            seq = event["sequence_number"]
-            if seq in seen_sequences:
-                problems.append(f"duplicate sequence number: {seq}")
-            seen_sequences.add(seq)
-            payload = event["payload"]
-            if "content_sha256" in payload:
-                if event["event_type"] in {"memo_created", "memo_updated"}:
-                    obj_path = self.root / PROJECT_DIR / "objects" / "memos" / payload["content_sha256"]
-                else:
-                    obj_path = self.objects_dir / payload["content_sha256"]
-                if not obj_path.exists():
-                    problems.append(f"missing object: {payload['content_sha256']}")
-            if "audio_sha256" in payload:
-                obj_path = self.audio_objects_dir / payload["audio_sha256"]
-                if not obj_path.exists():
-                    problems.append(f"missing audio object: {payload['audio_sha256']}")
-            if "video_sha256" in payload:
-                obj_path = self.video_objects_dir / payload["video_sha256"]
-                if not obj_path.exists():
-                    problems.append(f"missing video object: {payload['video_sha256']}")
-            if "image_sha256" in payload:
-                obj_path = self.image_objects_dir / payload["image_sha256"]
-                if not obj_path.exists():
-                    problems.append(f"missing image object: {payload['image_sha256']}")
-            for chunk in payload.get("chunks", []):
-                obj_path = self.audio_objects_dir / chunk["chunk_audio_sha256"]
-                if not obj_path.exists():
-                    problems.append(f"missing chunk audio object: {chunk['chunk_audio_sha256']}")
-        temp_db = self.db_path.with_suffix(".fsck.sqlite")
-        with contextlib.suppress(FileNotFoundError):
-            temp_db.unlink()
-        conn = sqlite3.connect(temp_db)
-        conn.row_factory = sqlite3.Row
-        self._init_connection(conn)
-        for event in events:
-            self.apply_event(conn, event)
-        conn.commit()
-        with self.connect() as actual:
-            for table in ["documents", "document_revisions", "document_audio_sources", "document_video_sources", "document_video_chunks", "document_image_sources", "codes", "code_aliases", "annotations", "events", "memos", "code_links", "project_settings"]:
-                actual_count = actual.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-                rebuilt_count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-                if actual_count != rebuilt_count:
-                    problems.append(f"projection count mismatch for {table}: actual={actual_count} rebuilt={rebuilt_count}")
-        conn.close()
-        with contextlib.suppress(FileNotFoundError):
-            temp_db.unlink()
-        return problems
+        from .integrity import check_project
+
+        with self.write_lock():
+            return check_project(self)
 
     def history(self, *, document_ref: str | None = None, code_ref: str | None = None, annotation_id: str | None = None) -> list[dict[str, Any]]:
         events = self.all_events()

@@ -11,6 +11,8 @@ from typing import Any, Optional
 
 import typer
 
+from bewley.artifacts import record_command_artifacts
+
 from ..project import BewleyError, atomic_write_text, json_dumps, sha256_bytes
 from .common import HumanOption, action, fail, finish, get_project, should_emit_json
 
@@ -303,6 +305,8 @@ def survey_csv_command(
             "event_id": event["event_id"],
             "documents": document_rows,
         })
+        if not dry_run:
+            record_command_artifacts(project, command, locals())
     except (BewleyError, OSError, UnicodeError, csv.Error) as exc:
         error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
         fail(command, error, json_flag)

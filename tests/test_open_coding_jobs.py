@@ -77,7 +77,9 @@ def _result_for(scenario_data: dict, quote: str, model_name: str = "test"):
     return Result(
         agent=Agent(),
         scenario=Scenario(scenario_data),
-        model=Model(model_name),
+        # These are serialized fixtures, never inference calls. An explicit
+        # service avoids depending on a live model catalog during construction.
+        model=Model(model_name, service_name="test" if model_name == "test" else "openai"),
         iteration=0,
         answer={
             "open_coding": json.dumps([{
@@ -270,6 +272,7 @@ def test_ingest_marks_interviewer_anchored_quotes(empty_project: BewleyProject) 
     assert rows[0]["resolve_status"] == "interviewer_text"
     assert rows[0]["byte_start"]  # located, just disallowed
 
+    _json(empty_project, "open-coding", "review", "--all-remaining", "--decision", "accept")
     apply_data = _json(empty_project, "open-coding", "apply")
     assert apply_data["annotations_applied"] == 0
     assert apply_data["skipped_details"][0]["reason"] == "unresolved_quote:interviewer_text"
@@ -302,5 +305,6 @@ def test_ingest_participant_quotes_unaffected_by_segmentation(empty_project: Bew
     data = _json(empty_project, "open-coding", "ingest", str(results_path),
                  "--jobs", "talk.jobs.ep")
     assert data["unresolved_quotes"] == 0
+    _json(empty_project, "open-coding", "review", "--all-remaining", "--decision", "accept")
     apply_data = _json(empty_project, "open-coding", "apply")
     assert apply_data["annotations_applied"] == 1

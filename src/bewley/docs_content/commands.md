@@ -56,7 +56,7 @@ presentation mode and should not be used by agents parsing results.
 | `bewley example list` | List the example corpora bundled with the installed package. |
 | `bewley example fetch <name> [--dest DIR]` | Write a bundled example corpus (documents, README, license) into a new local directory. |
 | `bewley fsck` | Verify integrity of events, objects, and index. Prints "ok" or problems to stderr. |
-| `bewley rebuild-index` | Rebuild the SQLite index from the event log. |
+| `bewley rebuild-index [--repair-head]` | Rebuild SQLite from validated events and objects. `--repair-head` explicitly recovers the derived HEAD pointer after an interrupted append; it never changes events. |
 | `bewley project pack --output <file.bewley>` | Create a portable, integrity-checked project bundle. Refuses to overwrite or pack a project that fails `fsck`. |
 | `bewley project unpack <file.bewley> --dest <new-dir>` | Validate and restore a bundle into a new directory, rebuild its index, and run integrity checks. Never merges or overwrites. |
 | `bewley capabilities` | Describe the versioned agent interface and bundled schemas. |
@@ -147,7 +147,7 @@ presentation mode and should not be used by agents parsing results.
 ## Querying
 
 ```bash
-bewley query '<expr>' [--mode document|annotation]
+bewley query '<expr>' [--mode document|annotation] [--case REF] [--attribute NAME=VALUE] [--speaker LABEL_OR_ROLE] [--metadata FIELD=VALUE]
 ```
 
 Boolean expression syntax:
@@ -167,6 +167,7 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 | `bewley export quotes (--code <ref> \| --query '<expr>' \| --all) --format jsonl\|text [--context-lines N]` | Export quotes filtered by code or query, or `--all` to dump every active span annotation in the project. |
 | `bewley export html [--output F] [--title T] [--source-images omit\|embed]` | Standalone interactive explorer with full-text search and highlighting, document/scope/status/memo filters, code definitions, prevalence and coverage analytics, proximity relationships, document density, and filtered JSON download. `embed` includes registered pre-OCR source pages; omission is the privacy-preserving default. |
 | `bewley export document-html <ref> [--output F] [--title T] [--source-images omit\|embed]` | Single document with inline highlights and, when explicitly requested, embedded original source-page images. |
+| `bewley export matrix [--attribute NAME=VALUE] [--output F]` | Code × case annotation counts, distinct coded-document counts and eligible-document denominators. Speaker-linked cases use their own overlapping turns; parent codes include descendants. |
 | `bewley export plots [--output-dir DIR]` | Accessible SVGs: code prevalence, coding density, code co-occurrence, code × document matrix, code-discovery curve, review outcomes, in-document annotation positions, and codebook evolution, plus the underlying JSON manifest. The review-outcomes plot is written only when open-coding sidecar logs (`ingest_log.jsonl`/`apply_log.jsonl`) exist. |
 | `bewley export theory [--format json\|mermaid] [--output F]` | Code hierarchy + links as JSON or Mermaid diagram. |
 | `bewley export narrative [--output F]` | Integrative narrative summary. |
@@ -175,12 +176,12 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 
 | Command | Purpose |
 |---|---|
-| `bewley open-coding jobs [--output jobs.ep] [--summary F] [--pilot N] [--model M] [--max-tokens N] [--from-failures R --jobs J]` | Package current document revisions as EDSL Jobs; with `--model`, also write models.ep so the suggested `ep run` is executable verbatim; with `--from-failures`, repackage only scenarios lacking a valid answer. |
+| `bewley open-coding jobs [--output jobs.ep] [--summary F] [--pilot N] [--model M] [--max-tokens N] [--from-failures R --jobs J] [--codebook RELEASE] [--document REF]` | Package current document revisions as EDSL Jobs; with `--model`, also write models.ep so the suggested `ep run` is executable verbatim; with `--from-failures`, repackage only scenarios lacking a valid answer. `--codebook` freezes a released codebook; repeat `--document` to select new material. No model calls execute inside Bewley. |
 | `ep run jobs.ep --model M --output results.ep` | Execute the package using the EDSL `ep` CLI. |
-| `bewley open-coding ingest results.ep [retry.ep ...] [--jobs jobs.ep] [--output F] [--allow-partial]` | Audit coverage (scenarios × models) across one or more Results files, merging retries by stable identity with per-row source attribution; resolve exact quotes and write a reviewable candidate-code CSV with unresolved quotes itemized. |
+| `bewley open-coding ingest results.ep [retry.ep ...] --jobs jobs.ep [--output F] [--allow-partial]` | Audit coverage (scenarios × models) across one or more Results files, merging retries by stable identity with per-row source attribution; resolve exact quotes and write a reviewable candidate-code CSV with unresolved quotes itemized. |
 | `bewley open-coding candidates [--input F]` | List the proposed candidate codes awaiting review, with any recorded decisions; `--human` renders the review queue as a table. |
 | `bewley open-coding review (<candidate-id> \| --all-remaining) --decision accept\|reject\|map\|adjust [--reason R] [--to CODE] [--bytes S:E] [--input F]` | Record a review decision as an event: who decided, what, and why enter the audit trail. `map` applies the candidate as a different code; `adjust` overrides its byte span (including repairing a non-exact resolution). Candidate ids accept a unique prefix. |
-| `bewley open-coding apply [--input F] [--dry-run]` | Execute the recorded review decisions: accepted/mapped/adjusted candidates become codes and exact-span annotations; rejected ones are skipped with their reasons; undecided ones are itemized, fail-closed. With no recorded decisions, rows present in the CSV are treated as accepted (legacy review-by-deletion) with a warning. |
+| `bewley open-coding apply [--input F] [--dry-run] [--accept-csv-rows]` | Execute the recorded review decisions: accepted/mapped/adjusted candidates become codes and exact-span annotations; rejected ones are skipped with their reasons; undecided ones are itemized, fail-closed. With no recorded decisions, all candidates remain undecided. `--accept-csv-rows` explicitly opts into legacy review-by-deletion with a warning. |
 
 ## Codegen (legacy and visualization)
 
@@ -209,3 +210,53 @@ and depend only on the Python stdlib.
 |---|---|
 | `bewley history [--document D] [--code C] [--annotation A]` | Show event log (optionally filtered). |
 | `bewley undo <event_id>` | Emit a compensating event to reverse a prior operation. |
+
+
+## Sources and analysis lineage
+
+These commands import local artifacts and never execute OCR or transcription.
+Analysis text remains exactly as supplied; metadata is stored separately.
+
+| Command | Purpose |
+|---|---|
+| `bewley source add PATH [--locator LOCATOR]` | Preserve the original source bytes and return a stable source ID. |
+| `bewley source transcription SOURCE_ID PATH --tool TOOL [--tool-version VERSION]` | Preserve exact raw transcription/OCR output, including raw JSON responses, linked to the original source. |
+| `bewley source derive TRANSCRIPTION_ID PATH --unit UNIT --transformation REASON [--raw-bytes START:END] [--boundary-status confirmed\|needs-review] [--existing]` | Register a prepared analysis document and its boundary in the raw output. Defaults to the full raw output. `--existing` attaches lineage to an existing current revision. |
+| `bewley source boundary DOCUMENT --status confirmed\|needs-review --reason REASON` | Append a boundary-review decision. Open-coding packaging refuses boundaries still needing review. |
+| `bewley source metadata DOCUMENT FIELD [--original VALUE] [--normalized VALUE] --provenance catalog\|text\|filename\|user\|inferred [--confidence N] [--evidence TEXT] [--status proposed\|accepted\|rejected\|unknown]` | Record author, recipient, date, document_type, language, or collection metadata. Unknown values remain null. |
+| `bewley source show DOCUMENT` | Show current-revision lineage and metadata. A revised document without new lineage is explicitly unrecorded. |
+| `bewley source export-raw TRANSCRIPTION_ID --output PATH` | Retrieve the exact raw output into a new file. |
+
+`bewley query` accepts repeated attribute and metadata equality filters (AND).
+Metadata filters match accepted values only. Case filters use explicit document
+links and, where available, speaker attribution; speaker filters match overlapping
+turns in the annotated revision. Scoped analyses exclude conflicted annotations.
+`bewley export quotes` also accepts `--case`, `--attribute`, and `--speaker` and
+includes source lineage in JSON output.
+
+## Integrity and migration to 0.5
+
+The JSON envelope remains schema 2.0. Accepted mutations add new event types;
+SQLite remains a rebuildable projection. Open 0.5 projects with Bewley 0.5 or
+newer: older readers cannot interpret artifact-registration or source-lineage
+events. Existing events, revisions, and Results are never migrated in place.
+
+- Unreviewed candidates no longer apply automatically. Record decisions through
+  `bewley open-coding review` or explicitly opt into `--accept-csv-rows`.
+- Open-coding ingest now requires `--jobs`; an unaudited Results-only import is
+  no longer accepted. All ingesters match returned scenarios against originating Jobs before
+  interpreting evidence. Open-coding rejects unexpected scenarios and records
+  the packaged model denominator in a `.run.json` manifest when a model is chosen.
+- Run artifacts are registered with immutable snapshots under
+  `.bewley/objects/artifacts/`, including custom output paths. Bundles preserve
+  every snapshot and portable current working files. External absolute paths
+  remain locators; the snapshots travel with the project.
+- `bewley fsck` checks event hashes/order/parents/HEAD, object hashes, projection
+  contents, and structural invariants. It reports damage without editing it.
+- An interrupted append can leave a durable event ahead of SQLite or HEAD.
+  Further writes stop. Use `bewley fsck`, then `bewley rebuild-index`; add
+  `--repair-head` only when explicitly recovering HEAD from a valid event log.
+  Rebuilding refuses invalid events or corrupted source objects.
+- `bewley next` returns executable help when input values are missing. Templates
+  are exposed in `bewley guide`, whose command catalog is generated from the CLI.
+- Writer locks use POSIX kernel locks and are released if the process exits.

@@ -8,7 +8,7 @@ from typing import Any
 import typer
 
 from bewley import __version__
-from bewley.commands.common import ENVELOPE_SCHEMA_VERSION, action, finish
+from bewley.commands.common import ENVELOPE_SCHEMA_VERSION, _normalize_action, action, finish
 from bewley.project import BewleyError, Project, _phase_state
 
 app = typer.Typer(help="Inspect Bewley's agent-facing contract and workflow state.")
@@ -43,21 +43,7 @@ def agent_status() -> None:
     except BewleyError:
         project = None
     state = _phase_state(project, project is not None)
-    next_actions = []
-    for index, item in enumerate(state.pop("recommended_next_steps"), start=1):
-        raw = item["command"].split()
-        mutates_state = (
-            raw[:1] == ["python"]
-            or (raw[:1] == ["bewley"] and raw[1:2] in (["init"], ["add"], ["codegen"], ["export"], ["open-coding"]))
-        )
-        next_actions.append(
-            action(
-                f"phase-{index}",
-                item["label"],
-                raw,
-                mutates_state=mutates_state,
-            )
-        )
+    next_actions = [_normalize_action(item) for item in state.pop("recommended_next_steps")]
     data = {
         "schema_version": SCHEMA_VERSION,
         **state,
@@ -104,9 +90,44 @@ def version_command() -> None:
     })
 
 
+def command_catalog() -> list[dict]:
+    """Build discovery metadata from the same parser that executes commands."""
+    from typer.main import get_command
+    from bewley.cli import app as cli_app
+
+    catalog = []
+    def visit(group, path):
+        children = getattr(group, 'commands', {})
+        if children:
+            for name, child in children.items():
+                visit(child, path + [name])
+            return
+        parameters = []
+        template = ['bewley', *path]
+        for param in group.params:
+            options = list(getattr(param, 'opts', []))
+            is_option = any(option.startswith('-') for option in options)
+            entry = {'name':param.name,'required':param.required,'options':options if is_option else [],
+                     'default':param.default,'multiple':getattr(param,'multiple',False),'help':getattr(param,'help',None)}
+            if hasattr(param.type, 'choices'):
+                entry['choices'] = list(param.type.choices)
+            parameters.append(entry)
+            if param.required:
+                if is_option:
+                    template.append(options[0])
+                template.append(f'<{param.name}>')
+        normalized = _normalize_action({'command':['bewley', *path]})
+        paid = path in [['add-audio'], ['add-video']]
+        catalog.append({'command':['bewley', *path],'argv_template':template,'parameters':parameters,
+                        'mutates_state':normalized['mutates_state'],'requires_network':paid,'requires_user_approval':paid})
+    visit(get_command(cli_app), [])
+    return catalog
+
+
 def guide_command() -> None:
     """Describe the complete Bewley lifecycle and its execution boundary."""
     finish("guide", {
+        "command_catalog": command_catalog(),
         "lifecycle": [
             {
                 "stage": "initialize",
@@ -230,6 +251,49 @@ def guide_command() -> None:
 def _artifact_next(project: Project) -> dict[str, Any] | None:
     """Recognize EDSL pipeline artifacts that the count-based phases cannot see."""
     root = project.root
+    import csv
+    with project.connect() as conn:
+        registered = conn.execute("SELECT DISTINCT relative_path FROM artifact_versions WHERE command='open-coding ingest' AND relative_path LIKE '%.csv'").fetchall()
+    candidates = [root / row['relative_path'] for row in registered]
+    candidates.append(root / 'qualitative-analysis' / 'candidate_codes.csv')
+    decisions = project.review_decisions()
+    for path in dict.fromkeys(candidates):
+        if not path.exists():
+            continue
+        with path.open(newline='', encoding='utf-8') as handle:
+            rows = list(csv.DictReader(handle))
+        unresolved = [row for row in rows if row.get('candidate_id') not in decisions]
+        if unresolved:
+            return {
+                'stage': 'candidates-awaiting-review', 'undecided_count': len(unresolved),
+                'artifacts': {'candidates': str(path)},
+                'recommendation': action('review-candidates', 'Inspect undecided candidate evidence',
+                    ['bewley', 'open-coding', 'candidates', '--input', str(path)], mutates_state=False),
+            }
+    with project.connect() as conn:
+        versions = [dict(row) for row in conn.execute('SELECT * FROM artifact_versions ORDER BY sequence_number DESC')]
+    ingested_jobs = {row['path'] for row in versions if 'ingest' in row['command'] and row['role']=='jobs'}
+    for row in versions:
+        if row['role']!='jobs' or row['path'] in ingested_jobs or not row['relative_path']:
+            continue
+        if row['command']!='open-coding jobs':
+            continue
+        job_path=root/row['relative_path']
+        result_path=job_path.with_name('results.ep')
+        model_rows=[item for item in versions if item['event_id']==row['event_id'] and item['role']=='models']
+        model_path=(root/model_rows[0]['relative_path']) if model_rows and model_rows[0]['relative_path'] else None
+        if result_path.exists():
+            return {'stage':'results-awaiting-ingest', 'artifacts':{'jobs':str(job_path),'results':str(result_path)},
+                    'recommendation':action('ingest-open-coding-results','Validate returned evidence',
+                        ['bewley','open-coding','ingest',str(result_path),'--jobs',str(job_path)],mutates_state=True)}
+        argv=['ep','run',str(job_path),'--output',str(result_path)]
+        if model_path:
+            argv += ['--model_list',str(model_path)]
+        else:
+            argv=['bewley','open-coding','jobs','--help']
+        return {'stage':'awaiting-external-results','artifacts':{'jobs':str(job_path)},
+                'recommendation':action('run-open-coding-jobs','Run registered Jobs with the approved model configuration' if model_path else 'Select a model configuration for external execution',
+                    argv,mutates_state=bool(model_path),requires_network=bool(model_path),requires_user_approval=bool(model_path))}
     feedback_aggregate = root / "qualitative-analysis" / "feedback-aggregate.json"
     feedback_classifications = root / "qualitative-analysis" / "feedback-classifications.jsonl"
     feedback_codebook = root / "qualitative-analysis" / "feedback-codebook.json"

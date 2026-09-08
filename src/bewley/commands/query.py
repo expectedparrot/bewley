@@ -14,6 +14,10 @@ app = typer.Typer(help="Query annotations.")
 def query_command(
     expr: str = typer.Argument(..., help="Boolean code expression (use quotes if it contains spaces or shell metacharacters)."),
     mode: Optional[str] = typer.Option(None, "--mode", help="Query mode: 'document' (default) or 'annotation'."),
+    case: Optional[str] = typer.Option(None, "--case", help="Restrict evidence to an explicitly linked case."),
+    attributes: Optional[list[str]] = typer.Option(None, "--attribute", help="Case attribute equality NAME=VALUE; repeat for AND."),
+    speaker: Optional[str] = typer.Option(None, "--speaker", help="Speaker label or role whose turns overlap the evidence."),
+    metadata: Optional[list[str]] = typer.Option(None, "--metadata", help="Accepted document metadata FIELD=VALUE; repeat for AND."),
     human: bool = HumanOption,
 ) -> None:
     """Query annotations using boolean code expressions (AND, OR, NOT)."""
@@ -21,9 +25,15 @@ def query_command(
     json_flag = should_emit_json(human)
     try:
         project = get_project()
-        result = cmd_query(project, expr, mode)
         cfg_mode = project.config().get("default_query_mode", DEFAULT_QUERY_MODE)
         selected_mode = mode or cfg_mode
+        if selected_mode not in {'document','annotation'}:
+            raise BewleyError('Query mode must be document or annotation.',code='INVALID_INPUT')
+        if case or attributes or speaker or metadata:
+            from bewley.case_analysis import query_scoped
+            result = query_scoped(project,expr,selected_mode,case=case,attributes=attributes or [],speaker=speaker,metadata=metadata or [])
+        else:
+            result = cmd_query(project, expr, mode)
     except BewleyError as e:
         fail(command, e, json_flag)
     if json_flag:

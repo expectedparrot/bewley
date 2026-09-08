@@ -122,7 +122,8 @@ def line_of(text: str, phrase: str) -> int:
 
 def main() -> None:
     if TUTORIAL.exists():
-        shutil.rmtree(TUTORIAL)
+        import uuid
+        TUTORIAL.rename(TUTORIAL.with_name("tutorial-archive-" + uuid.uuid4().hex[:12]))
     CAPTURES.mkdir(parents=True)
 
     # ── Chapter: start the project ─────────────────────────────────────────
@@ -187,7 +188,7 @@ def main() -> None:
 
     def result_for(scenario_data: dict, answer_entries: list[dict], model_name: str = "gpt-4.1-mini") -> Result:
         return Result(
-            agent=Agent(), scenario=Scenario(scenario_data), model=Model(model_name),
+            agent=Agent(), scenario=Scenario(scenario_data), model=Model(model_name, service_name="openai"),
             iteration=0, answer={"open_coding": json.dumps(answer_entries)},
         )
 

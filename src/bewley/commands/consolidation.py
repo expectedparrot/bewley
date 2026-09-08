@@ -9,6 +9,10 @@ from typing import Any, Optional
 
 import typer
 
+from bewley.artifacts import record_command_artifacts
+
+from bewley.run_validation import validate_result_scenarios
+
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
 from bewley.project import BewleyError, utcnow
 
@@ -199,6 +203,7 @@ def jobs_command(
             "saved": saved,
             "models": {"output": str(models_target) if models_target else None, "model": model},
         }
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError) as exc:
         fail(command, exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR"), json_flag)
         return
@@ -237,7 +242,7 @@ def ingest_command(
         used_sources: set[str] = set()
         all_targets: set[str] = set()
         failures = []
-        for result in Results.git.load(result_path):
+        for result in validate_result_scenarios(Results.git.load(result_path), job.scenarios):
             scenario = dict(result["scenario"])
             batch_index = int(scenario["batch_index"])
             seen_batches.add(batch_index)
@@ -296,6 +301,7 @@ def ingest_command(
         with log.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps({"ingested_at": utcnow(), "results": str(result_path), "candidates": rows}) + "\n")
         data = {"output": str(target), "candidate_count": len(rows), "ingest_log": str(log)}
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError) as exc:
         fail(command, exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR"), json_flag)
         return
@@ -426,6 +432,8 @@ def apply_command(
             "plan": plan,
             "event_ids": events,
         }
+        if not dry_run:
+            record_command_artifacts(project, command, locals())
     except (BewleyError, OSError) as exc:
         fail(command, exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR"), json_flag)
         return

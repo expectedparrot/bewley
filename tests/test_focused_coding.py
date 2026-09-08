@@ -152,3 +152,14 @@ def test_focused_framework_mapping_apply_and_export(project: BewleyProject) -> N
     _json(project, "rebuild-index")
     payload = code_explorer_payload(Project(project.root))
     assert payload["code_count"] == 5
+    from test_run_provenance import assert_artifact_roundtrip
+
+    assert_artifact_roundtrip(project, [
+        "focused-framework.jobs.ep", "focused-framework.results.ep",
+        "focused-mapping.jobs.ep", "focused-mapping.results.ep",
+        "qualitative-analysis/focused_framework.json",
+        "qualitative-analysis/focused_mapping.csv",
+        "qualitative-analysis/focused_framework_ingest_log.jsonl",
+        "qualitative-analysis/focused_mapping_ingest_log.jsonl",
+        "qualitative-analysis/focused_apply_log.jsonl",
+    ])

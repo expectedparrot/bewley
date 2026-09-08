@@ -93,14 +93,14 @@ def fsck_command(human: bool = HumanOption) -> None:
 
 
 @app.command("rebuild-index")
-def rebuild_index_command(human: bool = HumanOption) -> None:
+def rebuild_index_command(repair_head: bool = typer.Option(False, "--repair-head", help="Explicitly recover HEAD from a validated event log after an interrupted append."), human: bool = HumanOption) -> None:
     """Rebuild the SQLite index from the append-only event log."""
     import datetime as dt
     command = "rebuild-index"
     json_flag = should_emit_json(human)
     try:
         project = get_project(command, json_flag)
-        project.rebuild_index()
+        project.rebuild_index(repair_head=repair_head)
         project.append_event("index_rebuilt", {"timestamp": dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")})
     except BewleyError as e:
         fail(command, e, json_flag)

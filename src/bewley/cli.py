@@ -41,6 +41,7 @@ from bewley.commands.project import bundle_app as project_app, fsck_command, ini
 from bewley.commands.cases import attribute_app, case_app, link_app
 from bewley.commands.query import query_command
 from bewley.commands.speakers import app as speakers_app
+from bewley.commands.sources import app as source_app
 from bewley.commands.study import question_app, study_app
 
 app = typer.Typer(
@@ -97,6 +98,7 @@ app.add_typer(case_app, name="case")
 app.add_typer(attribute_app, name="attribute")
 app.add_typer(link_app, name="link")
 app.add_typer(speakers_app, name="speakers")
+app.add_typer(source_app, name="source")
 app.add_typer(import_app, name="import")
 app.add_typer(insights_app, name="insights")
 
@@ -148,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             result = app(args=argv, prog_name="bewley", standalone_mode=False)
             return int(result) if isinstance(result, int) else 0
-        except (click.exceptions.Exit, typer_click.exceptions.Exit) as exc:
+        except (click.exceptions.Exit, typer.Exit) as exc:
             return int(exc.exit_code)
         except (click.ClickException, typer_click.ClickException) as exc:
             from bewley.commands.common import action, fail

@@ -38,6 +38,31 @@ def atomic_write_text(path: Path, content: str) -> None:
     os.replace(temp_name, path)
 
 
+def atomic_create_bytes(path: Path, content: bytes) -> None:
+    """Durably publish an immutable file without overwriting its destination."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile("wb", dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if temporary:
+            temporary.unlink(missing_ok=True)
+
+
+def atomic_create_text(path: Path, content: str) -> None:
+    atomic_create_bytes(path, content.encode('utf-8'))
+
+
 def load_toml(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}

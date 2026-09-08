@@ -10,6 +10,10 @@ from typing import Any, Optional
 
 import typer
 
+from bewley.artifacts import record_command_artifacts, registered_input
+
+from bewley.run_validation import trusted_scenario
+
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
 from bewley.commands.import_corpus import looks_like_serialized_transcript
 from bewley.project import BewleyError, safe_decode, utcnow
@@ -197,6 +201,8 @@ def jobs_command(
         "--allow-structured-text",
         help="Package documents that appear to contain unflattened role/content records.",
     ),
+    codebook: Optional[str] = typer.Option(None, "--codebook", help="Apply this immutable released codebook instead of discovering new codes."),
+    documents: Optional[list[str]] = typer.Option(None, "--document", help="Package only these document references; repeat to select new material."),
     human: bool = HumanOption,
 ) -> None:
     """Build an EDSL Jobs package; execute it separately with the ep CLI."""
@@ -212,14 +218,22 @@ def jobs_command(
         Jobs, Model, ModelList, QuestionFreeText, _, Scenario, ScenarioList = _edsl()
         summary_path = _path(project.root, summary)
         corpus_summary = summary_path.read_text(encoding="utf-8") if summary_path.exists() else ""
+        from bewley.codebook import CODING_PROMPT, released_codebook
+        released = released_codebook(project, codebook) if codebook else None
         scenarios = []
         structured_documents: list[str] = []
         with project.connect() as conn:
-            documents = conn.execute(
+            selected_ids = {project.resolve_document(conn, ref)["document_id"] for ref in documents} if documents else None
+            document_rows = conn.execute(
                 "SELECT document_id, current_path FROM documents WHERE archived_at IS NULL ORDER BY current_path"
             ).fetchall()
-            for document in documents:
+            for document in document_rows:
+                if selected_ids is not None and document["document_id"] not in selected_ids:
+                    continue
                 revision = project.current_revision(conn, document["document_id"])
+                pending = conn.execute("SELECT 1 FROM document_lineage WHERE revision_id=? AND boundary_status='needs-review'",(revision['revision_id'],)).fetchone()
+                if pending:
+                    raise BewleyError('Document boundary requires review before coding.',code='UNREVIEWED_BOUNDARY',context={'document_id':document['document_id']})
                 text = safe_decode((project.objects_dir / revision["content_sha256"]).read_bytes())
                 if looks_like_serialized_transcript(text):
                     structured_documents.append(document["current_path"])
@@ -269,7 +283,10 @@ def jobs_command(
             scenarios = scenarios[:pilot]
         if not scenarios:
             raise BewleyError("The project has no active documents.", code="EMPTY_CORPUS")
-        question = QuestionFreeText(question_name=QUESTION_NAME, question_text=QUESTION_TEXT)
+        if released:
+            scenarios = [Scenario({**dict(scenario), 'codebook_json': json.dumps(released['codes'], ensure_ascii=False),
+                                   'codebook_release_id': released['release_id'], 'codebook_fingerprint': released['fingerprint']}) for scenario in scenarios]
+        question = QuestionFreeText(question_name=QUESTION_NAME, question_text=CODING_PROMPT if released else QUESTION_TEXT)
         job = Jobs(survey=question.to_survey()).by(ScenarioList(scenarios))
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
@@ -286,13 +303,27 @@ def jobs_command(
                 )
             if models_target.exists():
                 models_target.unlink()
-            model_list = ModelList([Model(model, max_tokens=max_tokens)])
+            # Known service identifiers keep packaging independent of live
+            # catalog discovery. No provider client or model call is executed.
+            service = "openai" if model.startswith(("gpt-", "o1", "o3", "o4")) else None
+            options = {} if model == "test" else {"max_tokens": max_tokens}
+            try:
+                model_list = ModelList([Model(model, service_name=service, **options)])
+            except ValueError as exc:
+                raise BewleyError(str(exc), code="INVALID_MODEL") from exc
             model_list.git.save(models_target)
             ModelList.git.load(models_target)
+        from bewley.integrity import file_digest
+        manifest = target.with_suffix('.run.json')
+        manifest.write_text(json.dumps({
+            'schema_version': '1.0', 'jobs_sha256': file_digest(target),
+            'models': [model] if model else [],
+        }, indent=2) + '\n', encoding='utf-8')
         data = {
             "object_type": "Jobs",
             "output": str(target),
             "question": QUESTION_NAME,
+            "codebook_release": released,
             "scenario_count": len(scenarios),
             "expected_model_calls": len(scenarios),
             "pilot": pilot is not None,
@@ -312,6 +343,7 @@ def jobs_command(
                 "quote_policy": "exact_verbatim",
             },
         }
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError) as exc:
         err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
         fail(command, err, json_flag)
@@ -337,7 +369,7 @@ def ingest_command(
     results_paths: list[Path] = typer.Argument(
         ..., help="Results .ep files in run order; later files supply retries.",
     ),
-    jobs_path: Optional[Path] = typer.Option(None, "--jobs", help="Originating Jobs package for coverage audit."),
+    jobs_path: Path = typer.Option(..., "--jobs", help="Originating Jobs package required for scenario and coverage validation."),
     output: Path = typer.Option(Path("qualitative-analysis/candidate_codes.csv"), "--output", "-o"),
     allow_partial: bool = typer.Option(False, "--allow-partial"),
     force: bool = typer.Option(False, "--force"),
@@ -364,11 +396,28 @@ def ingest_command(
         if target.exists() and not force:
             raise BewleyError(f"{target} already exists", code="ALREADY_EXISTS", hint="Use --force to replace it.")
         expected: set[tuple[str, str]] = set()
+        expected_models: set[str] = set()
+        source_scenarios = []
         if jobs_source is not None:
             if not jobs_source.exists():
                 raise BewleyError(f"{jobs_source} does not exist", code="NOT_FOUND")
+            registered_input(project, jobs_source)
             jobs = Jobs.git.load(jobs_source)
-            expected = {_scenario_key(_scenario_dict(item)) for item in jobs.scenarios}
+            source_scenarios = list(jobs.scenarios)
+            expected = {_scenario_key(_scenario_dict(item)) for item in source_scenarios}
+            manifest = jobs_source.with_suffix('.run.json')
+            manifest_content = registered_input(project, manifest)
+            if manifest_content is not None:
+                try:
+                    metadata = json.loads(manifest_content)
+                    if not isinstance(metadata, dict) or not isinstance(metadata.get('models', []), list) or not all(isinstance(name, str) for name in metadata.get('models', [])):
+                        raise ValueError('invalid model list')
+                except (ValueError, TypeError, UnicodeError) as exc:
+                    raise BewleyError('Run manifest is malformed.', code='INTEGRITY_ERROR') from exc
+                from bewley.integrity import file_digest
+                if metadata.get('jobs_sha256') != file_digest(jobs_source):
+                    raise BewleyError('Jobs package differs from its execution manifest.', code='INTEGRITY_ERROR')
+                expected_models = set(metadata.get('models', []))
 
         Pair = tuple[tuple[str, str], str]
         order: list[Pair] = []
@@ -378,7 +427,7 @@ def ingest_command(
         for file_index, source in enumerate(sources):
             for result in Results.git.load(source):
                 total_rows += 1
-                scenario = _scenario_dict(result["scenario"])
+                scenario = trusted_scenario(result, source_scenarios) if jobs_source else _scenario_dict(result["scenario"])
                 key = _scenario_key(scenario)
                 model_name = str(_result_value(result, "model", "model") or "")
                 if model_name:
@@ -406,6 +455,10 @@ def ingest_command(
                         if exception:
                             raise ValueError("model exception")
                         entries = _parse_answer(raw)
+                        if scenario.get('codebook_json'):
+                            allowed = {code['code_id']: code for code in json.loads(scenario['codebook_json'])}
+                            if any(entry['code'] not in allowed for entry in entries):
+                                raise ValueError('answer contains a code outside the released codebook')
                         document = project.resolve_document(conn, str(scenario.get("document_id")))
                         revision = project.current_revision(conn, document["document_id"])
                         if revision["revision_id"] != scenario.get("revision_id") or revision["content_sha256"] != scenario.get("content_sha256"):
@@ -431,6 +484,8 @@ def ingest_command(
                 current = project.current_revision(conn, document["document_id"])
                 text = safe_decode((project.objects_dir / current["content_sha256"]).read_bytes())
                 for entry_index, entry in enumerate(entries):
+                    source_code_id = entry['code'] if scenario.get('codebook_release_id') else ''
+                    code_name = project.resolve_active_code(conn, source_code_id)['canonical_name'] if source_code_id else entry['code'].strip()
                     status, start_byte, end_byte = _resolve_quote(text, entry["quote"])
                     if status == "exact":
                         # A quote that resolves inside interviewer turns is
@@ -449,14 +504,14 @@ def ingest_command(
                         unresolved += 1
                         unresolved_details.append({
                             "candidate_id": candidate_id,
-                            "code_name": entry["code"].strip(),
+                            "code_name": code_name,
                             "resolve_status": status,
                             "document_path": scenario.get("document_path", ""),
                             "quote_prefix": entry["quote"][:120],
                         })
                     rows.append({
                         "candidate_id": candidate_id,
-                        "code_name": entry["code"].strip(),
+                        "code_name": code_name,
                         "description": entry["description"].strip(),
                         "quote": entry["quote"],
                         "source_document_id": key[0],
@@ -466,12 +521,17 @@ def ingest_command(
                         "byte_end": "" if end_byte is None else end_byte,
                         "resolve_status": status,
                         "source_results": source_label,
+                        "source_model": model_name,
+                        "source_code_id": source_code_id,
+                        "codebook_release_id": scenario.get("codebook_release_id", ""),
                     })
         # Row identity includes the model, so a multi-model run audits as
         # scenarios × models instead of reporting every scenario as duplicated.
-        model_names = models or {""}
+        if expected_models and models - expected_models:
+            raise BewleyError("Results contain an unexpected model.", code="INCOMPLETE_RESULTS")
+        model_names = expected_models or models or {""}
         expected_pairs = {(key, name) for key in expected for name in model_names} if expected else set()
-        missing = expected_pairs - set(order) if expected else set()
+        missing = expected_pairs - set(order) if jobs_source else set()
         incomplete = bool(failures or missing or duplicates)
         if incomplete and not allow_partial:
             raise BewleyError(
@@ -491,7 +551,7 @@ def ingest_command(
         fieldnames = [
             "candidate_id", "code_name", "description", "quote", "source_document_id",
             "source_document_path", "source_revision_id", "byte_start", "byte_end",
-            "resolve_status", "source_results",
+            "resolve_status", "source_results", "source_model", "source_code_id", "codebook_release_id",
         ]
         with target.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -505,17 +565,10 @@ def ingest_command(
                 "ingested_at": utcnow(),
                 "results": [str(source) for source in sources],
                 "output": str(target),
-                "candidates": [
-                    {
-                        "candidate_id": row["candidate_id"],
-                        "code_name": row["code_name"],
-                        "source_document_path": row["source_document_path"],
-                        "resolve_status": row["resolve_status"],
-                    }
-                    for row in rows
-                ],
+                "jobs": str(jobs_source) if jobs_source else None,
+                "candidates": rows,
             }) + "\n")
-        warnings_list = []
+        warnings_list = ["Partial Results explicitly accepted; inspect missing and failed answers."] if incomplete else []
         if superseded:
             warnings_list.append(
                 f"{superseded} already-valid answer(s) were re-run in retry files; the first valid answer was retained."
@@ -541,6 +594,7 @@ def ingest_command(
             "unresolved_details": unresolved_details,
             "partial": incomplete,
         }
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError) as exc:
         err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
         fail(command, err, json_flag)
@@ -751,6 +805,7 @@ def apply_command(
         False, "--dry-run",
         help="Report the plan without creating codes or annotations.",
     ),
+    accept_csv_rows: bool = typer.Option(False, "--accept-csv-rows", help="Explicitly opt into legacy acceptance of every remaining CSV row when no decisions exist."),
     human: bool = HumanOption,
 ) -> None:
     """Apply reviewed candidate rows as real codes and exact-span annotations.
@@ -758,8 +813,8 @@ def apply_command(
     Review decisions recorded with `open-coding review` drive what happens:
     accepted (and mapped/adjusted) candidates apply, rejected ones are skipped
     with their reason, and undecided ones are itemized, fail-closed. If no
-    decisions exist, rows present in the CSV are treated as accepted (the
-    legacy review-by-deletion workflow) with a warning. Only quotations that
+    decisions exist, candidates remain undecided. --accept-csv-rows explicitly
+    enables legacy review-by-deletion with a warning. Only quotations that
     resolved to exactly one location are applied; nothing is guessed.
     """
     json_flag = should_emit_json(human)
@@ -772,7 +827,7 @@ def apply_command(
         with source.open(newline="", encoding="utf-8") as handle:
             candidates = list(csv.DictReader(handle))
         decisions = project.review_decisions()
-        has_decisions = any(row.get("candidate_id", "") in decisions for row in candidates)
+        has_decisions = not accept_csv_rows or any(row.get("candidate_id", "") in decisions for row in candidates)
         apply_warnings: list[str] = []
         if not has_decisions:
             apply_warnings.append(
@@ -798,6 +853,8 @@ def apply_command(
             for row in candidates:
                 candidate_id = row.get("candidate_id", "")
                 code_name = (row.get("code_name") or "").strip()
+                if row.get("source_code_id"):
+                    code_name = project.resolve_active_code(conn, row["source_code_id"])["canonical_name"]
 
                 def skip(reason: str) -> None:
                     skipped_details.append({
@@ -855,6 +912,10 @@ def apply_command(
                     skip("stale_revision")
                     continue
                 start, end = int(row_bytes[0]), int(row_bytes[1])
+                content = (project.objects_dir / revision['content_sha256']).read_bytes()
+                if not human_adjusted and content[start:end].decode('utf-8', errors='replace') != row.get('quote'):
+                    skip('quote_offset_mismatch')
+                    continue
                 known_code_id = code_ids.get(code_name)
                 if known_code_id is not None and (
                     known_code_id, document["document_id"], start, end
@@ -914,6 +975,8 @@ def apply_command(
             "review_mode": "decisions" if has_decisions else "csv-rows",
             "decisions": decision_counts,
         }
+        if not dry_run:
+            record_command_artifacts(project, command, locals())
     except (BewleyError, OSError) as exc:
         err = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR")
         fail(command, err, json_flag)

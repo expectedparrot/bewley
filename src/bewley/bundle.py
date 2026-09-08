@@ -24,7 +24,13 @@ EVIDENCE_NAMES = {
     "results.ep",
     "candidate_codes.csv",
     "ingest_log.jsonl",
-    "apply_log.jsonl",
+    "apply_log.jsonl", "models.json", "ingest-log.jsonl", "candidates.jsonl",
+    "focused_framework.json", "focused_mapping.csv", "focused_framework_ingest_log.jsonl",
+    "focused_mapping_ingest_log.jsonl", "focused_apply_log.jsonl",
+    "feedback-codebook.json", "feedback-classifications.jsonl", "feedback-aggregate.json",
+    "consolidation_candidates.csv", "consolidation_ingest_log.jsonl", "consolidation_apply_log.jsonl",
+    "rapid_insights.jsonl", "rapid_insights_ingest_log.jsonl",
+    "interviewer_feedback_insights.json", "interviewer_feedback_ingest_log.jsonl",
 }
 EXCLUDED_PARTS = {".git", "__pycache__", ".pytest_cache", ".DS_Store"}
 EXCLUDED_NAMES = {".env", "write.lock", "bewley.sqlite"}
@@ -53,7 +59,7 @@ def _bundle_files(project: Project, output: Path) -> dict[str, Path]:
         relative = path.relative_to(project.root)
         if any(part in EXCLUDED_PARTS for part in relative.parts):
             continue
-        if path.name in EXCLUDED_NAMES or relative.parts[:3] == (".bewley", "index", "bewley.sqlite"):
+        if path.name in EXCLUDED_NAMES or relative.parts[:2] == (".bewley", "index"):
             continue
         files[relative.as_posix()] = path
 
@@ -78,17 +84,33 @@ def _bundle_files(project: Project, output: Path) -> dict[str, Path]:
         relative = path.relative_to(project.root)
         if any(part in EXCLUDED_PARTS for part in relative.parts) or path.name in EXCLUDED_NAMES:
             continue
-        if path.name in EVIDENCE_NAMES or (
+        if path.name in EVIDENCE_NAMES or path.name.endswith(".run.json") or relative.parts[:2] == ("qualitative-analysis", "imports") or (
             path.suffix == ".ep"
             and any(token in path.name.lower() for token in ("jobs", "models", "results"))
         ):
             files[relative.as_posix()] = path
+    # Registered snapshots are authoritative; current review files can differ.
+    # Every historical version remains in objects/artifacts. Restore the latest
+    # registered version at its portable working path.
+    with project.connect() as conn:
+        versions = conn.execute('SELECT * FROM artifact_versions ORDER BY sequence_number').fetchall()
+    for row in versions:
+        if row['relative_path']:
+            relative = _safe_member(row['relative_path'])
+            working = project.root.joinpath(*relative.parts)
+            files[relative.as_posix()] = working if working.is_file() and not working.is_symlink() else project.meta / 'objects' / 'artifacts' / row['sha256']
     return files
 
 
 def pack_project(project: Project, output: Path) -> dict[str, Any]:
+    with project.write_lock():
+        return _pack_project(project, output)
+
+
+def _pack_project(project: Project, output: Path) -> dict[str, Any]:
     """Write a validated project snapshot to a portable .bewley container."""
-    problems = project.fsck()
+    from .integrity import check_project
+    problems = check_project(project)
     if problems:
         raise BewleyError(
             "Refusing to pack a project that fails integrity checks.",

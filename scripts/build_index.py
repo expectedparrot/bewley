@@ -250,7 +250,7 @@ add("""
 INSTALL_CMD = cmd(
     "python -m pip install --user --upgrade uv\n"
     "uv tool install --python 3.11 --upgrade --force \\\n"
-    '  --with-executables-from "edsl @ git+https://github.com/expectedparrot/edsl.git@main" \\\n'
+    '  --with-executables-from "edsl @ git+https://github.com/expectedparrot/edsl.git@02c9d1c8e273d9257f3f9d5f380b91a18747b8cb" \\\n'
     '  "bewley @ git+https://github.com/expectedparrot/bewley.git@main"'
 )
 add(f"""

@@ -107,7 +107,7 @@ class TestReviewCommand:
         assert code != 0  # empty prefix matches everything
 
     def test_legacy_mode_warns_without_decisions(self, ingested: BewleyProject) -> None:
-        code, envelope = _envelope(ingested, "open-coding", "apply")
+        code, envelope = _envelope(ingested, "open-coding", "apply", "--accept-csv-rows")
         assert code == 0
         assert envelope["status"] == "warning"
         assert envelope["data"]["review_mode"] == "csv-rows"
@@ -137,3 +137,9 @@ class TestReviewCommand:
         code, envelope = _envelope(ingested, "open-coding", "review", first, "--decision", "map")
         assert code != 0
         assert envelope["errors"][0]["code"] == "INVALID_INPUT"
+
+
+def test_unreviewed_candidates_are_not_accepted(ingested):
+    data = _json(ingested, "open-coding", "apply")
+    assert data["annotations_applied"] == 0
+    assert data["decisions"]["undecided"] == 2

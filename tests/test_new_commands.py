@@ -138,6 +138,7 @@ class TestOpenCodingApply:
             writer = _csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+        _json_ok(project, "open-coding", "review", "--all-remaining", "--decision", "accept")
         return target
 
     def _document_row(self, project):

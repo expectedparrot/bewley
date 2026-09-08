@@ -11,8 +11,17 @@ bewley can:
 - define and evolve a codebook — rename, merge, split, hierarchy, and typed
   links between codes — without destroying provenance;
 - package open-coding work as EDSL Jobs, audit and ingest the externally run
-  Results, and apply reviewed candidates as exact-span annotations; and
-- query coded evidence with boolean expressions and export it for reports.
+  Results, and apply reviewed candidates as exact-span annotations;
+- apply a released codebook to new documents using stable code IDs;
+- query evidence by case, attribute, speaker, or accepted source metadata and
+  export code × case matrices with explicit denominators; and
+- preserve source files, exact raw transcriptions, analysis-document boundaries,
+  and metadata provenance alongside the coded evidence.
+
+Version 0.5 requires originating `--jobs` at open-coding ingest and explicit
+candidate decisions before apply. The legacy review-by-deletion workflow now
+requires `--accept-csv-rows`. See `bewley docs show commands` for migration notes
+and `bewley guide` for the complete command catalog.
 
 <p align="center">
   <img src="docs/assets/bewley-package.png" width="760" alt="Bewley: an Expected Parrot perched on a stack of papers, framed by an E and brackets">
@@ -48,7 +57,7 @@ Use `uv` to install Bewley in an isolated Python 3.11+ tool environment.
 Include EDSL's `ep` executable in the same environment:
 
 uv tool install --python 3.11 --upgrade --force \
-  --with-executables-from "edsl @ git+https://github.com/expectedparrot/edsl.git@main" \
+  --with-executables-from "edsl @ git+https://github.com/expectedparrot/edsl.git@02c9d1c8e273d9257f3f9d5f380b91a18747b8cb" \
   "bewley @ git+https://github.com/expectedparrot/bewley.git@main"
 
 Verify the installed package, contract versions, and both executables:

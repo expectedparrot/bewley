@@ -10,6 +10,10 @@ from typing import Any, Optional
 
 import typer
 
+from bewley.artifacts import record_command_artifacts
+
+from bewley.run_validation import validate_result_scenarios
+
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
 from bewley.project import BewleyError, cmd_study_show, utcnow
 
@@ -224,6 +228,7 @@ def framework_jobs(
             "expected_model_calls": 1, "saved": saved,
             "models": str(models) if models else None,
         }
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError) as exc:
         fail(command, exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="IO_ERROR"), json_flag)
         return
@@ -294,7 +299,7 @@ def framework_ingest(
         Jobs, _, _, _, Results, _, _ = _edsl()
         job = Jobs.git.load(jobs_path)
         scenarios = list(job.scenarios)
-        result_rows = list(Results.git.load(result_path))
+        result_rows = validate_result_scenarios(Results.git.load(result_path), scenarios)
         if len(scenarios) != 1 or len(result_rows) != 1:
             raise BewleyError("Expected exactly one framework result.", code="INCOMPLETE_RESULTS")
         scenario = dict(scenarios[0])
@@ -318,6 +323,7 @@ def framework_ingest(
             "output": str(target), "theme_count": len(framework["themes"]),
             "focused_code_count": len(framework["focused_codes"]), "ingest_log": str(log),
         }
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError, ValueError, json.JSONDecodeError) as exc:
         error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="INVALID_RESULTS")
         fail(command, error, json_flag)
@@ -379,6 +385,7 @@ def mapping_jobs(
             "expected_model_calls": len(scenarios), "saved": saved,
             "models": str(models) if models else None,
         }
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError, KeyError, json.JSONDecodeError) as exc:
         error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="INVALID_FRAMEWORK")
         fail(command, error, json_flag)
@@ -433,7 +440,7 @@ def mapping_ingest(
         expected_batches = {int(dict(s)["batch_index"]) for s in job.scenarios}
         focused_keys = {row["focused_key"] for row in artifact["focused_codes"]}
         rows, seen_batches, seen_codes, failures = [], set(), set(), []
-        for result in Results.git.load(result_path):
+        for result in validate_result_scenarios(Results.git.load(result_path), job.scenarios):
             scenario = dict(result["scenario"])
             batch = int(scenario["batch_index"])
             seen_batches.add(batch)
@@ -481,6 +488,7 @@ def mapping_ingest(
             "focused_codes_used": len({row["focused_key"] for row in rows}),
             "ingest_log": str(log),
         }
+        record_command_artifacts(project, command, locals())
     except (BewleyError, OSError, KeyError, json.JSONDecodeError) as exc:
         error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="INVALID_RESULTS")
         fail(command, error, json_flag)
@@ -561,6 +569,8 @@ def apply_focused(
                     "mapping": str(mapping_path), "plan": plan, "event_ids": event_ids,
                 }) + "\n")
         data = {**plan, "dry_run": dry_run, "event_ids": event_ids}
+        if not dry_run:
+            record_command_artifacts(project, command, locals())
     except (BewleyError, OSError, KeyError, json.JSONDecodeError) as exc:
         error = exc if isinstance(exc, BewleyError) else BewleyError(str(exc), code="INVALID_INPUT")
         fail(command, error, json_flag)
