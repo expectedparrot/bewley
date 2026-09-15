@@ -50,16 +50,18 @@ def code_explorer_payload(project: Project, *, include_source_images: bool = Fal
         annotations = conn.execute(
             "SELECT a.*, c.canonical_name, c.color, d.current_path FROM annotations a JOIN codes c ON c.code_id = a.code_id JOIN documents d ON d.document_id = a.document_id WHERE a.is_active = 1 ORDER BY c.canonical_name, d.current_path, COALESCE(a.start_line, 0), a.annotation_id"
         ).fetchall()
-        doc_paths_needed = {row["current_path"] for row in annotations}
+        # Corpus browsing must work before any document has been annotated.
+        document_rows = conn.execute(
+            "SELECT document_id, current_path FROM documents ORDER BY current_path"
+        ).fetchall()
         document_ids: dict[str, str] = {}
         doc_texts: dict[str, list[str]] = {}
-        for dpath in doc_paths_needed:
-            doc_row = conn.execute("SELECT document_id FROM documents WHERE current_path = ?", (dpath,)).fetchone()
-            if doc_row:
-                document_ids[dpath] = doc_row["document_id"]
-                rev = project.current_revision(conn, doc_row["document_id"])
-                content = (project.objects_dir / rev["content_sha256"]).read_bytes()
-                doc_texts[dpath] = safe_decode(content).splitlines()
+        for doc_row in document_rows:
+            dpath = doc_row["current_path"]
+            document_ids[dpath] = doc_row["document_id"]
+            rev = project.current_revision(conn, doc_row["document_id"])
+            content = (project.objects_dir / rev["content_sha256"]).read_bytes()
+            doc_texts[dpath] = safe_decode(content).splitlines()
     aliases_by_code: dict[str, list[str]] = {}
     for row in alias_rows:
         aliases_by_code.setdefault(row["code_id"], []).append(row["alias_name"])
@@ -134,7 +136,7 @@ def code_explorer_payload(project: Project, *, include_source_images: bool = Fal
     } for row in visible_codes]
     code_items.sort(key=lambda item: (-item["annotation_count"], item["name"]))
     images = _source_images(project, document_ids) if include_source_images else {}
-    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len({item["document_path"] for item in snippet_items}), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts, "source_images": images, "analytics": plot_data(project)}
+    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len(doc_texts), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts, "source_images": images, "analytics": plot_data(project)}
 
 
 def document_viewer_payload(project: Project, document_ref: str, *, include_source_images: bool = False) -> dict[str, Any]:
@@ -727,7 +729,7 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
     const documents = Object.entries(docTexts).sort(([left], [right]) => left.localeCompare(right));
     const documentIndexByPath = new Map(documents.map(([path], index) => [path, index]));
     const analytics = data.analytics || {{}};
-    const state = {{ selectedCode: null, scope: "all", search: "", codebookSearch: "", documentPath: "", anchorStatus: "", memoOnly: false, activeTab: "snippets" }};
+    const state = {{ selectedCode: null, scope: "all", search: "", codebookSearch: "", documentPath: "", anchorStatus: "", memoOnly: false, activeTab: data.snippets.length ? "snippets" : "documents" }};
 
     const codeListEl = document.getElementById("code-list");
     const codebookListEl = document.getElementById("codebook-list");
