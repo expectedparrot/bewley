@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from conftest import BewleyProject
 
 
@@ -58,6 +60,54 @@ class TestExportQuotes:
 
 
 class TestExportHtml:
+    @pytest.mark.parametrize("coded", [False, True])
+    def test_explorer_includes_uncoded_documents(self, project: BewleyProject, coded: bool) -> None:
+        from bewley.html_export import code_explorer_payload
+        from bewley.project import Project
+
+        if coded:
+            project.cli_ok("code", "create", "trust")
+            project.cli_ok("annotate", "apply", "trust", "corpus/interview_alice.txt", "--lines", "5:5")
+
+        # Export registered revisions, even when the working copy has changed.
+        expected = {
+            f"corpus/{path.name}": path.read_text(encoding="utf-8").splitlines()
+            for path in (project.root / "corpus").glob("*.txt")
+        }
+        (project.root / "corpus/interview_alice.txt").write_text("Unregistered edit\n")
+        payload = code_explorer_payload(Project(project.root))
+
+        assert payload["document_texts"] == expected
+        assert payload["document_count"] == len(expected)
+        assert payload["snippet_count"] == int(coded)
+        assert payload["code_count"] == int(coded)
+
+        project.cli_ok("export", "html", "--output", "report/corpus.html")
+        page = (project.root / "report/corpus.html").read_text(encoding="utf-8")
+        exported = json.JSONDecoder().raw_decode(page.split("const data = ", 1)[1])[0]
+        assert exported["document_texts"] == expected
+        assert exported["document_count"] == len(expected)
+
+    def test_empty_explorer_has_no_documents(self, empty_project: BewleyProject) -> None:
+        from bewley.html_export import code_explorer_payload
+        from bewley.project import Project
+
+        payload = code_explorer_payload(Project(empty_project.root))
+        assert payload["document_texts"] == {}
+        assert payload["document_count"] == 0
+        assert payload["snippets"] == []
+
+    def test_uncoded_source_images_are_exported(self, project: BewleyProject) -> None:
+        from bewley.html_export import code_explorer_payload
+        from bewley.project import Project
+
+        image = project.root / "source.png"
+        image.write_bytes(b"\x89PNG\r\n\x1a\nuncoded-source")
+        project.cli_ok("source-image", "attach", "corpus/interview_alice.txt", str(image), "--page", "1")
+        payload = code_explorer_payload(Project(project.root), include_source_images=True)
+        assert payload["snippet_count"] == 0
+        assert payload["source_images"]["corpus/interview_alice.txt"][0]["filename"] == "source.png"
+
     def test_code_explorer_html(self, project: BewleyProject) -> None:
         project.cli_ok("code", "create", "trust")
         project.cli_ok(
