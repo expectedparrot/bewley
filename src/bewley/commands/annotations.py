@@ -6,6 +6,7 @@ import typer
 
 from ..project import (
     BewleyError,
+    EVIDENCE_DOMAINS,
     cmd_annotate_show,
     lines_to_byte_range,
     parse_byte_range,
@@ -27,12 +28,18 @@ def annotate_apply(
     occurrence: Optional[int] = typer.Option(None, "--occurrence", help="Which occurrence of --quote to anchor (1-based) when it appears more than once."),
     turn: Optional[int] = typer.Option(None, "--turn", help="Anchor a whole speaker turn by its 1-based index (requires `bewley speakers detect`)."),
     allow_interviewer: bool = typer.Option(False, "--allow-interviewer", help="Permit a span that lies entirely within interviewer turns."),
+    evidence_domain: str = typer.Option(
+        "unclassified", "--evidence-domain",
+        help="Evidence type: research_content, interview_experience, both, or unclassified.",
+    ),
     memo: Optional[str] = typer.Option(None, "--memo", help="Optional memo to attach to this annotation."),
     human: bool = HumanOption,
 ) -> None:
     """Apply a code to a document or text span."""
     command = "annotate apply"
     json_flag = should_emit_json(human)
+    if evidence_domain not in EVIDENCE_DOMAINS:
+        fail(command, BewleyError(f"--evidence-domain must be one of {', '.join(EVIDENCE_DOMAINS)}", code="INVALID_INPUT"), json_flag)
     if sum([bool(document), bool(bytes_range), bool(lines_range), quote is not None, turn is not None]) != 1:
         fail(command, BewleyError("Specify exactly one of --document, --bytes, --lines, --quote, or --turn", code="INVALID_INPUT"), json_flag)
     if occurrence is not None and quote is None:
@@ -40,17 +47,19 @@ def annotate_apply(
     try:
         project = get_project()
         if document:
-            event = project.add_annotation(code_ref, document_ref, "document", None, memo)
+            event = project.add_annotation(code_ref, document_ref, "document", None, memo, evidence_domain=evidence_domain)
         elif bytes_range:
             event = project.add_annotation(
                 code_ref, document_ref, "span", parse_byte_range(bytes_range), memo,
                 allow_interviewer=allow_interviewer,
+                evidence_domain=evidence_domain,
             )
         elif turn is not None:
             byte_range = project.turn_byte_range(document_ref, turn)
             event = project.add_annotation(
                 code_ref, document_ref, "span", byte_range, memo,
                 allow_interviewer=allow_interviewer,
+                evidence_domain=evidence_domain,
             )
         else:
             with project.connect() as conn:
@@ -64,6 +73,7 @@ def annotate_apply(
             event = project.add_annotation(
                 code_ref, document_ref, "span", byte_range, memo,
                 allow_interviewer=allow_interviewer,
+                evidence_domain=evidence_domain,
             )
     except BewleyError as e:
         fail(command, e, json_flag)
@@ -78,6 +88,7 @@ def annotate_apply(
         "start_line": payload.get("start_line"),
         "end_line": payload.get("end_line"),
         "speaker_scope": payload.get("speaker_scope"),
+        "evidence_domain": payload.get("evidence_domain"),
         # Echo what was actually tagged so the caller can verify the anchor.
         "annotated_text": payload.get("exact_text"),
     }

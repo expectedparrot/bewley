@@ -53,8 +53,11 @@ CODING_PROMPT = """Apply this released codebook to the supplied document.
 Use only the supplied code_id values. Respect each definition, inclusion and
 exclusion criteria. Return an empty array if no code applies. Do not invent codes.
 Return only a JSON array of objects with "code" (the code_id), "description"
-(the supplied definition), and "quote" (an exact contiguous source quotation).
+(the supplied definition), "quote" (an exact contiguous source quotation), and
+"evidence_domain" ("research_content", "interview_experience", or "both").
 Anchor transcript evidence in participant answers, not interviewer questions.
+Classify whether the quote is evidence about the phenomenon under study, the
+interview process, or both. This is separate from speaker role.
 
 Released codebook:
 {{ codebook_json }}

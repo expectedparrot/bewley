@@ -216,7 +216,7 @@ def guide_command() -> None:
                 "purpose": "Write quotes to stdout; exactly one selector is required.",
                 "argv_template": ["bewley", "export", "quotes", "--code", "<code-ref>", "--format", "jsonl"],
                 "required": ["exactly one of --code, --query, --all"],
-                "optional": ["--format", "--context-lines"],
+                "optional": ["--format", "--context-lines", "--evidence-domain"],
                 "mutates_state": False,
                 "output": "Quote content is returned inside the JSON envelope; there is no --output option.",
             },
