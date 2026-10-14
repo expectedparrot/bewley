@@ -10,6 +10,7 @@ import typer
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
 from bewley.project import (
     BewleyError,
+    EVIDENCE_DOMAINS,
     cmd_export_document_html,
     cmd_export_html,
     current_text_by_document,
@@ -93,6 +94,10 @@ def export_quotes(
     case: Optional[str] = typer.Option(None, "--case", help="Restrict quotes to a linked case."),
     attributes: Optional[list[str]] = typer.Option(None, "--attribute", help="Case attribute NAME=VALUE."),
     speaker: Optional[str] = typer.Option(None, "--speaker", help="Overlapping speaker label or role."),
+    evidence_domain: Optional[str] = typer.Option(
+        None, "--evidence-domain",
+        help="Filter by research_content, interview_experience, both, or unclassified.",
+    ),
     human: bool = HumanOption,
 ) -> None:
     """Export quotes filtered by code, boolean query expression, or all annotations."""
@@ -123,7 +128,14 @@ def export_quotes(
         raise typer.Exit(2)
     project = get_project(command, json_flag)
     try:
+        if evidence_domain is not None and evidence_domain not in EVIDENCE_DOMAINS:
+            raise BewleyError(
+                f"--evidence-domain must be one of {', '.join(EVIDENCE_DOMAINS)}",
+                code="INVALID_INPUT",
+            )
         rows = [row for row in export_rows_for_selector(project, code_ref=code, query_expr=query, all_quotes=all_quotes) if row["scope_type"] == "span"]
+        if evidence_domain is not None:
+            rows = [row for row in rows if row["evidence_domain"] == evidence_domain]
         if case or attributes or speaker:
             from bewley.case_analysis import scoped_annotations
             with project.connect() as conn:
@@ -137,7 +149,7 @@ def export_quotes(
         if fmt == "text":
             for row in rows:
                 item = quote_export_item(row, context_lines, text_by_document)
-                parts = [row["canonical_name"], row["current_path"], row["annotation_id"], f"bytes={row['start_byte']}:{row['end_byte']}", f"lines={row['start_line']}:{row['end_line']}", f"exact={row['exact_text']!r}"]
+                parts = [row["canonical_name"], row["evidence_domain"], row["current_path"], row["annotation_id"], f"bytes={row['start_byte']}:{row['end_byte']}", f"lines={row['start_line']}:{row['end_line']}", f"exact={row['exact_text']!r}"]
                 if context_lines > 0:
                     parts.append(f"before={item.get('context_before', '')!r}")
                     parts.append(f"after={item.get('context_after', '')!r}")

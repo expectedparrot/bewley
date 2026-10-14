@@ -133,7 +133,7 @@ presentation mode and should not be used by agents parsing results.
 
 | Command | Purpose |
 |---|---|
-| `bewley annotate apply <code> <doc> (--document \| --bytes S:E \| --lines S:E \| --quote "text" [--occurrence N] \| --turn N) [--allow-interviewer] [--memo M]` | Apply a code to a document or text span. **One scope flag is mandatory** — see note below. `--quote` anchors by the exact text itself (verbatim match or the command fails; multiple occurrences require `--occurrence`, 1-based) and is the least error-prone scope. `--turn` anchors a whole speaker turn in a segmented transcript. Spans in segmented documents carry a `speaker_scope`; interviewer-only spans are refused without `--allow-interviewer`. The envelope echoes the annotated text for verification. |
+| `bewley annotate apply <code> <doc> (--document \| --bytes S:E \| --lines S:E \| --quote "text" [--occurrence N] \| --turn N) [--allow-interviewer] [--evidence-domain DOMAIN] [--memo M]` | Apply a code to a document or text span. **One scope flag is mandatory** — see note below. `--quote` anchors by the exact text itself (verbatim match or the command fails; multiple occurrences require `--occurrence`, 1-based) and is the least error-prone scope. `--turn` anchors a whole speaker turn in a segmented transcript. Spans in segmented documents carry a `speaker_scope`; interviewer-only spans are refused without `--allow-interviewer`. `--evidence-domain` distinguishes research content from interview-process evidence. The envelope echoes the annotated text and evidence domain for verification. |
 | `bewley annotate remove <annotation_id>` | Deactivate an annotation. |
 | `bewley annotate show <annotation_id>` | Show annotation details and the annotated text. |
 | `bewley annotate resolve <annotation_id> --bytes S:E [--memo M]` | Fix a conflicted annotation after a document revision update. |
@@ -164,7 +164,7 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 | Command | Purpose |
 |---|---|
 | `bewley export snippets --code <ref> --format jsonl\|text [--context-lines N]` | Export annotated text snippets. |
-| `bewley export quotes (--code <ref> \| --query '<expr>' \| --all) --format jsonl\|text [--context-lines N]` | Export quotes filtered by code or query, or `--all` to dump every active span annotation in the project. |
+| `bewley export quotes (--code <ref> \| --query '<expr>' \| --all) --format jsonl\|text [--context-lines N] [--evidence-domain DOMAIN]` | Export quotes filtered by code or query, or `--all` to dump every active span annotation. `--evidence-domain` selects research content, interview experience, both, or unclassified evidence. |
 | `bewley export html [--output F] [--title T] [--source-images omit\|embed]` | Standalone interactive explorer with full-text search and highlighting, document/scope/status/memo filters, code definitions, prevalence and coverage analytics, proximity relationships, document density, and filtered JSON download. `embed` includes registered pre-OCR source pages; omission is the privacy-preserving default. |
 | `bewley export document-html <ref> [--output F] [--title T] [--source-images omit\|embed]` | Single document with inline highlights and, when explicitly requested, embedded original source-page images. |
 | `bewley export matrix [--attribute NAME=VALUE] [--output F]` | Code × case annotation counts, distinct coded-document counts and eligible-document denominators. Speaker-linked cases use their own overlapping turns; parent codes include descendants. |
@@ -231,8 +231,9 @@ Analysis text remains exactly as supplied; metadata is stored separately.
 Metadata filters match accepted values only. Case filters use explicit document
 links and, where available, speaker attribution; speaker filters match overlapping
 turns in the annotated revision. Scoped analyses exclude conflicted annotations.
-`bewley export quotes` also accepts `--case`, `--attribute`, and `--speaker` and
-includes source lineage in JSON output.
+`bewley export quotes` also accepts `--case`, `--attribute`, `--speaker`, and
+`--evidence-domain` (`research_content`, `interview_experience`, `both`, or
+`unclassified`) and includes source lineage and evidence domain in JSON output.
 
 ## Integrity and migration to 0.5
 

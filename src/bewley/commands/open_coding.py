@@ -16,7 +16,7 @@ from bewley.run_validation import trusted_scenario
 
 from bewley.commands.common import HumanOption, action, fail, finish, get_project, should_emit_json
 from bewley.commands.import_corpus import looks_like_serialized_transcript
-from bewley.project import BewleyError, safe_decode, utcnow
+from bewley.project import EVIDENCE_DOMAINS, BewleyError, safe_decode, utcnow
 
 
 app = typer.Typer(help="Build open-coding Jobs packages and ingest EDSL Results.")
@@ -34,9 +34,15 @@ Return only a JSON array containing 3–15 objects. Each object must have:
 - "code": a concise snake_case conceptual code
 - "description": one sentence defining the code
 - "quote": an exact, verbatim quotation copied from the document
+- "evidence_domain": one of "research_content", "interview_experience", or "both"
 
 Prefer analytically meaningful concepts over topic labels. Do not invent or
 normalize quotation text. Every quote must occur exactly in the document.
+
+Classify what each quotation is evidence about. Use "research_content" for the
+phenomenon under study, "interview_experience" for the interview, interviewer,
+questions, modality, or process, and "both" only when the same quotation is
+meaningful evidence about both. These are separate dimensions from speaker role.
 
 If the document is a transcript with labeled speaker turns (for example
 INTERVIEWER: and participant names), anchor every quote in a participant's
@@ -111,6 +117,10 @@ def _parse_answer(raw: Any) -> list[dict[str, Any]]:
             raise ValueError("answer contains a non-object entry")
         if not all(isinstance(entry.get(k), str) and entry[k].strip() for k in ("code", "description", "quote")):
             raise ValueError("each entry requires non-empty code, description, and quote strings")
+        domain = entry.get("evidence_domain", "unclassified")
+        if domain not in EVIDENCE_DOMAINS:
+            raise ValueError(f"evidence_domain must be one of {', '.join(EVIDENCE_DOMAINS)}")
+        entry["evidence_domain"] = domain
         entries.append(entry)
     return entries
 
@@ -339,8 +349,9 @@ def jobs_command(
             "inference": "external",
             "answer_contract": {
                 "type": "json_array",
-                "item_required_keys": ["code", "description", "quote"],
+                "item_required_keys": ["code", "description", "quote", "evidence_domain"],
                 "quote_policy": "exact_verbatim",
+                "evidence_domains": list(EVIDENCE_DOMAINS),
             },
         }
         record_command_artifacts(project, command, locals())
@@ -514,6 +525,7 @@ def ingest_command(
                         "code_name": code_name,
                         "description": entry["description"].strip(),
                         "quote": entry["quote"],
+                        "evidence_domain": entry["evidence_domain"],
                         "source_document_id": key[0],
                         "source_document_path": scenario.get("document_path", ""),
                         "source_revision_id": key[1],
@@ -551,7 +563,7 @@ def ingest_command(
         fieldnames = [
             "candidate_id", "code_name", "description", "quote", "source_document_id",
             "source_document_path", "source_revision_id", "byte_start", "byte_end",
-            "resolve_status", "source_results", "source_model", "source_code_id", "codebook_release_id",
+            "resolve_status", "evidence_domain", "source_results", "source_model", "source_code_id", "codebook_release_id",
         ]
         with target.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -580,6 +592,11 @@ def ingest_command(
             "results": [str(source) for source in sources],
             "result_count": total_rows,
             "candidate_count": len(rows),
+            "evidence_domain_counts": {
+                domain: sum(1 for row in rows if row["evidence_domain"] == domain)
+                for domain in EVIDENCE_DOMAINS
+                if any(row["evidence_domain"] == domain for row in rows)
+            },
             "scenario_count": len(order),
             "models": sorted(models),
             "retained_by_source": source_counts,
@@ -676,6 +693,7 @@ def candidates_command(
         show_header=True, header_style="bold green",
     )
     table.add_column("Code", no_wrap=True)
+    table.add_column("Evidence domain", no_wrap=True)
     table.add_column("Description", overflow="fold", max_width=28)
     table.add_column("Quote", overflow="fold")
     table.add_column("Document", no_wrap=True)
@@ -685,7 +703,7 @@ def candidates_command(
         if len(quote) > 110:
             quote = quote[:110].rsplit(" ", 1)[0] + " …"
         document = Path(row["source_document_path"]).name.replace("-adams.txt", "")
-        table.add_row(row["code_name"], row["description"], quote, document, row["decision"] or "-")
+        table.add_row(row["code_name"], row.get("evidence_domain") or "unclassified", row["description"], quote, document, row["decision"] or "-")
     rich_console().print(table)
 
 
@@ -866,6 +884,10 @@ def apply_command(
                 if not code_name:
                     skip("missing_code_name")
                     continue
+                evidence_domain = row.get("evidence_domain") or "unclassified"
+                if evidence_domain not in EVIDENCE_DOMAINS:
+                    skip("invalid_evidence_domain")
+                    continue
                 row_bytes: tuple[str, str] = (row.get("byte_start", ""), row.get("byte_end", ""))
                 human_adjusted = False
                 if has_decisions:
@@ -930,6 +952,7 @@ def apply_command(
                     "document_ref": document["document_id"],
                     "byte_start": start,
                     "byte_end": end,
+                    "evidence_domain": evidence_domain,
                 })
         applied = 0
         created_codes: list[str] = []
@@ -943,6 +966,7 @@ def apply_command(
                     project.add_annotation(
                         item["code_name"], item["document_ref"], "span",
                         (item["byte_start"], item["byte_end"]), None,
+                        evidence_domain=item["evidence_domain"],
                     )
                 except BewleyError as exc:
                     skipped_details.append({
@@ -953,7 +977,11 @@ def apply_command(
                     continue
                 applied += 1
                 applied_items.append(
-                    {"candidate_id": item["candidate_id"], "code_name": item["code_name"]}
+                    {
+                        "candidate_id": item["candidate_id"],
+                        "code_name": item["code_name"],
+                        "evidence_domain": item["evidence_domain"],
+                    }
                 )
             with (source.parent / "apply_log.jsonl").open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps({

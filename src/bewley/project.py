@@ -226,7 +226,8 @@ _SCHEMA_SQL = """
                   superseded_by_event_id TEXT,
                   memo TEXT,
                   created_at TEXT NOT NULL,
-                  is_active INTEGER NOT NULL DEFAULT 1
+                  is_active INTEGER NOT NULL DEFAULT 1,
+                  evidence_domain TEXT NOT NULL DEFAULT 'unclassified'
                 );
                 CREATE TABLE IF NOT EXISTS events (
                   event_id TEXT PRIMARY KEY,
@@ -345,6 +346,7 @@ _SCHEMA_SQL = """
                 """
 
 REVIEW_DECISIONS = ("accept", "reject", "map", "adjust")
+EVIDENCE_DOMAINS = ("research_content", "interview_experience", "both", "unclassified")
 
 # Study manifest fields stored in project_settings under "study.<field>".
 STUDY_FIELDS = ("method", "unit_of_analysis", "purpose")
@@ -466,6 +468,10 @@ class Project:
             pass
         try:
             conn.execute("ALTER TABLE annotations ADD COLUMN speaker_scope TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE annotations ADD COLUMN evidence_domain TEXT NOT NULL DEFAULT 'unclassified'")
         except sqlite3.OperationalError:
             pass
         for column in ("inclusion_criteria", "exclusion_criteria"):
@@ -848,8 +854,8 @@ class Project:
                 INSERT INTO annotations (
                   annotation_id, code_id, document_id, document_revision_id, scope_type, start_byte, end_byte,
                   start_line, end_line, exact_text, prefix_context, suffix_context, anchor_status,
-                  created_by_event_id, superseded_by_event_id, memo, created_at, is_active, speaker_scope
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1, ?)
+                  created_by_event_id, superseded_by_event_id, memo, created_at, is_active, speaker_scope, evidence_domain
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1, ?, ?)
                 """,
                 (
                     payload["annotation_id"],
@@ -869,6 +875,7 @@ class Project:
                     payload.get("memo"),
                     event["timestamp"],
                     payload.get("speaker_scope"),
+                    payload.get("evidence_domain", "unclassified"),
                 ),
             )
             return
@@ -2421,7 +2428,13 @@ class Project:
         self, code_ref: str, document_ref: str, scope_type: str,
         byte_range: tuple[int, int] | None, memo: str | None,
         allow_interviewer: bool = False,
+        evidence_domain: str = "unclassified",
     ) -> dict[str, Any]:
+        if evidence_domain not in EVIDENCE_DOMAINS:
+            raise BewleyError(
+                f"evidence_domain must be one of {', '.join(EVIDENCE_DOMAINS)}",
+                code="INVALID_INPUT",
+            )
         with self.connect() as conn:
             code = self.resolve_active_code(conn, code_ref)
             document = self.resolve_document(conn, document_ref)
@@ -2436,6 +2449,7 @@ class Project:
             "scope_type": scope_type,
             "anchor_status": "clean",
             "memo": memo,
+            "evidence_domain": evidence_domain,
         }
         if scope_type == "span":
             if byte_range is None:
@@ -3510,6 +3524,7 @@ def snippet_export_item(row: sqlite3.Row, context_lines: int, text_by_document: 
         "start_line": row["start_line"], "end_line": row["end_line"],
         "selected_text": row["exact_text"] if row["scope_type"] == "span" else None,
         "anchor_status": row["anchor_status"],
+        "evidence_domain": row["evidence_domain"],
     }
     if context_lines > 0 and row["scope_type"] == "span" and row["start_line"] is not None and row["end_line"] is not None:
         before, after = line_window(text_by_document[row["document_id"]], row["start_line"], row["end_line"], context_lines)
@@ -3527,6 +3542,7 @@ def quote_export_item(row: sqlite3.Row, context_lines: int, text_by_document: di
         "start_byte": row["start_byte"], "end_byte": row["end_byte"],
         "start_line": row["start_line"], "end_line": row["end_line"],
         "exact_text": row["exact_text"], "anchor_status": row["anchor_status"],
+        "evidence_domain": row["evidence_domain"],
     }
     if context_lines > 0 and row["start_line"] is not None and row["end_line"] is not None:
         before, after = line_window(text_by_document[row["document_id"]], row["start_line"], row["end_line"], context_lines)
@@ -3538,7 +3554,7 @@ def quote_export_item(row: sqlite3.Row, context_lines: int, text_by_document: di
 
 def cmd_show_snippets(project: Project, code_ref: str) -> list[dict]:
     rows = snippets_for_code(project, code_ref)
-    return [{"annotation_id": row["annotation_id"], "code_name": row["canonical_name"], "document_path": row["current_path"], "start_line": row["start_line"], "end_line": row["end_line"], "anchor_status": row["anchor_status"], "text": row["exact_text"] if row["scope_type"] == "span" else "<document>"} for row in rows]
+    return [{"annotation_id": row["annotation_id"], "code_name": row["canonical_name"], "document_path": row["current_path"], "start_line": row["start_line"], "end_line": row["end_line"], "anchor_status": row["anchor_status"], "evidence_domain": row["evidence_domain"], "text": row["exact_text"] if row["scope_type"] == "span" else "<document>"} for row in rows]
 
 
 def cmd_query(project: Project, expr: str, mode: str | None) -> list[dict]:

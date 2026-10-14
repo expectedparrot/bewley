@@ -103,6 +103,7 @@ def code_explorer_payload(project: Project, *, include_source_images: bool = Fal
             "start_line": row["start_line"],
             "end_line": row["end_line"],
             "anchor_status": row["anchor_status"],
+            "evidence_domain": row["evidence_domain"],
             "memo": row["memo"],
             "exact_text": row["exact_text"],
         })
@@ -155,7 +156,7 @@ def document_viewer_payload(project: Project, document_ref: str, *, include_sour
         code_color = coerce_code_color(row["color"], row["canonical_name"])
         highlight_color = soft_color(code_color, 0.28)
         code_entry = code_counts.setdefault(row["code_id"], {"code_id": row["code_id"], "name": row["canonical_name"], "display_color": code_color, "annotation_count": 0, "document_annotation_count": 0})
-        item = {"annotation_id": row["annotation_id"], "code_id": row["code_id"], "code_name": row["canonical_name"], "code_slug": code_slug, "code_color": code_color, "highlight_color": highlight_color, "scope_type": row["scope_type"], "start_byte": row["start_byte"], "end_byte": row["end_byte"], "start_line": row["start_line"], "end_line": row["end_line"], "anchor_status": row["anchor_status"], "memo": row["memo"], "exact_text": row["exact_text"]}
+        item = {"annotation_id": row["annotation_id"], "code_id": row["code_id"], "code_name": row["canonical_name"], "code_slug": code_slug, "code_color": code_color, "highlight_color": highlight_color, "scope_type": row["scope_type"], "start_byte": row["start_byte"], "end_byte": row["end_byte"], "start_line": row["start_line"], "end_line": row["end_line"], "anchor_status": row["anchor_status"], "evidence_domain": row["evidence_domain"], "memo": row["memo"], "exact_text": row["exact_text"]}
         annotation_index[row["annotation_id"]] = item
         if row["scope_type"] == "document":
             document_annotations.append(item)
@@ -830,6 +831,7 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
               : ""}}
           </div>
           <div class="snippet-meta">${{escapeHtml(snippet.document_path)}} &middot; ${{escapeHtml(range)}}</div>
+          <div class="snippet-meta">Evidence: ${{escapeHtml((snippet.evidence_domain || "unclassified").replace(/_/g, " "))}}</div>
         </div>
         <div class="text-actions">
           <button class="open-document" data-open-document="${{documentIndexByPath.get(snippet.document_path)}}" type="button">Open full document</button>
@@ -1172,6 +1174,7 @@ def build_static_code_explorer_html(payload: dict[str, Any], title: str) -> str:
         lines = []
         lines.append('<div class="snippet">')
         lines.append(f'<pre class="snippet-text">{_escape(text)}</pre>')
+        lines.append(f'<div class="snippet-source">Evidence: {_escape((s.get("evidence_domain") or "unclassified").replace("_", " "))}</div>')
         if memo:
             lines.append(f'<div class="snippet-memo">{_escape(memo)}</div>')
         lines.append(f'<div class="snippet-source">{_escape(doc_path)}</div>')
@@ -1416,6 +1419,7 @@ def build_embeddable_code_explorer_html(payload: dict[str, Any], title: str) -> 
         lines = []
         lines.append('<div class="bw-snippet">')
         lines.append(f'<pre class="bw-snippet-text">{_escape(text)}</pre>')
+        lines.append(f'<div class="bw-snippet-source">Evidence: {_escape((s.get("evidence_domain") or "unclassified").replace("_", " "))}</div>')
         if memo:
             lines.append(f'<div class="bw-snippet-memo">{_escape(memo)}</div>')
         lines.append(f'<div class="bw-snippet-source">{_escape(doc_path)}</div>')
@@ -2019,6 +2023,7 @@ def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
       const haystack = [
         annotation.code_name,
         annotation.memo || "",
+        annotation.evidence_domain || "",
         annotation.exact_text || "",
         annotation.anchor_status,
       ].join("\\n").toLowerCase();
@@ -2084,6 +2089,7 @@ def build_document_viewer_html(payload: dict[str, Any], title: str) -> str:
       annotationListEl.innerHTML = items.map((annotation) => `
         <article class="annotation-chip ${{state.selectedAnnotation === annotation.annotation_id ? "is-selected" : ""}}" data-annotation-id="${{annotation.annotation_id}}">
           <strong>${{escapeHtml(annotation.code_name)}}</strong> · lines ${{annotation.start_line}}-${{annotation.end_line}} · ${{escapeHtml(annotation.anchor_status)}}<br>
+          <small>Evidence: ${{escapeHtml((annotation.evidence_domain || "unclassified").replaceAll("_", " "))}}</small><br>
           ${{annotation.memo ? escapeHtml(annotation.memo) + "<br>" : ""}}
           <span>${{escapeHtml(annotation.exact_text || "")}}</span>
         </article>
