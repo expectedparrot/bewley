@@ -56,12 +56,32 @@ def code_explorer_payload(project: Project, *, include_source_images: bool = Fal
         ).fetchall()
         document_ids: dict[str, str] = {}
         doc_texts: dict[str, list[str]] = {}
+        document_turns: dict[str, list[dict[str, Any]]] = {}
+        document_metadata: dict[str, dict[str, str]] = {}
         for doc_row in document_rows:
             dpath = doc_row["current_path"]
             document_ids[dpath] = doc_row["document_id"]
             rev = project.current_revision(conn, doc_row["document_id"])
             content = (project.objects_dir / rev["content_sha256"]).read_bytes()
             doc_texts[dpath] = safe_decode(content).splitlines()
+            turn_rows = conn.execute(
+                """SELECT t.label, t.start_byte, t.end_byte, s.role
+                   FROM speaker_turns t LEFT JOIN speaker_roles s ON s.label=t.label
+                   WHERE t.document_id=? AND t.revision_id=? ORDER BY t.turn_index""",
+                (doc_row["document_id"], rev["revision_id"]),
+            ).fetchall()
+            if turn_rows:
+                document_turns[dpath] = []
+                for turn in turn_rows:
+                    raw_turn = safe_decode(content[turn["start_byte"]:turn["end_byte"]])
+                    body = raw_turn[len(turn["label"]) + 1:].lstrip() if raw_turn.startswith(turn["label"] + ":") else raw_turn
+                    document_turns[dpath].append({"label": turn["label"], "role": turn["role"] or "unassigned", "text": body})
+            metadata_rows = conn.execute(
+                "SELECT field, original FROM document_metadata WHERE document_id=? AND review_status='accepted' ORDER BY field",
+                (doc_row["document_id"],),
+            ).fetchall()
+            if metadata_rows:
+                document_metadata[dpath] = {row["field"]: row["original"] for row in metadata_rows if row["original"] is not None}
     aliases_by_code: dict[str, list[str]] = {}
     for row in alias_rows:
         aliases_by_code.setdefault(row["code_id"], []).append(row["alias_name"])
@@ -136,7 +156,7 @@ def code_explorer_payload(project: Project, *, include_source_images: bool = Fal
     } for row in visible_codes]
     code_items.sort(key=lambda item: (-item["annotation_count"], item["name"]))
     images = _source_images(project, document_ids) if include_source_images else {}
-    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len(doc_texts), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts, "source_images": images, "analytics": plot_data(project)}
+    return {"generated_at": utcnow(), "project_root": str(project.root), "code_count": len(code_items), "snippet_count": len(snippet_items), "document_count": len(doc_texts), "interview_count": len(document_turns), "codes": code_items, "snippets": snippet_items, "document_texts": doc_texts, "document_turns": document_turns, "document_metadata": document_metadata, "source_images": images, "analytics": plot_data(project)}
 
 
 def document_viewer_payload(project: Project, document_ref: str, *, include_source_images: bool = False) -> dict[str, Any]:
@@ -459,6 +479,20 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       display: grid;
       gap: 10px;
     }}
+    .interview-list {{ display: grid; gap: 12px; margin-top: 14px; }}
+    .interview-card {{ border: 1px solid var(--ep-border); border-radius: 6px; overflow: hidden; background: #fff; }}
+    .interview-head {{ padding: 10px 12px; background: var(--ep-light-gray); cursor: pointer; list-style-position: inside; }}
+    .interview-card[open] .interview-head {{ border-bottom: 1px solid var(--ep-border); }}
+    .interview-title {{ font-weight: 600; }}
+    .interview-attributes {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }}
+    .interview-attribute {{ border: 1px solid var(--ep-border); border-radius: 999px; padding: 2px 8px; font-size: .74rem; background: #fff; }}
+    .interview-turns {{ display: grid; gap: 7px; padding: 10px 12px; }}
+    .interview-turn {{ max-width: 86%; border-radius: 6px; padding: 8px 10px; background: var(--ep-light-gray); white-space: pre-wrap; overflow-wrap: anywhere; }}
+    .interview-turn.interviewer {{ border-left: 4px solid #527b9a; margin-right: auto; }}
+    .interview-turn.participant {{ border-right: 4px solid var(--ep-green); margin-left: auto; background: #edf6ef; }}
+    .interview-turn.unassigned, .interview-turn.other {{ border-left: 4px solid #9a7846; margin-right: auto; }}
+    .interview-turn-head {{ display: flex; gap: 10px; justify-content: space-between; color: var(--ep-gray); font-size: .72rem; text-transform: uppercase; }}
+    .interview-turn-text {{ margin-top: 4px; }}
     .source-pages figure {{ margin: 0; }}
     .source-pages img {{
       display: block;
@@ -666,6 +700,7 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       <button class="tab is-active" data-tab="snippets" type="button">Snippets</button>
       <button class="tab" data-tab="codebook" type="button">Codebook</button>
       <button class="tab" data-tab="documents" type="button">Documents</button>
+      <button class="tab" data-tab="interviews" type="button">Interviews (<span id="interview-count">0</span>)</button>
       <button class="tab" data-tab="stats" type="button">Stats</button>
     </nav>
     <section class="tab-panel" id="panel-snippets" data-panel="snippets">
@@ -709,6 +744,17 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
         <div class="document-list" id="document-list"></div>
       </main>
     </section>
+    <section class="tab-panel" id="panel-interviews" data-panel="interviews" hidden>
+      <main class="main">
+        <h2>Interviews</h2>
+        <p class="snippet-meta">Speaker turns from segmented documents. Interviewer prompts and participant answers are shown separately.</p>
+        <div class="controls">
+          <input id="interview-search" class="search" type="search" placeholder="Search interview turns&hellip;" aria-label="Search interview turns">
+          <select id="interview-document-filter" aria-label="Filter by interview document"><option value="">All interviews</option></select>
+        </div>
+        <div class="interview-list" id="interview-list"></div>
+      </main>
+    </section>
     <section class="tab-panel" id="panel-stats" data-panel="stats" hidden>
       <div class="summary" id="summary"></div>
       <div class="dashboard" id="dashboard"></div>
@@ -726,16 +772,19 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
     const data = {data_json};
     const docTexts = data.document_texts || {{}};
     const docImages = data.source_images || {{}};
+    const docTurns = data.document_turns || {{}};
+    const sourceMetadata = new Map(Object.entries(data.document_metadata || {{}}));
     const documents = Object.entries(docTexts).sort(([left], [right]) => left.localeCompare(right));
     const documentIndexByPath = new Map(documents.map(([path], index) => [path, index]));
     const analytics = data.analytics || {{}};
-    const state = {{ selectedCode: null, scope: "all", search: "", codebookSearch: "", documentPath: "", anchorStatus: "", memoOnly: false, activeTab: data.snippets.length ? "snippets" : "documents" }};
+    const state = {{ selectedCode: null, scope: "all", search: "", codebookSearch: "", documentPath: "", anchorStatus: "", memoOnly: false, interviewSearch: "", interviewPath: "", activeTab: data.snippets.length ? "snippets" : data.interview_count ? "interviews" : "documents" }};
 
     const codeListEl = document.getElementById("code-list");
     const codebookListEl = document.getElementById("codebook-list");
     const codebookSearchEl = document.getElementById("codebook-search");
     const snippetListEl = document.getElementById("snippet-list");
     const documentListEl = document.getElementById("document-list");
+    const interviewListEl = document.getElementById("interview-list");
     const summaryEl = document.getElementById("summary");
     const footerEl = document.getElementById("footer");
     const searchEl = document.getElementById("search");
@@ -994,6 +1043,27 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
         : `<div class="empty">No documents in this project.</div>`;
     }}
 
+    function renderInterviews() {{
+      const query = state.interviewSearch;
+      const entries = Object.entries(docTurns).filter(([path, turns]) =>
+        (!state.interviewPath || path === state.interviewPath) &&
+        (!query || (path + "\\n" + turns.map(t => t.label + "\\n" + t.text).join("\\n")).toLowerCase().includes(query))
+      );
+      document.getElementById("interview-count").textContent = Object.keys(docTurns).length;
+      interviewListEl.innerHTML = entries.length ? entries.map(([path, turns]) => {{
+        const metadata = sourceMetadata.get(path) || {{}};
+        const attributes = Object.entries(metadata).filter(([key, value]) => key.startsWith("record.") && value).map(([key, value]) => {{
+          const label = key.slice("record.".length).replace(/[._-]+/g, " ").replace(/\\b\\w/g, letter => letter.toUpperCase());
+          return `<span class="interview-attribute"><b>${{escapeHtml(label)}}:</b> ${{escapeHtml(value)}}</span>`;
+        }}).join("");
+        const bubbles = turns.map((turn, index) => {{
+          const role = ["interviewer", "participant"].includes(turn.role) ? turn.role : (turn.role === "unassigned" ? "unassigned" : "other");
+          return `<article class="interview-turn ${{role}}"><header class="interview-turn-head"><strong>${{escapeHtml(turn.label)}}</strong><span>${{escapeHtml(turn.role)}} · turn ${{index + 1}}</span></header><div class="interview-turn-text">${{escapeHtml(turn.text)}}</div></article>`;
+        }}).join("");
+        return `<details class="interview-card"><summary class="interview-head"><span class="interview-title">${{escapeHtml(path)}}</span><span class="snippet-meta"> · ${{turns.length}} turns</span><div class="interview-attributes">${{attributes}}</div></summary><div class="interview-turns">${{bubbles}}</div></details>`;
+      }}).join("") : `<div class="empty">${{Object.keys(docTurns).length ? "No interviews match these filters." : "No segmented interview transcripts are available."}}</div>`;
+    }}
+
     async function copyText(button, text) {{
       try {{
         await navigator.clipboard.writeText(text);
@@ -1054,9 +1124,13 @@ def build_code_explorer_html(payload: dict[str, Any], title: str) -> str:
       renderAnalysis();
       renderSnippets();
       renderDocuments();
+      renderInterviews();
     }}
 
     for (const path of Object.keys(docTexts).sort()) documentFilterEl.insertAdjacentHTML("beforeend", `<option value="${{escapeHtml(path)}}">${{escapeHtml(path)}}</option>`);
+    for (const path of Object.keys(docTurns).sort()) document.getElementById("interview-document-filter").insertAdjacentHTML("beforeend", `<option value="${{escapeHtml(path)}}">${{escapeHtml(path)}}</option>`);
+    document.getElementById("interview-search").addEventListener("input", e => {{ state.interviewSearch = e.target.value.trim().toLowerCase(); renderInterviews(); }});
+    document.getElementById("interview-document-filter").addEventListener("change", e => {{ state.interviewPath = e.target.value; renderInterviews(); }});
     searchEl.addEventListener("input", e => {{
       state.search = e.target.value.trim().toLowerCase();
       renderSnippets();

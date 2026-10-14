@@ -71,6 +71,7 @@ presentation mode and should not be used by agents parsing results.
 | `bewley add-audio <path> [--output F] [--model M]` | Transcribe audio via the OpenAI API (external paid call; envelope carries a cost warning) and add the transcript. |
 | `bewley add-video <path> [--output F] [--model M]` | Extract audio from video, transcribe it (external paid call), and add the transcript. |
 | `bewley import survey-csv <file> --transcript-column C [--feedback-column C] [--format auto\|json\|python\|plain] [--output-dir D] [--dry-run]` | Import one CSV row per document; safely flatten serialized role/content turns, exclude unselected columns, segment speakers, assign roles, and record source provenance. Refuses to overwrite an existing output directory. |
+| `bewley import edsl-results <file.ep> --question Q [--output-dir D] [--dry-run]` | Import one interview per EDSL Results row; flatten structured role/content turns, segment speakers, retain scalar scenario and answer fields as metadata, and skip common direct identifier fields. |
 | `bewley update <path>` | Create a new revision of an existing document. Prints `revision_id` or "no-op". |
 | `bewley source-image attach <doc> <image> --page N` | Preserve a JPEG/PNG/GIF/WebP source image content-addressably and link it to an analysis document at an explicit one-based page number. |
 | `bewley list documents` | List all documents as JSON (document_id, path, revision_count). |
@@ -78,6 +79,24 @@ presentation mode and should not be used by agents parsing results.
 | `bewley show document <ref>` | Show metadata, revisions, and annotations for a document. |
 | `bewley show audio <ref>` | Show the stored transcription provenance for an audio-derived document. |
 | `bewley show video <ref>` | Show the stored transcription provenance for a video-derived document. |
+
+### EDSL Results interview explorer
+
+For an EDSL Results package whose selected answer is a list of `{role, content}`
+turns, use the same commands for each project:
+
+```bash
+mkdir -p study
+cd study
+bewley init
+bewley import edsl-results ../results.ep --question interview_turns --output-dir corpus/interviews
+bewley next
+bewley export html --output interviews.html
+```
+
+The import creates one text document per Results row, segments speaker turns,
+and retains scalar scenario/answer metadata after filtering common identifiers.
+The HTML explorer renders those project documents and accepted metadata.
 
 ## Code management
 
@@ -165,7 +184,7 @@ Default mode is `document`. Use `--mode annotation` for individual annotation re
 |---|---|
 | `bewley export snippets --code <ref> --format jsonl\|text [--context-lines N]` | Export annotated text snippets. |
 | `bewley export quotes (--code <ref> \| --query '<expr>' \| --all) --format jsonl\|text [--context-lines N]` | Export quotes filtered by code or query, or `--all` to dump every active span annotation in the project. |
-| `bewley export html [--output F] [--title T] [--source-images omit\|embed]` | Standalone interactive explorer with full-text search and highlighting, document/scope/status/memo filters, code definitions, prevalence and coverage analytics, proximity relationships, document density, and filtered JSON download. `embed` includes registered pre-OCR source pages; omission is the privacy-preserving default. |
+| `bewley export html [--output F] [--title T] [--source-images omit\|embed]` | Standalone interactive explorer with full-text search and highlighting, document/scope/status/memo filters, code definitions, prevalence and coverage analytics, and filtered JSON download. Its Interviews tab displays segmented turns and accepted metadata, with interview documents collapsed initially. `embed` includes registered pre-OCR source pages; omission is the privacy-preserving default. |
 | `bewley export document-html <ref> [--output F] [--title T] [--source-images omit\|embed]` | Single document with inline highlights and, when explicitly requested, embedded original source-page images. |
 | `bewley export matrix [--attribute NAME=VALUE] [--output F]` | Code × case annotation counts, distinct coded-document counts and eligible-document denominators. Speaker-linked cases use their own overlapping turns; parent codes include descendants. |
 | `bewley export plots [--output-dir DIR]` | Accessible SVGs: code prevalence, coding density, code co-occurrence, code × document matrix, code-discovery curve, review outcomes, in-document annotation positions, and codebook evolution, plus the underlying JSON manifest. The review-outcomes plot is written only when open-coding sidecar logs (`ingest_log.jsonl`/`apply_log.jsonl`) exist. |

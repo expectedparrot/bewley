@@ -1071,6 +1071,9 @@ class Project:
             # Import provenance is durable in the event payload and manifest;
             # document and speaker projections come from their own events.
             return
+        if etype == "edsl_results_imported":
+            # Documents, metadata, and speaker roles have their own events.
+            return
         raise BewleyError(f"unsupported event type in projection: {etype}")
 
     def apply_undo(self, conn: sqlite3.Connection, payload: dict[str, Any], event: dict[str, Any]) -> None:
