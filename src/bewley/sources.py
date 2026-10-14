@@ -240,7 +240,7 @@ def set_metadata(
         "document_type",
         "language",
         "collection",
-    }:
+    } and not (field.startswith("record.") and len(field) > 7 and all(c.isalnum() or c in "._-" for c in field)):
         raise BewleyError("Unsupported metadata field.", code="INVALID_INPUT")
     if provenance not in {
         "catalog",
